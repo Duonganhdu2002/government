@@ -1,1 +1,19 @@
-init
+# Server
+
+## Install
+
+```bash
+npm install
+```
+
+## Run
+
+```bash
+npm run dev
+```
+## Add new environment variable
+
+```bash
+cp .env
+```
+
