@@ -20,4 +20,23 @@ Tạo file .env và copy nội dung từ .env.example
 npm run dev
 ```
 
+# Chạy Admin 
+```bash
+cd admin
+npm install
+npm run dev
+```
+
+# Chạy web user
+```bash
+cd web
+npm install
+npm run dev
+```
+# Chạy mobile
+```bash
+cd mobile
+pub get
+flutter run
+```
 
