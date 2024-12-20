@@ -7,7 +7,6 @@ Dự án backend sử dụng Express.js, PostgreSQL và Redis.
 ```bash
 git clone <git@github.com:Duonganhdu2002/government.git>
 cd government
-npm install
 ```
 
 # Cấu hình
