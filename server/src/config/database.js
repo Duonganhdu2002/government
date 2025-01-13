@@ -1,23 +1,28 @@
-const { Pool } = require('pg');
+const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+const sequelize = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD, {
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
-  database: process.env.DB_DATABASE,
-  ssl: {
-    rejectUnauthorized: false
+  dialect: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
   },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  pool: {
+    max: 20,
+    idle: 30000,
+    acquire: 2000,
+  },
+  logging: false, // Tắt logging SQL (tuỳ chọn)
 });
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
-});
+// Test kết nối
+sequelize
+  .authenticate()
+  .then(() => console.log('Connection to PostgreSQL has been established successfully.'))
+  .catch((err) => console.error('Unable to connect to the database:', err));
 
-module.exports = pool;
+module.exports = sequelize;
