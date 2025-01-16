@@ -11,7 +11,7 @@ const redisClient = redis.createClient({
     connectTimeout: 10000,
     reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
   },
-  password: process.env.REDIS_PASSWORD 
+  password: process.env.REDIS_PASSWORD
 });
 
 redisClient.on('error', (err) => {

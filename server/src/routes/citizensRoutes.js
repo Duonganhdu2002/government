@@ -1,11 +1,12 @@
+// routes/citizensRoutes.js
 const express = require('express');
 const router = express.Router();
 const citizensController = require('../controllers/citizensController');
 
-router.get('/', citizensController.getAllUsers);
-router.get('/:id', citizensController.getUserById);
-router.post('/', citizensController.createUser);
-router.put('/:id', citizensController.updateUser);
-router.delete('/:id', citizensController.deleteUser);
+router.get('/', citizensController.getAllCitizens);
+router.get('/:id', citizensController.getCitizenById);
+router.post('/', citizensController.createCitizen);
+router.put('/:id', citizensController.updateCitizen);
+router.delete('/:id', citizensController.deleteCitizen);
 
 module.exports = router;
