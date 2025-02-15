@@ -1,17 +1,22 @@
+/************************************************
+ * config/redis.js - Redis client connection
+ ************************************************/
 const redis = require('redis');
 require('dotenv').config();
 
-const redisUrl = process.env.REDIS_URL;
+const redisUrl = process.env.REDIS_URL; 
+// e.g. REDIS_URL=127.0.0.1:6379 or 'my-redis-host:6379'
+// If you only have host:port, split them
 const [host, port] = redisUrl.split(':');
 
 const redisClient = redis.createClient({
   socket: {
-    host: host,
-    port: port,
+    host,
+    port,
     connectTimeout: 10000,
-    reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
+    reconnectStrategy: (retries) => Math.min(retries * 50, 1000),
   },
-  password: process.env.REDIS_PASSWORD
+  password: process.env.REDIS_PASSWORD, // optional if your redis requires password
 });
 
 redisClient.on('error', (err) => {

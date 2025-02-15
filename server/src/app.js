@@ -1,4 +1,7 @@
-// server.js
+/**********************************************
+ * server.js - Clean Version
+ **********************************************/
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,30 +12,28 @@ const mongoSanitize = require('express-mongo-sanitize');
 require('dotenv').config();
 
 const pool = require('./config/database');
-const redisClient = require('./config/redis'); // optional if using Redis
+const redisClient = require('./config/redis'); 
 const citizensRoutes = require('./routes/citizensRoutes');
 
 const app = express();
 
-// Use Helmet to secure headers
-app.use(helmet());
+/* 
+ * Security & Middleware
+ */
+app.use(helmet());        // Secure HTTP headers
+app.use(xssClean());      // Prevent XSS
+app.use(mongoSanitize()); // Sanitize against NoSQL injection
+app.use(hpp());           // Prevent HTTP parameter pollution
 
-// Sanitize user input to prevent NoSQL injection and XSS attacks
-app.use(xssClean());
-app.use(mongoSanitize());
-
-// Prevent HTTP parameter pollution
-app.use(hpp());
-
-// Rate limiting to prevent brute-force attacks
+// Rate limiting to mitigate brute force / DDoS
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes.',
+  max: 100,                 // limit each IP to 100 requests per window
+  message: 'Too many requests from this IP, please try again later.',
 });
 app.use(limiter);
 
-// CORS setup
+// CORS configuration
 app.use(
   cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
@@ -42,30 +43,37 @@ app.use(
   })
 );
 
-// Parse incoming JSON
+// Parse JSON request bodies
 app.use(express.json());
 
-// Routes
+/* 
+ * Routes
+ */
 app.use('/api/citizens', citizensRoutes);
 
-// Basic route
+// Basic health check route
 app.get('/', (req, res) => {
   res.send('Welcome to Secure Express PostgreSQL API');
 });
 
+/* 
+ * Start the Server
+ */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// Graceful shutdown
+/* 
+ * Graceful Shutdown
+ */
 process.on('SIGINT', async () => {
   try {
-    // Quit Redis if you're using it
+    // Close Redis if in use
     await redisClient.quit();
     console.log('Redis connection closed');
 
-    // End PG Pool
+    // End PostgreSQL pool connections
     await pool.end();
     console.log('PostgreSQL pool has ended');
 
