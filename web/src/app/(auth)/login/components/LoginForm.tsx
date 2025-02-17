@@ -76,7 +76,7 @@ const LoginForm: React.FC = () => {
         {/* Signup Link (Using Next.js Link) */}
         <div className="text-center mt-4 text-sm text-gray-600">
           Don't have an account?{" "}
-          <Link href="/auth/register" className="text-black font-semibold hover:underline">
+          <Link href="/register" className="text-black font-semibold hover:underline">
             Sign up for free.
           </Link>
         </div>

@@ -115,7 +115,7 @@ const RegisterForm: React.FC = () => {
         {/* Login Link (Using Next.js Link) */}
         <div className="text-center mt-4 text-sm text-gray-600">
           Already have an account?{" "}
-          <Link href="/auth/login" className="text-black font-semibold hover:underline">
+          <Link href="/login" className="text-black font-semibold hover:underline">
             Sign in here.
           </Link>
         </div>
