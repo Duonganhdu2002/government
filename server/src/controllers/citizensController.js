@@ -16,9 +16,9 @@ const citizensController = {
         return res.status(200).json(JSON.parse(cachedCitizens));
       }
 
-      // 2) If not found in Redis, fetch from PostgreSQL
+      // 2) If not found in Redis, fetch from PostgreSQL using lowercase table name
       console.log('Cache miss. Fetching citizens from database...');
-      const result = await pool.query('SELECT * FROM "Citizens";');
+      const result = await pool.query('SELECT * FROM citizens;');
       console.log('Query result:', result.rows);
 
       if (result.rows.length === 0) {
@@ -54,10 +54,10 @@ const citizensController = {
         return res.status(200).json(JSON.parse(cachedCitizen));
       }
 
-      // 2) Not in cache -> query DB
+      // 2) Not in cache -> query DB (table and column names in lowercase)
       console.log(`Cache miss for Citizen ID=${id}. Querying database...`);
       const result = await pool.query(
-        'SELECT * FROM "Citizens" WHERE "CitizenID" = $1;',
+        'SELECT * FROM citizens WHERE citizenid = $1;',
         [id]
       );
       if (result.rows.length === 0) {
@@ -97,13 +97,12 @@ const citizensController = {
 
     try {
       const result = await pool.query(
-        `INSERT INTO "Citizens" ("FullName", "IdentificationNumber", "Address", "PhoneNumber", "Email", "Username", "PasswordHash", "AreaCode")
+        `INSERT INTO citizens (fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`,
         [fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode]
       );
 
-      // OPTIONAL: You could remove or update relevant caches here if needed.
-      // e.g. removing 'all_citizens' so that next GET /citizens fetches from DB again
+      // Invalidate cache for citizens list
       await redisClient.del('all_citizens');
 
       res.status(201).json(result.rows[0]);
@@ -133,25 +132,20 @@ const citizensController = {
 
     try {
       const result = await pool.query(
-        `UPDATE "Citizens"
-         SET "FullName" = $1, "IdentificationNumber" = $2, "Address" = $3, "PhoneNumber" = $4, "Email" = $5,
-             "Username" = $6, "PasswordHash" = $7, "AreaCode" = $8
-         WHERE "CitizenID" = $9 RETURNING *;`,
+        `UPDATE citizens
+         SET fullname = $1, identificationnumber = $2, address = $3, phonenumber = $4, email = $5,
+             username = $6, passwordhash = $7, areacode = $8
+         WHERE citizenid = $9 RETURNING *;`,
         [fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode, id]
       );
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Citizen not found' });
       }
 
-      // OPTIONAL: update cache
-      // 1) Delete the cached "all_citizens" to force a fresh DB read next time
+      // Invalidate/update cache
       await redisClient.del('all_citizens');
-
-      // 2) Update the specific citizen in Redis
       const redisKey = `citizen_${id}`;
-      await redisClient.set(redisKey, JSON.stringify(result.rows[0]), {
-        EX: 60, // expires in 60s
-      });
+      await redisClient.set(redisKey, JSON.stringify(result.rows[0]), { EX: 60 });
 
       res.status(200).json(result.rows[0]);
     } catch (error) {
@@ -168,15 +162,15 @@ const citizensController = {
     }
     try {
       const result = await pool.query(
-        'DELETE FROM "Citizens" WHERE "CitizenID" = $1 RETURNING *;',
+        'DELETE FROM citizens WHERE citizenid = $1 RETURNING *;',
         [id]
       );
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Citizen not found' });
       }
 
-      // OPTIONAL: remove the citizen from Redis
-      await redisClient.del('all_citizens'); // so next GET /citizens triggers fresh DB read
+      // Invalidate caches
+      await redisClient.del('all_citizens');
       await redisClient.del(`citizen_${id}`);
 
       res.status(200).json({ message: 'Citizen deleted successfully' });

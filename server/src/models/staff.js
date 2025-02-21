@@ -1,29 +1,27 @@
-// models/citizen.js
-// This model represents the 'Citizens' table.
+// models/staff.js
+// This model represents the 'Staff' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Citizen = sequelize.define('Citizen', {
-  CitizenID: {
+const Staff = sequelize.define('Staff', {
+  StaffID: {
     type: DataTypes.INTEGER,
     primaryKey: true,
+    allowNull: false,
+  },
+  AgencyID: {
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   FullName: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  IdentificationNumber: {
+  EmployeeCode: {
     type: DataTypes.STRING,
   },
-  Address: {
-    type: DataTypes.STRING,
-  },
-  PhoneNumber: {
-    type: DataTypes.STRING,
-  },
-  Email: {
+  Role: {
     type: DataTypes.STRING,
   },
   Username: {
@@ -31,13 +29,10 @@ const Citizen = sequelize.define('Citizen', {
   },
   PasswordHash: {
     type: DataTypes.STRING,
-  },
-  AreaCode: {
-    type: DataTypes.INTEGER,
   }
 }, {
-  tableName: 'Citizens',
+  tableName: 'Staff',
   timestamps: false,
 });
 
-module.exports = Citizen;
+module.exports = Staff;

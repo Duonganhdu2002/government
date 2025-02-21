@@ -1,21 +1,18 @@
-// models/citizen.js
-// This model represents the 'Citizens' table.
+// models/agencies.js
+// This model represents the 'Agencies' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Citizen = sequelize.define('Citizen', {
-  CitizenID: {
+const Agency = sequelize.define('Agency', {
+  AgencyID: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  FullName: {
+  AgencyName: {
     type: DataTypes.STRING,
     allowNull: false,
-  },
-  IdentificationNumber: {
-    type: DataTypes.STRING,
   },
   Address: {
     type: DataTypes.STRING,
@@ -26,18 +23,15 @@ const Citizen = sequelize.define('Citizen', {
   Email: {
     type: DataTypes.STRING,
   },
-  Username: {
-    type: DataTypes.STRING,
-  },
-  PasswordHash: {
-    type: DataTypes.STRING,
+  SpecializedFields: {
+    type: DataTypes.TEXT,
   },
   AreaCode: {
     type: DataTypes.INTEGER,
   }
 }, {
-  tableName: 'Citizens',
+  tableName: 'Agencies',
   timestamps: false,
 });
 
-module.exports = Citizen;
+module.exports = Agency;
