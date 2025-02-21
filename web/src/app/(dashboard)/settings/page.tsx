@@ -8,7 +8,7 @@ import React from "react";
  */
 const Page = () => {
   return (
-    <div>Lồn chị nè em</div>
+    <div>Setting</div>
   );
 };
 
