@@ -30,10 +30,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} 
           md:static md:translate-x-0`}
       >
-
         <nav className="space-y-2">
-          <div>
-            Profile here
+          <div className=" flex">
+            <div>Ten</div>
+            <div>Anh</div>
           </div>
           <NavItem
             href="/"
@@ -49,16 +49,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             href="/history"
             icon={<Sun className="w-5 h-5" />}
             label="History"
-          />
-          <NavItem
-            href="/account"
-            icon={<Sun className="w-5 h-5" />}
-            label="Account"
-          />
-          <NavItem
-            href="/settings"
-            icon={<Sun className="w-5 h-5" />}
-            label="Settings"
           />
         </nav>
       </aside>
