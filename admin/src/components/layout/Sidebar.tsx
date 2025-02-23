@@ -38,12 +38,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           <NavItem
             href="/"
             icon={<Sun className="w-5 h-5" />}
-            label="Dashboard"
+            label="Trang chủ"
           />
           <NavItem
             href="/submit-request"
             icon={<Sun className="w-5 h-5" />}
-            label="Submit Request"
+            label="Yêu cầu"
           />
           <NavItem
             href="/history"

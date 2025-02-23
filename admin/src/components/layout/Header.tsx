@@ -24,9 +24,6 @@ const Header = ({ setSidebarOpen }: HeaderProps) => (
           />
         </svg>
       </button>
-      <h2 className="text-xl font-semibold text-gray-800 hidden md:block">
-        Dashboard
-      </h2>
     </div>
 
     {/* Center Section */}
