@@ -51,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <div className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 overflow-x-hidden`}>
       <div className="flex min-h-screen">
         {/* Sidebar */}
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}  />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
