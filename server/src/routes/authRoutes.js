@@ -21,4 +21,8 @@ router.post('/refresh', authController.refreshToken);
 // POST /api/auth/logout - Log out the user and invalidate the refresh token
 router.post('/logout', authController.logout);
 
+// POST /api/auth/change-password - Change user's password (requires citizenid, oldPassword, and newPassword)
+router.post('/change-password', authController.changePassword);
+
+
 module.exports = router;
