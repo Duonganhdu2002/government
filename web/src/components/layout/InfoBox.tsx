@@ -9,7 +9,7 @@ interface InfoBoxProps {
 
 const InfoBox: React.FC<InfoBoxProps> = ({ title, description, link }) => {
   return (
-    <div className="flex flex-col h-full min-h-[200px] p-4 bg-gray-100 rounded-lg shadow-md">
+    <div className="flex flex-col h-full min-h-[200px] p-4 bg-gray-50 rounded-lg shadow-sm">
       <h3 className="text-lg text-black font-semibold flex-grow">{title}</h3>
       <p className="text-gray-600 flex-grow">{description}</p>
       <Link href={link} className="text-red-500 font-bold">
