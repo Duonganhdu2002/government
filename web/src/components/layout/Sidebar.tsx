@@ -1,6 +1,3 @@
-// File: src/components/layout/Sidebar.tsx
-// This component renders a responsive sidebar with navigation items, a user avatar,
-
 "use client";
 
 import { useState } from "react";
@@ -17,6 +14,7 @@ import { Avatar, Container, Text } from "@medusajs/ui";
 import NavItemAccount from "../common/NavItemAccount";
 import ChangePasswordPopup from "../common/ChangePasswordPopup";
 import LogoutConfirm from "../common/LogoutConfirm";
+import UserInformationPopup from "../common/UserInformationPopup";
 
 type SidebarProps = {
   sidebarOpen: boolean;
@@ -30,9 +28,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   // State to manage the display of the account options container on hover
   const [showContainer, setShowContainer] = useState(false);
 
-  // States to manage popup visibility for changing password and logging out
+  // States to manage popup visibility for changing password, logging out, and user information
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [showInformation, setShowInformation] = useState(false);
 
   return (
     <>
@@ -80,7 +79,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   <NavItemAccount
                     icon={<UserMini className="w-5 h-5" />}
                     label="Thông tin"
-                    onClick={() => setShowChangePassword(true)}
+                    onClick={() => setShowInformation(true)}
                   />
                   <hr />
                   <NavItemAccount
@@ -130,6 +129,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             setShowLogout(false);
           }}
         />
+      )}
+      {/* Render User Information popup */}
+      {showInformation && (
+        <UserInformationPopup onClose={() => setShowInformation(false)} />
       )}
     </>
   );

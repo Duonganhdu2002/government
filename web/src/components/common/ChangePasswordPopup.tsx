@@ -1,21 +1,19 @@
-// File: src/components/common/ChangePasswordPopup.tsx
-// This component renders a modal popup with a form for changing the user's password.
-// It includes client-side validation and error handling.
-"use client";
-
 import React, { useState } from "react";
+import { Prompt, Label, Text } from "@medusajs/ui";
 
 type ChangePasswordPopupProps = {
   onClose: () => void;
 };
 
-const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({ onClose }) => {
-  // State for form inputs and error message
+const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({
+  onClose,
+}) => {
+  // State lưu trữ thông tin form và lỗi
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Handle form submission with basic validation
+  // Xử lý submit form với validation cơ bản
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword) {
@@ -28,49 +26,58 @@ const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({ onClose }) =>
   };
 
   return (
-    <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black/50 z-50">
-      <div className="bg-white p-6 rounded-2xl shadow-lg w-96">
-        <h2 className="mb-4 text-xl font-semibold text-center">Đổi mật khẩu</h2>
-        {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <Prompt open>
+      <Prompt.Content>
+        <Prompt.Header>
+          <Prompt.Title>
+            <Text weight="plus" size="xlarge" className=" text-gray-800">
+              Đổi mật khẩu
+            </Text>
+          </Prompt.Title>
+        </Prompt.Header>
+        {error && (
+          <Text className="text-red-500 text-sm text-center mb-4">{error}</Text>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4 px-6 mt-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu cũ</label>
+            <Label className=" text-gray-700 font-medium">Mật khẩu cũ</Label>
             <input
               type="password"
-              className="border p-2 w-full rounded-md focus:ring-2 focus:ring-black"
+              placeholder="Nhập mật khẩu cũ"
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               required
+              className="border p-2 w-full border-solid rounded-md mt-1 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới</label>
+            <Label className=" text-gray-700 font-medium">Mật khẩu mới</Label>
             <input
               type="password"
-              className="border p-2 w-full rounded-md focus:ring-2 focus:ring-black"
+              placeholder="Nhập mật khẩu mới"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
+              className="border p-2 w-full rounded-md border-solid mt-1 text-sm"
             />
           </div>
-          <div className="flex justify-between">
-            <button
-              type="button"
+          <Prompt.Footer className="flex justify-between">
+            <Prompt.Cancel
               onClick={onClose}
-              className="py-2 px-4 bg-gray-300 text-black text-sm font-semibold rounded-md hover:bg-gray-400 transition"
+              className="bg-black text-white hover:bg-black/80 py-2 px-4 rounded"
             >
               Hủy
-            </button>
-            <button
+            </Prompt.Cancel>
+            <Prompt.Action
               type="submit"
-              className="py-2 px-4 bg-black text-white text-sm font-semibold rounded-md hover:bg-gray-900 transition"
+              className="bg-black text-white hover:bg-black/80 py-2 px-4 rounded border-none"
             >
               Xác nhận
-            </button>
-          </div>
+            </Prompt.Action>
+          </Prompt.Footer>
         </form>
-      </div>
-    </div>
+      </Prompt.Content>
+    </Prompt>
   );
 };
 
