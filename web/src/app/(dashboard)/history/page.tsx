@@ -1,13 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import { Text, Tabs, Table, Select } from "@medusajs/ui";
+import React, { useState, useEffect } from "react";
 
-/**
- * Main page component
- */
+// Hook để kiểm tra kích thước màn hình có phải mobile không (ở đây dùng breakpoint 768px)
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => setIsMobile(window.innerWidth < 768);
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
+
+  return isMobile;
+};
+
 const Page = () => {
-  const [activeTab, setActiveTab] = useState("Tất cả");
-
   const tabs = [
     "Tất cả",
     "Chờ gửi",
@@ -19,42 +29,71 @@ const Page = () => {
     "Chờ xác nhận ủy quyền",
   ];
 
+  // activeTab lưu giá trị dưới dạng chuỗi, khớp với value của Tabs hoặc Select.Item
+  const [activeTab, setActiveTab] = useState("0");
+  const isMobile = useIsMobile();
+
+  const handleSelectChange = (value: React.SetStateAction<string>) => {
+    setActiveTab(value);
+  };
+
   return (
-    <div className="max-h-screen min-h-[600px] max-w-5xl mx-auto mt-6 p-6 bg-white rounded-lg shadow-lg overflow-auto">
+    <div className="h-full p-5 md:p-6 lg:p-8 bg-white rounded-lg shadow-sm overflow-auto">
       <div>
         <div className="mb-6">
-          <p className="text-xl text-black font-bold leading-relaxed mb-2">
+          <Text className="text-lg md:text-xl font-bold">
             Lịch sử đăng ký định danh tổ chức
-          </p>
+          </Text>
         </div>
 
-        {/* Thanh điều hướng trạng thái */}
-        <div className="flex space-x-3 border-b pb-2 font-bold">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-all 
-                ${
-                  activeTab === tab
-                    ? "bg-red-600 text-white rounded-full px-5 py-2"
-                    : "border-transparent text-black hover:text-red-600"
-                }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
+        {/* Hiển thị Select cho mobile, Tabs cho desktop */}
+        {isMobile ? (
+          <Select value={activeTab} onValueChange={handleSelectChange}>
+            <Select.Trigger className=" mb-4">
+              <Select.Value placeholder="Chọn trạng thái" />
+            </Select.Trigger>
+            <Select.Content>
+              {tabs.map((tab, index) => (
+                <Select.Item key={index} value={index.toString()}>
+                  {tab}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs.List className="mb-6">
+              {tabs.map((tab, index) => (
+                <Tabs.Trigger key={index} value={index.toString()}>
+                  {tab}
+                </Tabs.Trigger>
+              ))}
+            </Tabs.List>
+          </Tabs>
+        )}
 
-      {/* Hiển thị nếu không có dữ liệu */}
-      <div className="flex justify-center items-center h-40 mt-6">
-        <div className="text-center text-gray-400">
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-2">
-            📄
+        {/* Hiển thị nội dung theo activeTab */}
+        {tabs.map((tab, index) => (
+          <div key={index} className={activeTab === index.toString() ? "" : "hidden"}>
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>#</Table.HeaderCell>
+                  <Table.HeaderCell>Customer</Table.HeaderCell>
+                  <Table.HeaderCell>Email</Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                <Table.Row>
+                  <Table.Cell>1</Table.Cell>
+                  <Table.Cell>Emil Larsson</Table.Cell>
+                  <Table.Cell>emil2738@gmail.com</Table.Cell>
+                </Table.Row>
+                {/* Thêm các dòng dữ liệu khác nếu cần */}
+              </Table.Body>
+            </Table>
           </div>
-          Chưa có thông tin định danh tổ chức
-        </div>
+        ))}
       </div>
     </div>
   );

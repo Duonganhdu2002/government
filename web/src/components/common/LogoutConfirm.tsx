@@ -1,4 +1,7 @@
+// File: src/components/common/LogoutConfirm.tsx
+// This component renders a modal popup to confirm the user's intent to log out.
 "use client";
+
 import React from "react";
 
 type LogoutConfirmProps = {

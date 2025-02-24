@@ -1,13 +1,22 @@
+// File: src/components/layout/Sidebar.tsx
+// This component renders a responsive sidebar with navigation items, a user avatar,
+
 "use client";
 
 import { useState } from "react";
-import { Sun } from "@medusajs/icons";
+import {
+  History,
+  DocumentText,
+  House,
+  OpenRectArrowOut,
+  Key,
+  UserMini,
+} from "@medusajs/icons";
 import NavItem from "../common/NavItem";
-import { Avatar, Container } from "@medusajs/ui";
+import { Avatar, Container, Text } from "@medusajs/ui";
 import NavItemAccount from "../common/NavItemAccount";
 import ChangePasswordPopup from "../common/ChangePasswordPopup";
 import LogoutConfirm from "../common/LogoutConfirm";
-
 
 type SidebarProps = {
   sidebarOpen: boolean;
@@ -15,18 +24,19 @@ type SidebarProps = {
 };
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
+  // State to control sidebar width toggle
   const [sidebarWidenOpen, setSidebarWidenOpen] = useState(false);
 
-  // Quản lý việc hiển thị Container trên hover
+  // State to manage the display of the account options container on hover
   const [showContainer, setShowContainer] = useState(false);
 
-  // Quản lý hiển thị popup
+  // States to manage popup visibility for changing password and logging out
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
 
   return (
     <>
-      {/* Overlay cho mobile */}
+      {/* Mobile overlay to close the sidebar */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden ${
           sidebarOpen ? "block" : "hidden"
@@ -45,33 +55,41 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         `}
       >
         <nav className="space-y-2 p-4 bg-white w-64">
-          {/* Avatar & Tên */}
+          {/* Avatar & User Name */}
           <div
             className="flex items-center gap-x-3 mb-3 relative"
             onMouseEnter={() => setShowContainer(true)}
             onMouseLeave={() => setShowContainer(false)}
           >
-            <div className="relative w-12 h-12 overflow-hidden rounded-full border border-gray-300 flex items-center justify-center">
+            <div className="flex items-center justify-center">
               <Avatar
+                size="xlarge"
                 src="https://images.pexels.com/photos/29914956/pexels-photo-29914956.jpeg"
                 fallback=""
-                className="w-full h-full object-cover"
+                className="mr-3"
               />
+              <Text size="large" className="font-medium">
+                Tên
+              </Text>
             </div>
-            <div className="text-lg font-medium">Tên</div>
 
-            {/* Hover vào Avatar để hiện Container */}
+            {/* Display account options on hover */}
             {showContainer && (
               <div className="absolute top-full left-0">
                 <Container className="shadow-md p-3 bg-gray-50 space-y-2">
                   <NavItemAccount
-                    icon={<Sun className="w-5 h-5" />}
-                    label="Đổi mật khẩu"
+                    icon={<UserMini className="w-5 h-5" />}
+                    label="Thông tin"
                     onClick={() => setShowChangePassword(true)}
                   />
                   <hr />
                   <NavItemAccount
-                    icon={<Sun className="w-5 h-5" />}
+                    icon={<Key className="w-5 h-5" />}
+                    label="Đổi mật khẩu"
+                    onClick={() => setShowChangePassword(true)}
+                  />
+                  <NavItemAccount
+                    icon={<OpenRectArrowOut className="w-5 h-5" />}
                     label="Đăng xuất"
                     onClick={() => setShowLogout(true)}
                   />
@@ -80,31 +98,35 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             )}
           </div>
 
-          {/* Nav items */}
-          <NavItem href="/" icon={<Sun className="w-5 h-5" />} label="Trang chủ" />
+          {/* Navigation items */}
+          <NavItem
+            href="/"
+            icon={<House className="w-5 h-5" />}
+            label="Trang chủ"
+          />
           <NavItem
             href="/submit-request"
-            icon={<Sun className="w-5 h-5" />}
-            label="Submit Request"
+            icon={<DocumentText className="w-5 h-5" />}
+            label="Yêu cầu"
           />
           <NavItem
             href="/history"
-            icon={<Sun className="w-5 h-5" />}
-            label="History"
+            icon={<History className="w-5 h-5" />}
+            label="Lịch sử"
           />
         </nav>
       </aside>
 
-      {/* Render popup đổi mật khẩu */}
+      {/* Render Change Password popup */}
       {showChangePassword && (
         <ChangePasswordPopup onClose={() => setShowChangePassword(false)} />
       )}
-      {/* Render popup xác nhận đăng xuất */}
+      {/* Render Logout confirmation popup */}
       {showLogout && (
         <LogoutConfirm
           onCancel={() => setShowLogout(false)}
           onConfirm={() => {
-            // Xử lý logic đăng xuất ở đây
+            // Handle logout logic here
             setShowLogout(false);
           }}
         />

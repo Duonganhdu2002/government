@@ -1,5 +1,8 @@
+// File: src/components/layout/InfoBox.tsx
+// This component displays an information box with a title, description, and a navigational link.
+
 import React from "react";
-import Link from "next/link"; // Import Link để chuyển trang nhanh
+import Link from "next/link";
 
 interface InfoBoxProps {
   title: string;

@@ -1,4 +1,8 @@
+// File: src/components/common/ChangePasswordPopup.tsx
+// This component renders a modal popup with a form for changing the user's password.
+// It includes client-side validation and error handling.
 "use client";
+
 import React, { useState } from "react";
 
 type ChangePasswordPopupProps = {
@@ -6,10 +10,12 @@ type ChangePasswordPopupProps = {
 };
 
 const ChangePasswordPopup: React.FC<ChangePasswordPopupProps> = ({ onClose }) => {
+  // State for form inputs and error message
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState("");
 
+  // Handle form submission with basic validation
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword) {
