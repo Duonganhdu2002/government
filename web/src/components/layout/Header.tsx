@@ -1,6 +1,6 @@
 import { Button } from "@medusajs/ui";
 import Image from "next/image";
-import CreateRequireModal from "../common/CreateRequireModal"; // Import the renamed modal
+import Link from "next/link";
 
 type HeaderProps = {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -34,9 +34,6 @@ const Header = ({ setSidebarOpen }: HeaderProps) => (
         <Image src="/bell.svg" alt="Notification Bell" width={24} height={24} />
         <span className="absolute top-0 right-0 block w-2 h-2 bg-red-500 rounded-full" />
       </div>
-
-      {/* Use the renamed CreateRequireModal component */}
-      <CreateRequireModal />
     </div>
   </header>
 );
