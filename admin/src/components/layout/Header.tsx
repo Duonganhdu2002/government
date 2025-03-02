@@ -1,14 +1,15 @@
-"use client";
+import { Button } from "@medusajs/ui";
+import Image from "next/image";
+import Link from "next/link";
 
 type HeaderProps = {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const Header = ({ setSidebarOpen }: HeaderProps) => (
-  <header className="flex justify-between items-center bg-white shadow-md p-4">
-    {/* Left Section */}
+  <header className="flex justify-between items-center bg-white shadow-sm p-4">
+    {/* Left Section: Hamburger menu for mobile */}
     <div className="flex items-center">
-      {/* Hamburger menu visible only on mobile */}
       <button className="md:hidden mr-2" onClick={() => setSidebarOpen(true)}>
         <svg
           className="w-6 h-6 text-gray-800"
@@ -26,21 +27,12 @@ const Header = ({ setSidebarOpen }: HeaderProps) => (
       </button>
     </div>
 
-    {/* Center Section */}
-    <div className=" flex">
-      <div className="flex-1 flex justify-center px-4">
-        <input
-          type="text"
-          placeholder="Search..."
-          className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-black"
-        />
-      </div>
-
-      {/* Right Section */}
-      <div className="flex items-center">
-        <div className="bg-black text-white rounded-lg text-center flex justify-center items-center px-6 py-2 cursor-pointer">
-          Create
-        </div>
+    {/* Center Section: Notification icon and Create button */}
+    <div className="flex items-center space-x-4">
+      {/* Notification button with red dot indicator */}
+      <div className="relative inline-block">
+        <Image src="/bell.svg" alt="Notification Bell" width={24} height={24} />
+        <span className="absolute top-0 right-0 block w-2 h-2 bg-red-500 rounded-full" />
       </div>
     </div>
   </header>
