@@ -3,6 +3,9 @@
 import { useState } from "react";
 import {
   History,
+  CircleMiniSolid,
+  CircleQuarterSolid,
+  CircleMiniFilledSolid,
   DocumentText,
   House,
   OpenRectArrowOut,
@@ -104,14 +107,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             label="Trang chủ"
           />
           <NavItem
-            href="/submit-request"
-            icon={<DocumentText className="w-5 h-5" />}
-            label="Yêu cầu"
+            href="/pending-requests"
+            icon={<CircleMiniSolid className="w-5 h-5" />}
+            label="Yêu cầu chờ duyệt"
+          />
+          <NavItem
+            href="/upcoming-requests"
+            icon={<CircleQuarterSolid className="w-5 h-5" />}
+            label="Yêu cầu sắp đến hạn"
+          />
+          <NavItem
+            href="/overdue-requests"
+            icon={<CircleMiniFilledSolid className="w-5 h-5" />}
+            label="Yêu cầu trễ hạn"
           />
           <NavItem
             href="/history"
             icon={<History className="w-5 h-5" />}
-            label="Lịch sử"
+            label="Lịch sử tiếp nhận"
+          />
+          <NavItem
+            href="/submit-request"
+            icon={<DocumentText className="w-5 h-5" />}
+            label="Báo cáo hiệu suất"
           />
         </nav>
       </aside>

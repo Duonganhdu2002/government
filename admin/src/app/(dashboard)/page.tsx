@@ -13,7 +13,7 @@ const HomePage = () => {
       <div className="p-5 md:p-6 lg:p-8 bg-white rounded-lg shadow-ms h-full">
         <div className="mb-6 ">
           <p className="text-xl text-black font-bold leading-relaxed mb-2">
-            Chào buổi sáng, name!
+            Chào buổi sáng, Cán bộ!
           </p>
           <p className="text-gray-600 leading-relaxed">
             Chào mừng bạn đến với Trang thông tin định danh điện tử
@@ -22,22 +22,22 @@ const HomePage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InfoBox
             title="Tin tức - Sự kiện"
-            description="Tin tức nổi bật mới nhất trong ngày"
+            description="Tin tức mới cần quan tâm"
             link="#"
           />
           <InfoBox
-            title="Cảnh báo lừa đảo"
-            description="Cảnh báo lừa đảo mới nhất trong ngày"
+            title="Lịch trực"
+            description="Lịch trực cần chú ý"
             link="#"
           />
           <InfoBox
-            title="Câu hỏi thường gặp"
-            description="Những thắc mắc của người dùng về Ứng dụng VNeID"
+            title="Lịch nghỉ"
+            description="Lịch nghỉ lễ, nghỉ phép"
             link="#"
           />
           <InfoBox
-            title="Câu hỏi thường gặp"
-            description="Những thắc mắc của người dùng về Ứng dụng VNeID"
+            title="Thông báo"
+            description="Thông báo quan trọng cần lưu ý"
             link="#"
           />
         </div>
