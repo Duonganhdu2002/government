@@ -1,7 +1,8 @@
 "use client";
 
-import { Text, Tabs, Table, Select } from "@medusajs/ui";
+import { Text, Table,  } from "@medusajs/ui";
 import React, { useState, useEffect } from "react";
+import OverdueDetailPopup from "@/components/common/OverdueDetailPopup"
 
 // Hook để kiểm tra kích thước màn hình có phải mobile không (ở đây dùng breakpoint 768px)
 const useIsMobile = () => {
@@ -17,86 +18,83 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-const Page = () => {
-  const tabs = [
-    "Tất cả",
-    "Chờ gửi",
-    "Đang kiểm tra",
-    "Chờ xử lý",
-    "Được tiếp nhận",
-    "Đã phê duyệt",
-    "Từ chối",
-    "Chờ xác nhận ủy quyền",
-  ];
+const overdueRequests = [
+  {
+    id: "001",
+    type: "Nghỉ phép",
+    date: "01/03/2025",
+    deadline: "06/03/2025",
+    sender: "Nguyễn Văn B",
+    content: "Xin nghỉ phép 3 ngày vì lý do cá nhân",
+    reason: "Thiếu giấy tờ cần thiết",
+  },
+  {
+    id: "002",
+    type: "Công tác",
+    date: "02/03/2025",
+    deadline: "06/03/2025",
+    sender: "Trần Văn C",
+    content: "Đi công tác tại Hà Nội 5 ngày",
+    reason: "Thiếu giấy tờ cần thiết",
+  },
+  {
+    id: "003",
+    type: "Khiếu nại",
+    date: "03/03/2025", 
+    deadline: "06/03/2025",
+    sender: "Lê Thị D",
+    content: "Khiếu nại về chế độ làm việc",
+    reason: "Thiếu giấy tờ cần thiết",
+  },
+];
 
-  // activeTab lưu giá trị dưới dạng chuỗi, khớp với value của Tabs hoặc Select.Item
-  const [activeTab, setActiveTab] = useState("0");
-  const isMobile = useIsMobile();
+const OverdueRequestsPage = () => {
+  const [selectedRequest, setSelectedRequest] = useState<null | typeof overdueRequests[0]>(null);
 
-  const handleSelectChange = (value: React.SetStateAction<string>) => {
-    setActiveTab(value);
-  };
-
+  
   return (
     <div className="h-full p-5 md:p-6 lg:p-8 bg-white rounded-lg shadow-sm overflow-auto">
-      <div>
-        <div className="mb-6">
-          <Text className="text-lg md:text-xl font-bold">
-            Lịch sử đăng ký định danh tổ chức
-          </Text>
-        </div>
+      <Text className="text-xl font-bold text-black mb-4">Yêu cầu trễ hạn</Text>
+        <Text className="text-md font-semibold text-red-500 mb-2">
+          Danh sách các yêu cầu đã quá hạn
+        </Text>
+        <Table>
+          <Table.Header>
+            <Table.Row>
+              <Table.HeaderCell className=" font-bold">Mã yêu cầu</Table.HeaderCell>
+              <Table.HeaderCell className=" font-bold">Loại đơn</Table.HeaderCell>
+              <Table.HeaderCell className=" font-bold">Hạn xử lý</Table.HeaderCell>
+              <Table.HeaderCell className=" font-bold">Hành động</Table.HeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {overdueRequests.map((request) => (
+              <Table.Row key={request.id}>
+                <Table.Cell>{request.id}</Table.Cell>
+                <Table.Cell>{request.type}</Table.Cell>
+                <Table.Cell>{request.deadline}</Table.Cell>
+                <Table.Cell>
+                <button
+                    onClick={() => setSelectedRequest(request)}
+                    className="text-blue-500 hover:underline"
+                  >
+                    [Xem chi tiết]
+                  </button>
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table>
 
-        {/* Hiển thị Select cho mobile, Tabs cho desktop */}
-        {isMobile ? (
-          <Select value={activeTab} onValueChange={handleSelectChange}>
-            <Select.Trigger className=" mb-4">
-              <Select.Value placeholder="Chọn trạng thái" />
-            </Select.Trigger>
-            <Select.Content>
-              {tabs.map((tab, index) => (
-                <Select.Item key={index} value={index.toString()}>
-                  {tab}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <Tabs.List className="mb-6">
-              {tabs.map((tab, index) => (
-                <Tabs.Trigger key={index} value={index.toString()}>
-                  {tab}
-                </Tabs.Trigger>
-              ))}
-            </Tabs.List>
-          </Tabs>
+        {/* Hiển thị popup nếu selectedRequest không null */}
+        {selectedRequest && (
+          <OverdueDetailPopup
+            request={selectedRequest}
+            onClose={() => setSelectedRequest(null)}
+          />
         )}
-
-        {/* Hiển thị nội dung theo activeTab */}
-        {tabs.map((tab, index) => (
-          <div key={index} className={activeTab === index.toString() ? "" : "hidden"}>
-            <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>#</Table.HeaderCell>
-                  <Table.HeaderCell>Customer</Table.HeaderCell>
-                  <Table.HeaderCell>Email</Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                <Table.Row>
-                  <Table.Cell>1</Table.Cell>
-                  <Table.Cell>Emil Larsson</Table.Cell>
-                  <Table.Cell>emil2738@gmail.com</Table.Cell>
-                </Table.Row>
-                {/* Thêm các dòng dữ liệu khác nếu cần */}
-              </Table.Body>
-            </Table>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
 
-export default Page;
+export default OverdueRequestsPage;
