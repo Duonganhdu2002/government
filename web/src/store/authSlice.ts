@@ -10,7 +10,7 @@ export interface DecodedUser {
   email: string;
   username: string;
   areacode: number;
-  // Nếu token JWT không chứa các thông tin khác, bạn có thể lấy trực tiếp từ response.user
+  imagelink?: string;
   iat?: number;
   exp?: number;
 }

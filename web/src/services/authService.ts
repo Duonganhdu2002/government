@@ -37,6 +37,12 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+export interface ChangePasswordData {
+  citizenid: number;
+  oldPassword: string;
+  newPassword: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const registerUserAPI = async (
@@ -96,5 +102,22 @@ export const logoutUserAPI = async (
     const errorData = await response.json();
     throw new Error(errorData.error || "Logout failed");
   }
+  return await response.json();
+};
+
+export const changePasswordAPI = async (
+  data: ChangePasswordData
+): Promise<{ message: string }> => {
+  const response = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Change password failed");
+  }
+
   return await response.json();
 };
