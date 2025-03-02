@@ -1,7 +1,9 @@
 "use client";
 import React from "react";
 import { Provider } from "react-redux";
-import { store } from "@/store/store";
+import { store, persistor } from "@/store/store";
+import { PersistGate } from "redux-persist/integration/react";
+
 import "./globals.css";
 
 export default function RootLayout({
@@ -12,7 +14,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Provider store={store}>{children}</Provider>
+        <Provider store={store}>
+          <PersistGate loading={null} persistor={persistor}>
+            {children}
+          </PersistGate>
+        </Provider>
       </body>
     </html>
   );
