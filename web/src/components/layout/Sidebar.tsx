@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   History,
   DocumentText,
@@ -15,6 +14,8 @@ import NavItemAccount from "../common/NavItemAccount";
 import ChangePasswordPopup from "../common/ChangePasswordPopup";
 import LogoutConfirm from "../common/LogoutConfirm";
 import UserInformationPopup from "../common/UserInformationPopup";
+import { useLogoutHandler } from "@/utils/logoutHandler";
+import { useAppSelector } from "@/store/hooks";
 
 type SidebarProps = {
   sidebarOpen: boolean;
@@ -22,20 +23,21 @@ type SidebarProps = {
 };
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
-  // State to control sidebar width toggle
+  // State quản lý kích thước sidebar và hiển thị các popup
   const [sidebarWidenOpen, setSidebarWidenOpen] = useState(false);
-
-  // State to manage the display of the account options container on hover
   const [showContainer, setShowContainer] = useState(false);
-
-  // States to manage popup visibility for changing password, logging out, and user information
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [showInformation, setShowInformation] = useState(false);
 
+  const handleLogout = useLogoutHandler();
+
+  // Lấy thông tin user từ Redux store
+  const user = useAppSelector((state) => state.auth.user);
+
   return (
     <>
-      {/* Mobile overlay to close the sidebar */}
+      {/* Overlay cho mobile */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden ${
           sidebarOpen ? "block" : "hidden"
@@ -54,7 +56,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         `}
       >
         <nav className="space-y-2 p-4 bg-white w-64">
-          {/* Avatar & User Name */}
+          {/* Avatar & Tên người dùng */}
           <div
             className="flex items-center gap-x-3 mb-3 relative"
             onMouseEnter={() => setShowContainer(true)}
@@ -63,16 +65,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             <div className="flex items-center justify-center">
               <Avatar
                 size="xlarge"
-                src="https://images.pexels.com/photos/29914956/pexels-photo-29914956.jpeg"
-                fallback=""
+                src={user?.imagelink || "https://images.pexels.com/photos/29914956/pexels-photo-29914956.jpeg"}
+                fallback={user ? user.fullname[0] : "T"}
                 className="mr-3"
               />
               <Text size="large" className="font-medium">
-                Tên
+                {user ? user.fullname : "Tên"}
               </Text>
             </div>
 
-            {/* Display account options on hover */}
+            {/* Các tùy chọn tài khoản hiển thị khi hover */}
             {showContainer && (
               <div className="absolute top-full left-0">
                 <Container className="shadow-md p-3 bg-gray-50 space-y-2">
@@ -97,12 +99,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             )}
           </div>
 
-          {/* Navigation items */}
-          <NavItem
-            href="/"
-            icon={<House className="w-5 h-5" />}
-            label="Trang chủ"
-          />
+          {/* Các navigation item */}
+          <NavItem href="/" icon={<House className="w-5 h-5" />} label="Trang chủ" />
           <NavItem
             href="/submit-request"
             icon={<DocumentText className="w-5 h-5" />}
@@ -116,21 +114,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         </nav>
       </aside>
 
-      {/* Render Change Password popup */}
+      {/* Popup các chức năng */}
       {showChangePassword && (
         <ChangePasswordPopup onClose={() => setShowChangePassword(false)} />
       )}
-      {/* Render Logout confirmation popup */}
       {showLogout && (
         <LogoutConfirm
           onCancel={() => setShowLogout(false)}
           onConfirm={() => {
-            // Handle logout logic here
+            handleLogout();
             setShowLogout(false);
           }}
         />
       )}
-      {/* Render User Information popup */}
       {showInformation && (
         <UserInformationPopup onClose={() => setShowInformation(false)} />
       )}
