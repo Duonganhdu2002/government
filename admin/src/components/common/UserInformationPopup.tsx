@@ -11,6 +11,8 @@ const UserInformationPopup: React.FC<UserInformationPopupProps> = ({ onClose }) 
     name: "Nguyễn Văn A",
     email: "nguyenvana@example.com",
     phone: "0123456789",
+    employeeId: "CB123456",
+    department: "Phòng Hành chính",
     avatar:
       "https://images.pexels.com/photos/29914956/pexels-photo-29914956.jpeg",
   };
@@ -19,7 +21,7 @@ const UserInformationPopup: React.FC<UserInformationPopupProps> = ({ onClose }) 
     <Prompt open>
       <Prompt.Content>
         <Prompt.Header>
-          <Prompt.Title>Thông tin người dùng</Prompt.Title>
+          <Prompt.Title>Thông tin cán bộ</Prompt.Title>
         </Prompt.Header>
         <div className="p-4">
           <div className="flex items-center gap-4 mb-4">
@@ -34,6 +36,14 @@ const UserInformationPopup: React.FC<UserInformationPopupProps> = ({ onClose }) 
             </div>
           </div>
           <div className="space-y-2">
+            <div>
+              <Label>Mã cán bộ:</Label>
+              <Text>{user.employeeId}</Text>
+            </div>
+            <div>
+              <Label>Đơn vị:</Label>
+              <Text>{user.department}</Text>
+            </div>
             <div>
               <Label>Email:</Label>
               <Text>{user.email}</Text>
@@ -58,3 +68,4 @@ const UserInformationPopup: React.FC<UserInformationPopupProps> = ({ onClose }) 
 };
 
 export default UserInformationPopup;
+
