@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { Button, Prompt } from "@medusajs/ui";
 
@@ -12,9 +13,7 @@ const LogoutConfirm: React.FC<LogoutConfirmProps> = ({ onCancel, onConfirm }) =>
       <Prompt.Content>
         <Prompt.Header>
           <Prompt.Title>Đăng xuất</Prompt.Title>
-          <Prompt.Description>
-            Bạn chắc chắn muốn đăng xuất?
-          </Prompt.Description>
+          <Prompt.Description>Bạn chắc chắn muốn đăng xuất?</Prompt.Description>
         </Prompt.Header>
         <Prompt.Footer>
           <Prompt.Cancel onClick={onCancel}>Hủy</Prompt.Cancel>
