@@ -158,7 +158,7 @@ const authController = {
       res.status(500).json({ error: "Failed to register user." });
     }
   },
-  
+
   /**
    * Logs in an existing user.
    * Expects request body to include:
@@ -201,7 +201,7 @@ const authController = {
         EX: REFRESH_TOKEN_EXPIRY_SECONDS,
       });
 
-      // Return the user info and tokens
+      // Return the user info and tokens, bao gồm imagelink
       res.status(200).json({
         message: "Logged in successfully.",
         user: {
@@ -213,6 +213,7 @@ const authController = {
           email: user.email,
           username: user.username,
           areacode: user.areacode,
+          imagelink: user.imagelink, 
         },
         accessToken,
         refreshToken,

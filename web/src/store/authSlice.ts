@@ -1,15 +1,8 @@
-/**
- * src/store/authSlice.ts
- *
- * This slice manages authentication state including user data and tokens.
- * It uses async thunks to handle registration and login.
- */
-
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { registerUserAPI, loginUserAPI, RegisterData, LoginCredentials, AuthResponse } from '@/services/authService';
+import { loginUserAPI, LoginCredentials, AuthResponse } from '@/services/authService';
 
-export interface User {
-  citizenid: number;
+export interface DecodedUser {
+  id: number;
   fullname: string;
   identificationnumber: string;
   address: string;
@@ -17,10 +10,13 @@ export interface User {
   email: string;
   username: string;
   areacode: number;
+  // Nếu token JWT không chứa các thông tin khác, bạn có thể lấy trực tiếp từ response.user
+  iat?: number;
+  exp?: number;
 }
 
 interface AuthState {
-  user: User | null;
+  user: DecodedUser | null;
   accessToken: string | null;
   refreshToken: string | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
@@ -35,24 +31,21 @@ const initialState: AuthState = {
   error: null,
 };
 
-export const registerUser = createAsyncThunk<AuthResponse, RegisterData, { rejectValue: string }>(
-  'auth/registerUser',
-  async (userData, { rejectWithValue }) => {
-    try {
-      const data = await registerUserAPI(userData);
-      return data;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const loginUser = createAsyncThunk<AuthResponse, LoginCredentials, { rejectValue: string }>(
+export const loginUser = createAsyncThunk<
+  { user: DecodedUser; accessToken: string; refreshToken: string },
+  LoginCredentials,
+  { rejectValue: string }
+>(
   'auth/loginUser',
   async (credentials, { rejectWithValue }) => {
     try {
-      const data = await loginUserAPI(credentials);
-      return data;
+      const data: AuthResponse = await loginUserAPI(credentials);
+      // Ở đây, dữ liệu user được trả về từ API đã chứa đầy đủ thông tin
+      return {
+        user: data.user,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      };
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -73,30 +66,26 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(registerUser.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action: PayloadAction<AuthResponse>) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || action.error.message || 'Registration failed';
-      })
       .addCase(loginUser.pending, (state) => {
         state.status = 'loading';
         state.error = null;
       })
-      .addCase(loginUser.fulfilled, (state, action: PayloadAction<AuthResponse>) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-      })
+      .addCase(
+        loginUser.fulfilled,
+        (
+          state,
+          action: PayloadAction<{
+            user: DecodedUser;
+            accessToken: string;
+            refreshToken: string;
+          }>
+        ) => {
+          state.status = 'succeeded';
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken;
+          state.refreshToken = action.payload.refreshToken;
+        }
+      )
       .addCase(loginUser.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload || action.error.message || 'Login failed';

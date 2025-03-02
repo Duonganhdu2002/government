@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   History,
   DocumentText,
@@ -15,6 +14,7 @@ import NavItemAccount from "../common/NavItemAccount";
 import ChangePasswordPopup from "../common/ChangePasswordPopup";
 import LogoutConfirm from "../common/LogoutConfirm";
 import UserInformationPopup from "../common/UserInformationPopup";
+import { useLogoutHandler } from "@/utils/logoutHandler";
 
 type SidebarProps = {
   sidebarOpen: boolean;
@@ -24,14 +24,15 @@ type SidebarProps = {
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   // State to control sidebar width toggle
   const [sidebarWidenOpen, setSidebarWidenOpen] = useState(false);
-
   // State to manage the display of the account options container on hover
   const [showContainer, setShowContainer] = useState(false);
-
   // States to manage popup visibility for changing password, logging out, and user information
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [showInformation, setShowInformation] = useState(false);
+
+  // Sử dụng hook logout
+  const handleLogout = useLogoutHandler();
 
   return (
     <>
@@ -98,11 +99,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           </div>
 
           {/* Navigation items */}
-          <NavItem
-            href="/"
-            icon={<House className="w-5 h-5" />}
-            label="Trang chủ"
-          />
+          <NavItem href="/" icon={<House className="w-5 h-5" />} label="Trang chủ" />
           <NavItem
             href="/submit-request"
             icon={<DocumentText className="w-5 h-5" />}
@@ -125,7 +122,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         <LogoutConfirm
           onCancel={() => setShowLogout(false)}
           onConfirm={() => {
-            // Handle logout logic here
+            handleLogout();
             setShowLogout(false);
           }}
         />
