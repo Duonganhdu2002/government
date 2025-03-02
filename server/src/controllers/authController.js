@@ -104,10 +104,16 @@ const authController = {
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
-      // Insert the new user into the database (do not include citizenid so that it auto increments)
+      // Lấy giá trị ảnh mặc định từ .env
+      const defaultImageLink = `${process.env.APP_BASE_URL}${process.env.STATIC_FILES_PATH}/${process.env.DEFAULT_AVATAR_FILENAME}`;
+      console.log("Default Image Link:", defaultImageLink);
+
+      // Insert the new user into the database (chèn thêm cột imagelink)
       const result = await pool.query(
-        `INSERT INTO citizens (fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`,
+        `INSERT INTO citizens 
+          (fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode, imagelink)
+         VALUES 
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
         [
           fullname,
           identificationnumber,
@@ -117,6 +123,7 @@ const authController = {
           username,
           passwordHash,
           areacode,
+          defaultImageLink,
         ]
       );
       const user = result.rows[0];
@@ -151,7 +158,7 @@ const authController = {
       res.status(500).json({ error: "Failed to register user." });
     }
   },
-
+  
   /**
    * Logs in an existing user.
    * Expects request body to include:

@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 const mongoSanitize = require('express-mongo-sanitize');
 require('dotenv').config();
+const path = require('path');
 
 const pool = require('./config/database');
 const redisClient = require('./config/redis');
@@ -23,9 +24,10 @@ const agencyDelaysRoutes = require('./routes/agencyDelaysRoutes');
 const publicNotificationsRoutes = require('./routes/publicNotificationsRoutes');
 const areasRoutes = require('./routes/areasRoutes');
 const mediaFilesRoutes = require('./routes/mediaFilesRoutes');
-const authRoutes = require('./routes/authRoutes'); // Giả sử file authRoutes đã được tạo
+const authRoutes = require('./routes/authRoutes'); 
 
 const app = express();
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 /* 
  * Security & Middleware
