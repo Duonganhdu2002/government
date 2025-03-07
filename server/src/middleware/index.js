@@ -17,6 +17,7 @@ module.exports = {
   
   // Validation middleware
   validateCitizenData: validationMiddleware.validateCitizenData,
+  validatePartialCitizenData: validationMiddleware.validatePartialCitizenData,
   validateApplicationData: validationMiddleware.validateApplicationData,
   validateIdParam: validationMiddleware.validateIdParam,
   validatePagination: validationMiddleware.validatePagination

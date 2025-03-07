@@ -1,0 +1,65 @@
+### Get current user info
+GET http://localhost:8080/api/auth/me
+Authorization: Bearer {{auth_token}}
+
+### Get user by ID directly (fallback option)
+GET http://localhost:8080/api/citizens/9
+Authorization: Bearer {{auth_token}}
+
+### Update user profile with PATCH method (full update)
+PATCH http://localhost:8080/api/citizens/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "fullname": "Updated Name",
+  "email": "updated@example.com",
+  "phonenumber": "0987654321",
+  "address": "Updated Address",
+  "identificationnumber": "0987654321"
+}
+
+### Update only name
+PATCH http://localhost:8080/api/citizens/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "fullname": "Only Name Updated"
+}
+
+### Update only address
+PATCH http://localhost:8080/api/citizens/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "address": "New Address Only"
+}
+
+### Update only phone number
+PATCH http://localhost:8080/api/citizens/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "phonenumber": "0123456789"
+}
+
+### Update only email
+PATCH http://localhost:8080/api/citizens/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "email": "newemail@example.com"
+}
+
+### Update only identification number
+PATCH http://localhost:8080/api/citizens/1
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "identificationnumber": "0987654321"
+} 

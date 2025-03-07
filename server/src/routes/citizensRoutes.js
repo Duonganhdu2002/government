@@ -12,6 +12,7 @@ const {
   verifyToken, 
   isAdmin, 
   validateCitizenData, 
+  validatePartialCitizenData,
   validateIdParam,
   validatePagination
 } = require('../middleware');
@@ -65,6 +66,19 @@ router.put(
   verifyToken, 
   validateIdParam,
   validateCitizenData,
+  asyncErrorHandler(citizensController.updateCitizen)
+);
+
+/**
+ * @route PATCH /api/citizens/:id
+ * @desc Partially update an existing citizen
+ * @access Private - Admin or same citizen only
+ */
+router.patch(
+  '/:id', 
+  verifyToken, 
+  validateIdParam,
+  validatePartialCitizenData,
   asyncErrorHandler(citizensController.updateCitizen)
 );
 

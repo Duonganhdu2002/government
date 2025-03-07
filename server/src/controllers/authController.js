@@ -565,58 +565,109 @@ const authController = {
       
       if (!userId) {
         return res.status(401).json({
-          status: 'error',
-          message: 'User not authenticated'
+          error: 'User not authenticated'
         });
       }
       
-      // Thử tìm trong bảng citizens trước
-      let result = await pool.query(
-        'SELECT citizenid, fullname, username, email, identificationnumber, phonenumber, address, areacode FROM citizens WHERE citizenid = $1',
-        [userId]
-      );
+      console.log('Fetching user profile for ID:', userId);
       
-      if (result.rows.length > 0) {
-        // Là công dân
-        const user = result.rows[0];
-        return res.status(200).json({
-          status: 'success',
-          user: {
-            ...user,
-            type: 'citizen'
+      try {
+        // First, check if database connection is working with a simple query
+        try {
+          const connectionTest = await executeQuery('SELECT 1 AS connection_test');
+          console.log('Database connection test successful:', connectionTest?.rows?.[0]);
+        } catch (connErr) {
+          console.error('Database connection test failed:', connErr);
+          return res.status(503).json({
+            error: 'Database service unavailable',
+            details: process.env.NODE_ENV === 'development' ? connErr.message : 'Unable to connect to database'
+          });
+        }
+        
+        // Try to find user in citizens table
+        let result;
+        try {
+          result = await executeQuery(
+            'SELECT citizenid, fullname, username, email, identificationnumber, phonenumber, address, areacode FROM citizens WHERE citizenid = $1',
+            [userId]
+          );
+        } catch (citizenErr) {
+          console.error('Error querying citizens table:', citizenErr);
+          
+          // Try to find user in staff table instead of failing immediately
+          try {
+            result = await executeQuery(
+              'SELECT staffid, fullname, username, email, role, agencyid FROM staff WHERE staffid = $1',
+              [userId]
+            );
+          } catch (staffErr) {
+            console.error('Error querying staff table:', staffErr);
+            throw new Error('Failed to query both citizens and staff tables: ' + citizenErr.message);
           }
-        });
-      }
-      
-      // Nếu không tìm thấy trong bảng citizens, thử tìm trong bảng staff
-      result = await pool.query(
-        'SELECT staffid, fullname, username, email, role, agencyid FROM staff WHERE staffid = $1',
-        [userId]
-      );
-      
-      if (result.rows.length > 0) {
-        // Là nhân viên
-        const user = result.rows[0];
-        return res.status(200).json({
-          status: 'success',
-          user: {
-            ...user,
-            type: 'staff'
+        }
+        
+        if (result?.rows && result.rows.length > 0) {
+          // Check if this is a citizen (has citizenid) or staff (has staffid)
+          const user = result.rows[0];
+          
+          if (user.citizenid) {
+            // Là công dân
+            return res.status(200).json({
+              id: user.citizenid, 
+              fullname: user.fullname,
+              username: user.username,
+              email: user.email,
+              identificationnumber: user.identificationnumber,
+              phonenumber: user.phonenumber,
+              address: user.address,
+              areacode: user.areacode,
+              imagelink: null,
+              type: 'citizen'
+            });
+          } else {
+            // Là nhân viên
+            return res.status(200).json({
+              id: user.staffid,
+              fullname: user.fullname,
+              username: user.username,
+              email: user.email,
+              role: user.role,
+              agencyid: user.agencyid,
+              type: 'staff'
+            });
           }
+        }
+        
+        // Không tìm thấy người dùng
+        return res.status(404).json({
+          error: 'User not found'
         });
+      } catch (dbError) {
+        // Handle database error specifically
+        console.error('Database error in getCurrentUser:', dbError);
+        
+        // Provide more detailed error information
+        const errorResponse = {
+          error: 'Database error when fetching user profile',
+          message: dbError.message
+        };
+        
+        // Add query details in development mode
+        if (process.env.NODE_ENV === 'development') {
+          errorResponse.details = {
+            message: dbError.message,
+            query: dbError.query,
+            code: dbError.code
+          };
+        }
+        
+        return res.status(500).json(errorResponse);
       }
-      
-      // Không tìm thấy người dùng
-      return res.status(404).json({
-        status: 'error',
-        message: 'User not found'
-      });
-      
     } catch (error) {
-      console.error('Error getting current user:', error);
+      console.error('General error in getCurrentUser:', error);
       return res.status(500).json({
-        status: 'error',
-        message: 'Internal server error'
+        error: 'Internal server error when fetching user profile',
+        message: error.message
       });
     }
   }

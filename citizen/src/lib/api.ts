@@ -11,7 +11,7 @@ import { logout } from '@/store/authSlice';
 
 // API configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-const API_TIMEOUT = 15000; // 15 seconds
+const API_TIMEOUT = 60000; // Increased to 60 seconds for long-running operations
 
 // Log API configuration for debugging
 console.log('API Configuration:', { 
@@ -39,12 +39,13 @@ export class ApiError extends Error {
  * Handles request timeout
  * 
  * @param ms Timeout duration in milliseconds
+ * @param operationType Type of operation for more descriptive error message
  * @returns Promise that rejects after specified timeout
  */
-const timeoutPromise = (ms: number): Promise<never> => {
+const timeoutPromise = (ms: number, operationType: string = 'request'): Promise<never> => {
   return new Promise((_, reject) => {
     setTimeout(() => {
-      reject(new ApiError('Request timeout', 408));
+      reject(new ApiError(`${operationType} timeout after ${ms/1000} seconds`, 408));
     }, ms);
   });
 };
@@ -177,6 +178,30 @@ const processResponse = async (response: Response) => {
     );
   }
   
+  // For successful responses, ensure we're returning a structure the app components expect
+  // If the data structure already contains the expected fields, return it as is
+  if (typeof data === 'object' && data !== null) {
+    // Handle our standardized server response format
+    if (data.status === 'success' && data.data) {
+      // Return the data field as the main response
+      return {
+        status: 'success',
+        data: data.data,
+        message: data.message
+      };
+    }
+    
+    // If data doesn't match our standard structure, wrap it
+    if (!data.data && !data.status) {
+      return {
+        status: 'success',
+        data,
+        message: 'Operation successful'
+      };
+    }
+  }
+  
+  // Return the data as is if it doesn't match any of our transformation cases
   return data;
 };
 
@@ -341,6 +366,74 @@ export const apiClient = {
         throw error;
       }
       throw new ApiError(`DELETE request failed: ${error.message}`, 500);
+    }
+  },
+  
+  /**
+   * Make a PATCH request for partial updates
+   * 
+   * @param endpoint API endpoint (without base URL)
+   * @param data Request body data
+   * @param options Additional fetch options
+   * @returns Promise with response data
+   */
+  patch: async (endpoint: string, data: any, options: RequestInit = {}): Promise<any> => {
+    const url = `${API_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    
+    // Use a longer timeout for citizen profile updates
+    const isProfileUpdate = endpoint.includes('/citizens/') && !endpoint.includes('/applications');
+    const timeoutDuration = isProfileUpdate ? 90000 : API_TIMEOUT; // 90 seconds for profile updates
+    const operationType = isProfileUpdate ? 'Profile update' : 'PATCH request';
+    
+    try {
+      console.log(`Starting ${operationType} with timeout: ${timeoutDuration/1000}s`);
+      
+      const response = await Promise.race([
+        fetch(url, {
+          method: 'PATCH',
+          headers: {
+            ...getAuthHeaders(),
+            ...(options.headers || {})
+          },
+          body: JSON.stringify(data),
+          ...options
+        }),
+        timeoutPromise(timeoutDuration, operationType)
+      ]);
+      
+      try {
+        const result = await processResponse(response);
+        
+        // If result is null, token was refreshed and we should retry
+        if (result === null) {
+          return apiClient.patch(endpoint, data, options);
+        }
+        
+        console.log('PATCH request successful, processed result:', result);
+        return result;
+      } catch (parseError) {
+        console.error('Error processing response:', parseError);
+        
+        // Check if the response was actually successful despite JSON parsing issues
+        if (response.ok) {
+          console.log('Response was OK but parsing failed. Returning simplified success.');
+          return { 
+            status: 'success', 
+            data: data, // Return the original data as fallback
+            message: 'Operation completed successfully'
+          };
+        }
+        
+        throw parseError;
+      }
+    } catch (error) {
+      console.error('PATCH request error:', error);
+      
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(`PATCH request failed: ${error.message}`, 500);
     }
   }
 }; 

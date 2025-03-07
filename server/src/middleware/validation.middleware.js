@@ -6,7 +6,8 @@
  */
 
 /**
- * Validates citizen data in the request body
+ * Validates citizen data in the request body for POST and PUT requests
+ * Requires all mandatory fields to be present
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -14,6 +15,11 @@
  * @returns {void}
  */
 const validateCitizenData = (req, res, next) => {
+  // Skip strict validation for PATCH requests (use validatePartialCitizenData instead)
+  if (req.method === 'PATCH') {
+    return next();
+  }
+  
   const { fullname, identificationnumber, username, passwordhash, areacode } = req.body;
   
   if (!fullname || !identificationnumber || !username || !passwordhash || !areacode) {
@@ -40,6 +46,37 @@ const validateCitizenData = (req, res, next) => {
   
   // Validate email format if provided
   if (req.body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email)) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid email format'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Validates citizen data in the request body for PATCH requests
+ * Only validates fields that are actually present in the request
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ * @returns {void}
+ */
+const validatePartialCitizenData = (req, res, next) => {
+  const { identificationnumber, email } = req.body;
+  
+  // Only validate identification number if it's provided
+  if (identificationnumber !== undefined && !/^\d{9,12}$/.test(identificationnumber)) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid identification number format'
+    });
+  }
+  
+  // Only validate email if it's provided
+  if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({
       status: 'error',
       message: 'Invalid email format'
@@ -127,6 +164,7 @@ const validatePagination = (req, res, next) => {
 
 module.exports = {
   validateCitizenData,
+  validatePartialCitizenData,
   validateApplicationData,
   validateIdParam,
   validatePagination

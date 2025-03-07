@@ -284,7 +284,7 @@ export const useAuth = () => {
           ? `/api/citizens/${user.id}`
           : `/api/staff/${user.id}`;
 
-        const response = await apiClient.put(endpoint, userData);
+        const response = await apiClient.patch(endpoint, userData);
         
         if (response?.data) {
           // Update user in Redux

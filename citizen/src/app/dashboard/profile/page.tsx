@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import {
   Heading,
   Text,
@@ -13,6 +14,8 @@ import {
   Skeleton
 } from '@medusajs/ui';
 import { Check, ChevronRight, User, Calendar, Phone, MapPin, Pencil, Key } from '@medusajs/icons';
+import { updateUserProfile } from '@/store/authSlice';
+import { apiClient } from '@/lib/api';
 
 // Định nghĩa kiểu dữ liệu cho thông tin người dùng
 interface UserProfile {
@@ -29,8 +32,9 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  // Lấy thông tin người dùng từ context
+  // Lấy thông tin người dùng từ Redux store
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const dispatch = useAppDispatch();
 
   // State cho thông tin profile
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -40,6 +44,10 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState("personal");
   const [editMode, setEditMode] = useState(false);
+
+  // Ref để theo dõi trạng thái fetch và tránh fetch dữ liệu liên tục
+  const fetchingProfileRef = useRef(false);
+  const lastFetchedUserIdRef = useRef<number | null>(null);
 
   // State cho form
   const [formData, setFormData] = useState<UserProfile | null>(null);
@@ -54,61 +62,242 @@ export default function ProfilePage() {
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  // Lấy thông tin profile khi component được mount
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchUserProfile();
-    }
-  }, [isAuthenticated, user]);
-
-  // Hàm lấy thông tin người dùng từ API
-  const fetchUserProfile = async () => {
+  // Hàm chuyển đổi từ User trong Redux sang UserProfile
+  const mapUserToProfile = useCallback((userData: any): UserProfile => {
+    // Lấy thông tin mở rộng từ localStorage nếu có
+    let extendedData = { birthDate: '1990-01-01', bio: '' };
     try {
-      setLoading(true);
-      
-      // Giả lập API call
-      setTimeout(() => {
-        // Mock data - trong thực tế sẽ gọi API
-        const mockProfile: UserProfile = {
-          id: user?.id || 1,
-          username: user?.username || 'user123',
-          name: user?.name || 'Nguyễn Văn A',
-          email: 'nguyenvana@example.com',
-          phoneNumber: '0123456789',
-          address: 'Số 1 Đường Lê Duẩn, Quận Ba Đình, TP. Hà Nội',
-          birthDate: '1990-01-01',
-          identityNumber: '001090000001',
-          bio: 'Công dân Việt Nam.',
-          type: user?.type || 'citizen',
-        };
-        
-        setProfile(mockProfile);
-        setFormData(mockProfile);
-        setLoading(false);
-      }, 1000);
-      
-    } catch (err) {
-      console.error('Error fetching user profile:', err);
-      setError('Không thể tải thông tin cá nhân. Vui lòng thử lại sau.');
-      setLoading(false);
+      if (typeof window !== 'undefined') {
+        const savedData = localStorage.getItem('userProfileExtended');
+        if (savedData) {
+          extendedData = { ...extendedData, ...JSON.parse(savedData) };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading extended profile from localStorage:', error);
     }
-  };
+
+    return {
+      id: userData.id || 1,
+      username: userData.username || '',
+      name: userData.name || '',
+      email: userData.email || '',
+      phoneNumber: userData.phoneNumber || '',
+      address: userData.address || '',
+      birthDate: extendedData.birthDate,
+      identityNumber: userData.identificationNumber || '',
+      bio: extendedData.bio,
+      type: userData.type || 'citizen',
+    };
+  }, []);
+
+  // Hàm chuyển đổi từ response API sang UserProfile
+  const mapApiResponseToProfile = useCallback((apiData: any): UserProfile => {
+    console.log('Mapping API data to profile:', apiData);
+    
+    if (!apiData) {
+      console.warn('API data is null or undefined, using fallback data');
+      const fallbackData: UserProfile = {
+        id: user?.id || 1,
+        username: user?.username || '',
+        name: (user?.type === 'citizen' ? (user as any).name : '') || '',
+        email: (user?.type === 'citizen' ? (user as any).email : '') || '',
+        phoneNumber: (user?.type === 'citizen' ? (user as any).phoneNumber : '') || '',
+        address: (user?.type === 'citizen' ? (user as any).address : '') || '',
+        birthDate: '1990-01-01',
+        identityNumber: (user?.type === 'citizen' ? (user as any).identificationNumber : '') || '',
+        bio: '',
+        type: user?.type || 'citizen',
+      };
+      return fallbackData;
+    }
+    
+    let extendedData = { birthDate: '1990-01-01', bio: '' };
+    try {
+      if (typeof window !== 'undefined') {
+        const savedData = localStorage.getItem('userProfileExtended');
+        if (savedData) {
+          extendedData = { ...extendedData, ...JSON.parse(savedData) };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading extended profile from localStorage:', error);
+    }
+    
+    const userData = apiData.data ? apiData.data : apiData;
+    
+    return {
+      id: userData.id || userData.citizenid || user?.id || 1,
+      username: userData.username || userData.Username || '',
+      name: userData.name || userData.fullname || userData.FullName || '',
+      email: userData.email || userData.Email || '',
+      phoneNumber: userData.phoneNumber || userData.phonenumber || userData.PhoneNumber || '',
+      address: userData.address || userData.Address || '',
+      birthDate: userData.birthDate || userData.dateOfBirth || extendedData.birthDate,
+      identityNumber: userData.identityNumber || userData.identificationnumber || userData.IdentificationNumber || '',
+      bio: userData.bio || userData.Bio || extendedData.bio,
+      type: userData.type || user?.type || 'citizen',
+    };
+  }, [user]);
+  
+  // Hàm lấy thông tin chi tiết người dùng từ API
+  const fetchUserProfile = useCallback(async () => {
+    if (fetchingProfileRef.current) {
+      return; // Prevent concurrent fetches
+    }
+    
+    fetchingProfileRef.current = true;
+    let mainEndpointFailed = false;
+    
+    try {
+      if (!profile) {
+        setLoading(true);
+      }
+      
+      let response = null;
+      let error = null;
+      
+      // Try the primary endpoint (/api/auth/me) first
+      try {
+        console.log('Attempting to fetch user profile from /api/auth/me');
+        response = await apiClient.get('/api/auth/me');
+        console.log('Successfully fetched profile from /api/auth/me');
+      } catch (err) {
+        console.warn('Error fetching user profile from /api/auth/me:', err);
+        error = err;
+        mainEndpointFailed = true;
+      }
+      
+      // If the primary endpoint failed and we have a user ID, try the fallback endpoint
+      if (mainEndpointFailed && user && user.id) {
+        try {
+          console.log('Primary endpoint failed. Trying fallback endpoint with user ID:', user.id);
+          
+          // Use a different endpoint that doesn't have the imagelink issue
+          response = await apiClient.get(`/api/citizens/${user.id}`);
+          console.log('Successfully fetched profile from fallback endpoint');
+          error = null; // Clear the error if fallback succeeds
+        } catch (fallbackErr) {
+          console.error('Fallback endpoint also failed:', fallbackErr);
+          // Keep the original error if both endpoints fail
+          if (!error) {
+            error = fallbackErr;
+          }
+        }
+      }
+      
+      // If we have a successful response with data
+      if (response && response.data) {
+        console.log('Processing profile data:', response.data);
+        // Ensure we're working with the actual user data object
+        const userData = response.data.data ? response.data.data : response.data;
+        console.log('Mapping API data to profile:', userData);
+        
+        try {
+          const profileData = mapApiResponseToProfile(userData);
+          setProfile(profileData);
+          setFormData(profileData);
+          
+          try {
+            localStorage.setItem('userProfileExtended', JSON.stringify({
+              birthDate: userData.birthDate || userData.dateOfBirth || '1990-01-01',
+              bio: userData.bio || ''
+            }));
+          } catch (storageError) {
+            console.error('Error caching profile data:', storageError);
+          }
+          
+          // Update user information in Redux if needed
+          if (user && user.type === 'citizen') {
+            const hasSignificantChanges = (
+              (user as any).name !== userData.fullname ||
+              (user as any).email !== userData.email ||
+              (user as any).phoneNumber !== userData.phonenumber ||
+              (user as any).address !== userData.address
+            );
+              
+            if (hasSignificantChanges) {
+              dispatch(updateUserProfile({
+                name: userData.fullname || userData.name,
+                email: userData.email,
+                phoneNumber: userData.phonenumber || userData.phoneNumber,
+                address: userData.address,
+                identificationNumber: userData.identificationnumber || userData.identityNumber
+              }));
+            }
+          }
+          
+          if (user) {
+            lastFetchedUserIdRef.current = user.id;
+          }
+        } catch (mappingError) {
+          console.error('Error mapping API response to profile:', mappingError);
+          throw mappingError;
+        }
+      } else if (error) {
+        // If both endpoints failed, use basic profile from auth state
+        console.error('Failed to fetch profile from any endpoint. Using basic profile from auth.');
+        if (user) {
+          const basicProfile = mapUserToProfile(user);
+          setProfile(basicProfile);
+          setFormData(basicProfile);
+          
+          // Store the basic information so we don't keep retrying failed requests
+          if (user.id) {
+            lastFetchedUserIdRef.current = user.id;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error in fetchUserProfile:', err);
+      // Don't throw here - we want to recover gracefully
+    } finally {
+      setLoading(false);
+      fetchingProfileRef.current = false;
+    }
+  }, [user, profile, dispatch, mapApiResponseToProfile, mapUserToProfile]);
+
+  // Lấy thông tin profile từ Redux store khi component được mount hoặc user thay đổi
+  useEffect(() => {
+    let isMounted = true;
+    
+    const initializeProfile = async () => {
+      if (isAuthenticated && user && isMounted) {
+        setProfile(mapUserToProfile(user));
+        setFormData(mapUserToProfile(user));
+        setLoading(false);
+        
+        if (lastFetchedUserIdRef.current !== user.id && !fetchingProfileRef.current) {
+          await fetchUserProfile();
+        }
+      }
+    };
+    
+    initializeProfile();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, user?.id]);
 
   // Xử lý thay đổi trong form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    setFormData(prev => prev ? {
-      ...prev,
-      [name]: value
-    } : null);
-    
-    // Xóa lỗi khi người dùng sửa trường đó
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+    if (name === 'identityNumber') {
+      const numericValue = value.replace(/\D/g, '');
+      setFormData(prev => prev ? { ...prev, [name]: numericValue } : null);
+      
+      if (numericValue && (numericValue.length < 9 || numericValue.length > 12)) {
+        setFormErrors(prev => ({ ...prev, [name]: 'Số CCCD/CMND phải có từ 9 đến 12 chữ số' }));
+      } else {
+        setFormErrors(prev => ({ ...prev, [name]: '' }));
+      }
+    } else {
+      setFormData(prev => prev ? { ...prev, [name]: value } : null);
+      if (formErrors[name]) {
+        setFormErrors(prev => ({ ...prev, [name]: '' }));
+      }
     }
   };
   
@@ -132,6 +321,13 @@ export default function ProfilePage() {
       errors.phoneNumber = 'Số điện thoại không được để trống';
     } else if (!/^[0-9]{10,11}$/.test(formData.phoneNumber)) {
       errors.phoneNumber = 'Số điện thoại không hợp lệ';
+    }
+    
+    if (formData.identityNumber) {
+      const digitsOnly = formData.identityNumber.replace(/\D/g, '');
+      if (digitsOnly.length < 9 || digitsOnly.length > 12) {
+        errors.identityNumber = 'Số CCCD/CMND phải có từ 9 đến 12 chữ số';
+      }
     }
     
     setFormErrors(errors);
@@ -168,30 +364,127 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (!validateForm()) return;
     
+    let requestSuccess = false;
+    
     try {
       setSaving(true);
+      setError('');
       
-      // Giả lập API call
-      setTimeout(() => {
-        // Cập nhật profile state
-        setProfile(formData);
-        setEditMode(false);
-        setSuccess('Cập nhật thông tin cá nhân thành công!');
+      if (!user?.id) {
+        throw new Error('User ID not found');
+      }
+      
+      let formattedIdentificationNumber = formData?.identityNumber || '';
+      formattedIdentificationNumber = formattedIdentificationNumber.replace(/\D/g, '');
+      
+      if (formattedIdentificationNumber.length < 9 || formattedIdentificationNumber.length > 12) {
+        setError('Số CCCD/CMND phải có từ 9 đến 12 chữ số');
         setSaving(false);
-        
-        // Clear thông báo thành công sau 3 giây
+        return;
+      }
+      
+      const profileData = {
+        fullname: formData?.name,
+        email: formData?.email,
+        phonenumber: formData?.phoneNumber,
+        address: formData?.address,
+        identificationnumber: formattedIdentificationNumber
+      };
+      
+      console.log('Sending profile data:', profileData);
+      
+      const maxRetries = 5;
+      let retryCount = 0;
+      let updateSuccess = false;
+      let lastError: any;
+      
+      while (retryCount <= maxRetries && !updateSuccess) {
+        try {
+          const timeout = 60000; // 60 seconds timeout
+          const response = await apiClient.patch(`/api/citizens/${user.id}`, profileData);
+          
+          updateSuccess = true;
+          requestSuccess = true;
+          
+          const userData = response.data ? response.data : response;
+          console.log('Profile update response structure:', {
+            hasDataProperty: !!response.data,
+            responseKeys: Object.keys(response),
+            userData
+          });
+          
+          setProfile(mapApiResponseToProfile(userData));
+          
+          if (user && user.id) {
+            dispatch(updateUserProfile({
+              name: userData.fullname || userData.name,
+              email: userData.email,
+              phoneNumber: userData.phonenumber || userData.phoneNumber,
+              address: userData.address,
+              identificationNumber: userData.identificationnumber || userData.identityNumber
+            }));
+            lastFetchedUserIdRef.current = user.id;
+          }
+          
+          try {
+            localStorage.setItem('userProfileExtended', JSON.stringify({
+              birthDate: formData?.birthDate || '1990-01-01',
+              bio: formData?.bio || ''
+            }));
+          } catch (error) {
+            console.error('Error saving extended profile to localStorage:', error);
+          }
+          
+          setEditMode(false);
+          setSuccess('Cập nhật thông tin cá nhân thành công!');
+        } catch (err: any) {
+          lastError = err;
+          console.error(`Attempt ${retryCount + 1} failed:`, err);
+          
+          const shouldRetry = 
+            (err.message && (err.message.includes('timeout') || err.message.includes('terminated'))) ||
+            (err.message && err.message.includes('connection')) ||
+            (err.status === 503) ||
+            (err.status === 408) ||
+            (err.status === 504);
+            
+          if (shouldRetry && retryCount < maxRetries) {
+            retryCount++;
+            const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+            console.log(`Retrying... Attempt ${retryCount} of ${maxRetries} after ${backoffDelay}ms`);
+            setError(`Đang thử lại... Lần ${retryCount}/${maxRetries}`);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          } else {
+            break;
+          }
+        }
+      }
+      
+      if (!updateSuccess) {
+        console.error('All attempts failed:', lastError);
+        if (lastError && lastError.data && lastError.data.missingFields) {
+          setError(`Thiếu các trường bắt buộc: ${lastError.data.missingFields.join(', ')}`);
+        } else if (lastError && lastError.message && (lastError.message.includes('timeout') || lastError.status === 408)) {
+          setError('Quá thời gian phản hồi từ máy chủ. Vui lòng thử lại sau hoặc liên hệ quản trị viên.');
+        } else if (lastError && lastError.message) {
+          setError(lastError.message || 'Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
+        } else {
+          setError('Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
+        }
+      }
+    } catch (err: any) {
+      console.error('Error saving profile:', err);
+      setError(err.message || 'Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
+    } finally {
+      setSaving(false);
+      if (requestSuccess) {
         setTimeout(() => {
           setSuccess('');
         }, 3000);
-      }, 1000);
-      
-    } catch (err) {
-      console.error('Error saving profile:', err);
-      setError('Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
-      setSaving(false);
+      }
     }
   };
-  
+
   // Xử lý sự kiện đổi mật khẩu
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,28 +493,35 @@ export default function ProfilePage() {
     
     try {
       setSaving(true);
+      setError('');
       
-      // Giả lập API call
-      setTimeout(() => {
-        setPasswordSuccess('Đổi mật khẩu thành công!');
-        // Reset form
+      const passwordData = {
+        oldPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      };
+      
+      const response = await apiClient.post('/api/auth/change-password', passwordData);
+      
+      if (response && (response.status === 'success' || response.success)) {
+        setPasswordSuccess(response.message || 'Đổi mật khẩu thành công!');
         setPasswordForm({
           currentPassword: '',
           newPassword: '',
           confirmPassword: ''
         });
-        setSaving(false);
-        
-        // Clear thông báo thành công sau 3 giây
+      } else {
+        throw new Error(response?.message || 'Đổi mật khẩu không thành công');
+      }
+    } catch (err: any) {
+      console.error('Error changing password:', err);
+      setError(err.message || 'Không thể đổi mật khẩu. Vui lòng thử lại sau.');
+    } finally {
+      setSaving(false);
+      if (passwordSuccess) {
         setTimeout(() => {
           setPasswordSuccess('');
         }, 3000);
-      }, 1000);
-      
-    } catch (err) {
-      console.error('Error changing password:', err);
-      setError('Không thể đổi mật khẩu. Vui lòng thử lại sau.');
-      setSaving(false);
+      }
     }
   };
   
@@ -234,7 +534,6 @@ export default function ProfilePage() {
       [name]: value
     }));
     
-    // Xóa lỗi khi người dùng sửa trường đó
     if (passwordErrors[name]) {
       setPasswordErrors(prev => ({
         ...prev,
@@ -342,7 +641,6 @@ export default function ProfilePage() {
           </div>
 
           {editMode ? (
-            // Form chỉnh sửa thông tin
             <div className="grid grid-cols-1 gap-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -465,7 +763,6 @@ export default function ProfilePage() {
               </div>
             </div>
           ) : (
-            // Hiển thị thông tin
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div className="col-span-2 pb-4 border-b border-ui-border-base">
                 <Badge className="mb-2">
@@ -614,4 +911,4 @@ export default function ProfilePage() {
       )}
     </div>
   );
-} 
+}

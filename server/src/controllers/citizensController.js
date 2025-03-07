@@ -92,8 +92,8 @@ const citizensController = {
       // Generate cache key
       const cacheKey = `citizen_${id}`;
       
-      // Query for single citizen
-      const query = 'SELECT * FROM citizens WHERE citizenid = $1;';
+      // Query for single citizen with explicit column names instead of SELECT *
+      const query = 'SELECT citizenid, fullname, username, email, identificationnumber, phonenumber, address, areacode FROM citizens WHERE citizenid = $1;';
       
       // Attempt to get from cache, then database
       const citizens = await getFromCacheOrExecute(cacheKey, query, [id], 60);
@@ -103,8 +103,13 @@ const citizensController = {
         return sendNotFound(res, 'Citizen not found');
       }
       
-      // Return the citizen data
-      return sendSuccess(res, citizens[0]);
+      // Return the citizen data with imagelink set to null
+      const citizenData = {
+        ...citizens[0],
+        imagelink: null // Add null imagelink to maintain consistency with frontend expectations
+      };
+      
+      return sendSuccess(res, citizenData);
     } catch (error) {
       console.error('Error fetching citizen by ID:', error);
       return sendError(res, 'Failed to fetch citizen');
@@ -119,68 +124,62 @@ const citizensController = {
    * @returns {Promise<void>}
    */
   createCitizen: async (req, res) => {
-    const {
-      fullname,
-      identificationnumber,
-      address,
-      phonenumber,
-      email,
-      username,
-      passwordhash,
-      areacode,
-      imagelink
-    } = req.body;
-    
-    // Validation should be handled by middleware, but as a safeguard:
-    if (!fullname || !identificationnumber || !username || !passwordhash || !areacode) {
-      return sendError(res, 'Required fields are missing', 400);
-    }
-    
     try {
-      // Hash password if not already hashed
-      let securePassword = passwordhash;
-      if (!passwordhash.startsWith('$2b$') && !passwordhash.startsWith('$2a$')) {
-        // Hash the password with bcrypt
-        const saltRounds = 10;
-        securePassword = await bcrypt.hash(passwordhash, saltRounds);
-      }
+      // Extract citizen data from request body
+      const {
+        fullname,
+        identificationnumber,
+        phonenumber,
+        address,
+        email,
+        username,
+        password,
+        areacode,
+        // Remove imagelink from the destructuring since it doesn't exist
+      } = req.body;
       
-      // Insert new citizen
-      const result = await executeQuery(
-        `INSERT INTO citizens (
-          fullname, identificationnumber, address, phonenumber, 
-          email, username, passwordhash, areacode, imagelink
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-        RETURNING *;`,
-        [
-          fullname, identificationnumber, address, phonenumber,
-          email, username, securePassword, areacode, imagelink
-        ]
+      // Check if citizen already exists with the same identification number
+      const existingCitizen = await executeQuery(
+        'SELECT * FROM citizens WHERE identificationnumber = $1 OR username = $2 OR email = $3',
+        [identificationnumber, username, email]
       );
       
-      // Invalidate citizens cache
-      await invalidateCache('citizens_*');
-      
-      // Return the created citizen
-      return sendSuccess(res, result.rows[0], 'Citizen created successfully', 201);
-    } catch (error) {
-      console.error('Error creating citizen:', error);
-      
-      // Check for duplicate key violation
-      if (error.code === '23505') {
-        return sendError(
-          res, 
-          'A citizen with the same identification number or username already exists', 
-          409
-        );
+      if (existingCitizen.rows.length > 0) {
+        return sendError(res, 'Citizen with this identification number, username, or email already exists', 409);
       }
       
-      return sendError(res, 'Failed to create citizen', 500);
+      // Hash the password
+      const saltRounds = 10;
+      const securePassword = await bcrypt.hash(password, saltRounds);
+      
+      // Insert new citizen into database (removed imagelink from the query)
+      const result = await executeQuery(
+        `INSERT INTO citizens (fullname, identificationnumber, phonenumber, address, 
+          email, username, passwordhash, areacode) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+         RETURNING *`,
+        [fullname, identificationnumber, phonenumber, address, 
+          email, username, securePassword, areacode]
+      );
+      
+      // Clear cache after insert
+      await invalidateCache('citizens_*');
+      
+      // Return new citizen data with null imagelink
+      const newCitizen = {
+        ...result.rows[0],
+        imagelink: null
+      };
+      
+      return sendSuccess(res, newCitizen, 'Citizen created successfully', 201);
+    } catch (error) {
+      console.error('Error creating citizen:', error);
+      return sendError(res, 'Failed to create citizen');
     }
   },
   
   /**
-   * Update an existing citizen
+   * Update citizen data
    * 
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
@@ -188,17 +187,6 @@ const citizensController = {
    */
   updateCitizen: async (req, res) => {
     const { id } = req.params;
-    const {
-      fullname,
-      identificationnumber,
-      address,
-      phonenumber,
-      email,
-      username,
-      passwordhash,
-      areacode,
-      imagelink
-    } = req.body;
     
     // Validate ID parameter
     if (!id || isNaN(id)) {
@@ -206,42 +194,42 @@ const citizensController = {
     }
     
     try {
-      // First check if citizen exists
-      const checkResult = await executeQuery(
-        'SELECT citizenid FROM citizens WHERE citizenid = $1;',
+      // Check if citizen exists
+      const citizenCheck = await executeQuery(
+        'SELECT * FROM citizens WHERE citizenid = $1',
         [id]
       );
       
-      if (checkResult.rows.length === 0) {
+      if (citizenCheck.rows.length === 0) {
         return sendNotFound(res, 'Citizen not found');
       }
       
-      // Process password if included
-      let securePassword = passwordhash;
-      if (passwordhash && !passwordhash.startsWith('$2b$') && !passwordhash.startsWith('$2a$')) {
-        // Hash the password with bcrypt
-        const saltRounds = 10;
-        securePassword = await bcrypt.hash(passwordhash, saltRounds);
-      }
+      // Build dynamic update query based on provided fields
+      const { 
+        fullname, 
+        identificationnumber, 
+        phonenumber, 
+        address, 
+        email, 
+        username, 
+        password,
+        areacode,
+        // Remove imagelink
+      } = req.body;
       
-      // Build update query dynamically based on provided fields
-      const updates = [];
-      const values = [];
-      let paramIndex = 1;
+      let updates = [];
+      let values = [id]; // First parameter is always ID
+      let paramIndex = 2;
       
-      if (fullname) {
+      // Add each field to updates if provided
+      if (fullname !== undefined) {
         updates.push(`fullname = $${paramIndex++}`);
         values.push(fullname);
       }
       
-      if (identificationnumber) {
+      if (identificationnumber !== undefined) {
         updates.push(`identificationnumber = $${paramIndex++}`);
         values.push(identificationnumber);
-      }
-      
-      if (address !== undefined) {
-        updates.push(`address = $${paramIndex++}`);
-        values.push(address);
       }
       
       if (phonenumber !== undefined) {
@@ -249,54 +237,61 @@ const citizensController = {
         values.push(phonenumber);
       }
       
+      if (address !== undefined) {
+        updates.push(`address = $${paramIndex++}`);
+        values.push(address);
+      }
+      
       if (email !== undefined) {
         updates.push(`email = $${paramIndex++}`);
         values.push(email);
       }
       
-      if (username) {
+      if (username !== undefined) {
         updates.push(`username = $${paramIndex++}`);
         values.push(username);
       }
       
-      if (passwordhash) {
+      if (password !== undefined) {
+        const saltRounds = 10;
+        const securePassword = await bcrypt.hash(password, saltRounds);
         updates.push(`passwordhash = $${paramIndex++}`);
         values.push(securePassword);
       }
       
-      if (areacode) {
+      if (areacode !== undefined) {
         updates.push(`areacode = $${paramIndex++}`);
         values.push(areacode);
       }
       
-      if (imagelink !== undefined) {
-        updates.push(`imagelink = $${paramIndex++}`);
-        values.push(imagelink);
-      }
+      // Remove imagelink check
       
-      // If no fields to update
+      // If no updates provided
       if (updates.length === 0) {
-        return sendError(res, 'No fields to update', 400);
+        return sendError(res, 'No update data provided', 400);
       }
       
-      // Add ID to values array
-      values.push(id);
+      // Build and execute the update query
+      const query = `
+        UPDATE citizens 
+        SET ${updates.join(', ')} 
+        WHERE citizenid = $1 
+        RETURNING *
+      `;
       
-      // Execute update query
-      const result = await executeQuery(
-        `UPDATE citizens
-         SET ${updates.join(', ')}
-         WHERE citizenid = $${paramIndex}
-         RETURNING *;`,
-        values
-      );
+      const result = await executeQuery(query, values);
       
-      // Invalidate related caches
+      // Invalidate cache for this citizen
       await invalidateCache(`citizen_${id}`);
       await invalidateCache('citizens_*');
       
-      // Return updated citizen
-      return sendSuccess(res, result.rows[0], 'Citizen updated successfully');
+      // Return updated citizen with null imagelink
+      const updatedCitizen = {
+        ...result.rows[0],
+        imagelink: null // Add null imagelink to maintain consistency
+      };
+      
+      return sendSuccess(res, updatedCitizen, 'Citizen updated successfully');
     } catch (error) {
       console.error('Error updating citizen:', error);
       

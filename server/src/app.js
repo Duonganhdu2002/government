@@ -84,8 +84,8 @@ app.use(limiter);
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(', ') || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Accept', 'X-Requested-With'],
     exposedHeaders: ['Content-Length', 'Content-Range'],
     credentials: true,
@@ -124,7 +124,7 @@ app.use('/api/application-upload', routes.applicationUpload);
 
 // Basic health check route
 app.get('/', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'success',
     message: 'Government Services API is running',
     version: '1.0.0'
@@ -170,12 +170,12 @@ const server = app.listen(PORT, () => {
  */
 const gracefulShutdown = async (signal) => {
   logger.info(`${signal} received. Starting graceful shutdown...`);
-  
+
   // Close HTTP server
   server.close(() => {
     logger.info('HTTP server closed');
   });
-  
+
   try {
     // Close Redis connection
     await redisClient.quit();
