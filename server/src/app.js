@@ -30,6 +30,7 @@ const routes = {
   citizens: require('./routes/citizensRoutes'),
   applications: require('./routes/applicationsRoutes'),
   applicationTypes: require('./routes/applicationTypesRoutes'),
+  specialApplicationTypes: require('./routes/specialApplicationTypesRoutes'),
   agencies: require('./routes/agenciesRoutes'),
   staff: require('./routes/staffRoutes'),
   notifications: require('./routes/notificationsRoutes'),
@@ -38,6 +39,7 @@ const routes = {
   publicNotifications: require('./routes/publicNotificationsRoutes'),
   areas: require('./routes/areasRoutes'),
   mediaFiles: require('./routes/mediaFilesRoutes'),
+  mediaPostFiles: require('./routes/mediaPostFilesRoutes'),
   auth: require('./routes/authRoutes'),
   postCategories: require('./routes/postCategoriesRoutes'),
   posts: require('./routes/postRoutes')
@@ -74,7 +76,7 @@ app.use(
   cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Accept'],
     credentials: true,
   })
 );
@@ -91,6 +93,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/citizens', routes.citizens);
 app.use('/api/applications', routes.applications);
 app.use('/api/application-types', routes.applicationTypes);
+app.use('/api/special-application-types', routes.specialApplicationTypes);
 app.use('/api/agencies', routes.agencies);
 app.use('/api/staff', routes.staff);
 app.use('/api/notifications', routes.notifications);
@@ -99,6 +102,7 @@ app.use('/api/agency-delays', routes.agencyDelays);
 app.use('/api/public-notifications', routes.publicNotifications);
 app.use('/api/areas', routes.areas);
 app.use('/api/media-files', routes.mediaFiles);
+app.use('/api/media-post-files', routes.mediaPostFiles);
 app.use('/api/auth', routes.auth);
 app.use('/api/post-categories', routes.postCategories);
 app.use('/api/posts', routes.posts);

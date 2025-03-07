@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { UserType } from '@/lib/types/auth.types';
 import { apiClient } from '@/lib/api';
+import NewApplicationModal from '@/components/NewApplicationModal';
 
 // Import Medusa UI components
 import {
@@ -150,6 +151,9 @@ export default function DashboardPage() {
     approved: 0,
     rejected: 0,
   });
+  
+  // State để kiểm soát hiển thị popup nộp hồ sơ mới
+  const [showNewApplicationModal, setShowNewApplicationModal] = useState(false);
 
   // Load dashboard data on component mount
   useEffect(() => {
@@ -193,6 +197,12 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Hàm xử lý khi nộp hồ sơ thành công
+  const handleApplicationSuccess = (applicationId: number) => {
+    // Cập nhật lại dữ liệu dashboard
+    fetchDashboardData();
   };
 
   return (
@@ -238,12 +248,10 @@ export default function DashboardPage() {
               Các hồ sơ gần đây bạn đã nộp
             </Text>
           </div>
-          <Link href="/dashboard/applications/new" className="no-underline">
-            <Button variant="secondary">
-              <Plus className="mr-2" />
-              Nộp hồ sơ mới
-            </Button>
-          </Link>
+          <Button variant="secondary" onClick={() => setShowNewApplicationModal(true)}>
+            <Plus className="mr-2" />
+            Nộp hồ sơ mới
+          </Button>
         </div>
         <div>
           {loading ? (
@@ -264,16 +272,21 @@ export default function DashboardPage() {
               <Text className="text-ui-fg-subtle mb-4">
                 Bạn chưa có hồ sơ nào. Hãy nộp hồ sơ đầu tiên của bạn!
               </Text>
-              <Link href="/dashboard/applications/new" className="no-underline">
-                <Button variant="secondary">
-                  <Plus className="mr-2" />
-                  Nộp hồ sơ mới
-                </Button>
-              </Link>
+              <Button variant="secondary" onClick={() => setShowNewApplicationModal(true)}>
+                <Plus className="mr-2" />
+                Nộp hồ sơ mới
+              </Button>
             </div>
           )}
         </div>
       </div>
+      
+      {/* Modal nộp hồ sơ mới */}
+      <NewApplicationModal 
+        isOpen={showNewApplicationModal}
+        onClose={() => setShowNewApplicationModal(false)}
+        onSuccess={handleApplicationSuccess}
+      />
     </div>
   );
 } 
