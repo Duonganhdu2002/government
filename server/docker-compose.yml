@@ -1,41 +1,107 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
+  # Node.js API service
+  api:
+    container_name: government-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
       - NODE_ENV=production
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_HOST=db
+      # Database configuration
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
       - DB_PORT=5432
-      - DB_DATABASE=your_database_name
-    depends_on:
-      - db
+      - DB_SSL=false
+      # Redis configuration
+      - REDIS_URL=redis://redis:6379
+      # JWT Secrets
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
+      # Logging
+      - LOG_LEVEL=info
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - ./logs:/app/logs
+      - ./public:/app/src/public
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
-      - app-network
+      - government-network
 
-  db:
-    image: postgres:15-alpine
+  # PostgreSQL database
+  postgres:
+    container_name: government-postgres
+    image: postgres:14-alpine
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=your_database_name
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_DATABASE}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - app-network
+      - government-network
+
+  # Redis for caching
+  redis:
+    container_name: government-redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - government-network
+
+  # Nginx for reverse proxy and static content
+  nginx:
+    container_name: government-nginx
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./public:/usr/share/nginx/html
+    depends_on:
+      - api
+    networks:
+      - government-network
 
 volumes:
-  postgres_data:
+  postgres-data:
+  redis-data:
 
 networks:
-  app-network:
+  government-network:
     driver: bridge

@@ -1,18 +1,17 @@
-// src/app/loading.tsx
-"use client";
-
 import React from "react";
+import { Container, Text, Heading } from "@medusajs/ui";
 
 /**
- * Loading component to show a spinner while data is loading
+ * Loading component displayed during navigation or data fetching
  */
-const Loading = () => {
+export default function Loading() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-10 h-10 border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
-      <p className="ml-3 text-gray-600">Loading...</p>
+    <div className="flex items-center justify-center min-h-screen bg-white">
+      <Container className="flex flex-col items-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-ui-fg-interactive mb-4"></div>
+        <Heading level="h2" className="text-black">Đang tải...</Heading>
+        <Text className="text-ui-fg-subtle mt-2 text-center">Vui lòng đợi trong giây lát</Text>
+      </Container>
     </div>
   );
-};
-
-export default Loading;
+} 

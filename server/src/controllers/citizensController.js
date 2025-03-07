@@ -1,83 +1,123 @@
-// controllers/citizensController.js
-const pool = require('../config/database');
-const redisClient = require('../config/redis');
+/**
+ * citizensController.js
+ * 
+ * Controller for managing citizen data
+ * Handles CRUD operations for citizen records
+ */
 
+const { executeQuery, getFromCacheOrExecute, invalidateCache } = require('../utils/db.util');
+const { sendSuccess, sendError, sendNotFound } = require('../utils/response.util');
+const bcrypt = require('bcrypt');
+
+/**
+ * Citizens Controller
+ * Handles all operations related to citizen data
+ */
 const citizensController = {
-  // GET ALL CITIZENS (with Redis caching)
+  /**
+   * Get all citizens with pagination
+   * Supports caching for improved performance
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>}
+   */
   getAllCitizens: async (req, res) => {
     try {
-      console.log('Attempting to fetch citizens from Redis cache...');
-      // 1) Attempt to get data from Redis
-      const cachedCitizens = await redisClient.get('all_citizens');
-
-      // If cache hit, return data
-      if (cachedCitizens) {
-        console.log('Cache hit! Returning data from Redis');
-        return res.status(200).json(JSON.parse(cachedCitizens));
+      // Extract pagination parameters
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 10;
+      const offset = (page - 1) * limit;
+      
+      // Generate cache key based on pagination
+      const cacheKey = `citizens_page${page}_limit${limit}`;
+      
+      // Query with pagination
+      const query = `
+        SELECT * FROM citizens
+        ORDER BY citizenid
+        LIMIT $1 OFFSET $2;
+      `;
+      
+      // Get count for pagination metadata
+      const countResult = await executeQuery('SELECT COUNT(*) FROM citizens;');
+      const totalItems = parseInt(countResult.rows[0].count, 10);
+      
+      // Get paginated data (with caching)
+      const citizens = await getFromCacheOrExecute(
+        cacheKey, 
+        query, 
+        [limit, offset],
+        60 // Cache for 60 seconds
+      );
+      
+      // If no citizens found
+      if (!citizens || citizens.length === 0) {
+        return sendNotFound(res, 'No citizens found');
       }
-
-      // 2) If not found in Redis, fetch from PostgreSQL using lowercase table name
-      console.log('Cache miss. Fetching citizens from database...');
-      const result = await pool.query('SELECT * FROM citizens;');
-      console.log('Query result:', result.rows);
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'No citizens found' });
-      }
-
-      // 3) Store data in Redis (set an expiration, e.g. 60s)
-      await redisClient.set('all_citizens', JSON.stringify(result.rows), {
-        EX: 60, // expires in 60 seconds
+      
+      // Return success with pagination metadata
+      return sendSuccess(res, {
+        citizens,
+        pagination: {
+          total: totalItems,
+          page,
+          limit,
+          pages: Math.ceil(totalItems / limit)
+        }
       });
-
-      // 4) Return the data
-      res.status(200).json(result.rows);
     } catch (error) {
       console.error('Error fetching citizens:', error);
-      res.status(500).json({ error: 'Failed to fetch citizens' });
+      return sendError(res, 'Failed to fetch citizens');
     }
   },
-
-  // GET CITIZEN BY ID (with Redis caching)
+  
+  /**
+   * Get citizen by ID
+   * Supports caching for improved performance
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>}
+   */
   getCitizenById: async (req, res) => {
     const { id } = req.params;
+    
+    // Validate ID parameter
     if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid Citizen ID' });
+      return sendError(res, 'Invalid citizen ID', 400);
     }
+    
     try {
-      // 1) Check Redis first
-      const redisKey = `citizen_${id}`;
-      const cachedCitizen = await redisClient.get(redisKey);
-
-      if (cachedCitizen) {
-        console.log(`Cache hit for Citizen ID=${id}`);
-        return res.status(200).json(JSON.parse(cachedCitizen));
+      // Generate cache key
+      const cacheKey = `citizen_${id}`;
+      
+      // Query for single citizen
+      const query = 'SELECT * FROM citizens WHERE citizenid = $1;';
+      
+      // Attempt to get from cache, then database
+      const citizens = await getFromCacheOrExecute(cacheKey, query, [id], 60);
+      
+      // Check if citizen was found
+      if (!citizens || citizens.length === 0) {
+        return sendNotFound(res, 'Citizen not found');
       }
-
-      // 2) Not in cache -> query DB (table and column names in lowercase)
-      console.log(`Cache miss for Citizen ID=${id}. Querying database...`);
-      const result = await pool.query(
-        'SELECT * FROM citizens WHERE citizenid = $1;',
-        [id]
-      );
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'Citizen not found' });
-      }
-
-      // 3) Store in Redis
-      await redisClient.set(redisKey, JSON.stringify(result.rows[0]), {
-        EX: 60, // expires in 60 seconds
-      });
-
-      // 4) Return the data
-      res.status(200).json(result.rows[0]);
+      
+      // Return the citizen data
+      return sendSuccess(res, citizens[0]);
     } catch (error) {
-      console.error('Error fetching citizen by ID:', error.message);
-      res.status(500).json({ error: 'Failed to fetch citizen' });
+      console.error('Error fetching citizen by ID:', error);
+      return sendError(res, 'Failed to fetch citizen');
     }
   },
-
-  // CREATE CITIZEN
+  
+  /**
+   * Create a new citizen
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>}
+   */
   createCitizen: async (req, res) => {
     const {
       fullname,
@@ -88,31 +128,64 @@ const citizensController = {
       username,
       passwordhash,
       areacode,
+      imagelink
     } = req.body;
-
-    // Input validation
+    
+    // Validation should be handled by middleware, but as a safeguard:
     if (!fullname || !identificationnumber || !username || !passwordhash || !areacode) {
-      return res.status(400).json({ error: 'Required fields are missing' });
+      return sendError(res, 'Required fields are missing', 400);
     }
-
+    
     try {
-      const result = await pool.query(
-        `INSERT INTO citizens (fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`,
-        [fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode]
+      // Hash password if not already hashed
+      let securePassword = passwordhash;
+      if (!passwordhash.startsWith('$2b$') && !passwordhash.startsWith('$2a$')) {
+        // Hash the password with bcrypt
+        const saltRounds = 10;
+        securePassword = await bcrypt.hash(passwordhash, saltRounds);
+      }
+      
+      // Insert new citizen
+      const result = await executeQuery(
+        `INSERT INTO citizens (
+          fullname, identificationnumber, address, phonenumber, 
+          email, username, passwordhash, areacode, imagelink
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+        RETURNING *;`,
+        [
+          fullname, identificationnumber, address, phonenumber,
+          email, username, securePassword, areacode, imagelink
+        ]
       );
-
-      // Invalidate cache for citizens list
-      await redisClient.del('all_citizens');
-
-      res.status(201).json(result.rows[0]);
+      
+      // Invalidate citizens cache
+      await invalidateCache('citizens_*');
+      
+      // Return the created citizen
+      return sendSuccess(res, result.rows[0], 'Citizen created successfully', 201);
     } catch (error) {
-      console.error('Error creating citizen:', error.message);
-      res.status(500).json({ error: 'Failed to create citizen' });
+      console.error('Error creating citizen:', error);
+      
+      // Check for duplicate key violation
+      if (error.code === '23505') {
+        return sendError(
+          res, 
+          'A citizen with the same identification number or username already exists', 
+          409
+        );
+      }
+      
+      return sendError(res, 'Failed to create citizen', 500);
     }
   },
-
-  // UPDATE CITIZEN
+  
+  /**
+   * Update an existing citizen
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>}
+   */
   updateCitizen: async (req, res) => {
     const { id } = req.params;
     const {
@@ -124,61 +197,170 @@ const citizensController = {
       username,
       passwordhash,
       areacode,
+      imagelink
     } = req.body;
-
+    
+    // Validate ID parameter
     if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid Citizen ID' });
+      return sendError(res, 'Invalid citizen ID', 400);
     }
-
+    
     try {
-      const result = await pool.query(
-        `UPDATE citizens
-         SET fullname = $1, identificationnumber = $2, address = $3, phonenumber = $4, email = $5,
-             username = $6, passwordhash = $7, areacode = $8
-         WHERE citizenid = $9 RETURNING *;`,
-        [fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode, id]
-      );
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'Citizen not found' });
-      }
-
-      // Invalidate/update cache
-      await redisClient.del('all_citizens');
-      const redisKey = `citizen_${id}`;
-      await redisClient.set(redisKey, JSON.stringify(result.rows[0]), { EX: 60 });
-
-      res.status(200).json(result.rows[0]);
-    } catch (error) {
-      console.error('Error updating citizen:', error.message);
-      res.status(500).json({ error: 'Failed to update citizen' });
-    }
-  },
-
-  // DELETE CITIZEN
-  deleteCitizen: async (req, res) => {
-    const { id } = req.params;
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid Citizen ID' });
-    }
-    try {
-      const result = await pool.query(
-        'DELETE FROM citizens WHERE citizenid = $1 RETURNING *;',
+      // First check if citizen exists
+      const checkResult = await executeQuery(
+        'SELECT citizenid FROM citizens WHERE citizenid = $1;',
         [id]
       );
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'Citizen not found' });
+      
+      if (checkResult.rows.length === 0) {
+        return sendNotFound(res, 'Citizen not found');
       }
-
-      // Invalidate caches
-      await redisClient.del('all_citizens');
-      await redisClient.del(`citizen_${id}`);
-
-      res.status(200).json({ message: 'Citizen deleted successfully' });
+      
+      // Process password if included
+      let securePassword = passwordhash;
+      if (passwordhash && !passwordhash.startsWith('$2b$') && !passwordhash.startsWith('$2a$')) {
+        // Hash the password with bcrypt
+        const saltRounds = 10;
+        securePassword = await bcrypt.hash(passwordhash, saltRounds);
+      }
+      
+      // Build update query dynamically based on provided fields
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+      
+      if (fullname) {
+        updates.push(`fullname = $${paramIndex++}`);
+        values.push(fullname);
+      }
+      
+      if (identificationnumber) {
+        updates.push(`identificationnumber = $${paramIndex++}`);
+        values.push(identificationnumber);
+      }
+      
+      if (address !== undefined) {
+        updates.push(`address = $${paramIndex++}`);
+        values.push(address);
+      }
+      
+      if (phonenumber !== undefined) {
+        updates.push(`phonenumber = $${paramIndex++}`);
+        values.push(phonenumber);
+      }
+      
+      if (email !== undefined) {
+        updates.push(`email = $${paramIndex++}`);
+        values.push(email);
+      }
+      
+      if (username) {
+        updates.push(`username = $${paramIndex++}`);
+        values.push(username);
+      }
+      
+      if (passwordhash) {
+        updates.push(`passwordhash = $${paramIndex++}`);
+        values.push(securePassword);
+      }
+      
+      if (areacode) {
+        updates.push(`areacode = $${paramIndex++}`);
+        values.push(areacode);
+      }
+      
+      if (imagelink !== undefined) {
+        updates.push(`imagelink = $${paramIndex++}`);
+        values.push(imagelink);
+      }
+      
+      // If no fields to update
+      if (updates.length === 0) {
+        return sendError(res, 'No fields to update', 400);
+      }
+      
+      // Add ID to values array
+      values.push(id);
+      
+      // Execute update query
+      const result = await executeQuery(
+        `UPDATE citizens
+         SET ${updates.join(', ')}
+         WHERE citizenid = $${paramIndex}
+         RETURNING *;`,
+        values
+      );
+      
+      // Invalidate related caches
+      await invalidateCache(`citizen_${id}`);
+      await invalidateCache('citizens_*');
+      
+      // Return updated citizen
+      return sendSuccess(res, result.rows[0], 'Citizen updated successfully');
     } catch (error) {
-      console.error('Error deleting citizen:', error.message);
-      res.status(500).json({ error: 'Failed to delete citizen' });
+      console.error('Error updating citizen:', error);
+      
+      // Check for duplicate key violation
+      if (error.code === '23505') {
+        return sendError(
+          res, 
+          'A citizen with the same identification number or username already exists', 
+          409
+        );
+      }
+      
+      return sendError(res, 'Failed to update citizen');
     }
   },
+  
+  /**
+   * Delete a citizen
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>}
+   */
+  deleteCitizen: async (req, res) => {
+    const { id } = req.params;
+    
+    // Validate ID parameter
+    if (!id || isNaN(id)) {
+      return sendError(res, 'Invalid citizen ID', 400);
+    }
+    
+    try {
+      // Attempt to delete the citizen
+      const result = await executeQuery(
+        'DELETE FROM citizens WHERE citizenid = $1 RETURNING citizenid;',
+        [id]
+      );
+      
+      // Check if citizen was found
+      if (result.rows.length === 0) {
+        return sendNotFound(res, 'Citizen not found');
+      }
+      
+      // Invalidate related caches
+      await invalidateCache(`citizen_${id}`);
+      await invalidateCache('citizens_*');
+      
+      // Return success message
+      return sendSuccess(res, { id: result.rows[0].citizenid }, 'Citizen deleted successfully');
+    } catch (error) {
+      console.error('Error deleting citizen:', error);
+      
+      // Check for foreign key constraint
+      if (error.code === '23503') {
+        return sendError(
+          res, 
+          'Cannot delete citizen because they have associated records', 
+          409
+        );
+      }
+      
+      return sendError(res, 'Failed to delete citizen');
+    }
+  }
 };
 
 module.exports = citizensController;

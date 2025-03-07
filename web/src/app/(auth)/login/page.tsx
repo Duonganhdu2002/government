@@ -1,19 +1,208 @@
-// src/app/auth/login/page.tsx
 "use client";
-import React from "react";
-import LoginForm from "./components/LoginForm";
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
+import { UserType } from '@/lib/types/auth.types';
+import { useAuth } from '@/lib/hooks/useAuth';
+
+// Import Medusa UI components
+import {
+  Button,
+  Text,
+  Input,
+  Label,
+  Checkbox,
+  Alert,
+  Tabs
+} from "@medusajs/ui";
+
+// Icons
+import { XMark, EyeSlash, Eye } from '@medusajs/icons';
 
 /**
- * Login Page Component
- * This is the main route file for the login page.
- * It renders the LoginForm component inside a centered container.
+ * Login page component
  */
-const LoginPage = () => {
+export default function LoginPage() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState<UserType>(UserType.CITIZEN);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { login, error } = useAuth();
+
+  /**
+   * Handle form submission
+   */
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form inputs
+    if (!username || !password) {
+      alert('Vui lòng nhập tên đăng nhập và mật khẩu');
+      return;
+    }
+
+    // Set loading state
+    setLoading(true);
+
+    // Log login attempt
+    console.log('Attempting login with:', { 
+      username, 
+      userType, 
+      passwordLength: password.length 
+    });
+
+    try {
+      const success = await login({
+        username,
+        password,
+        userType,
+      });
+
+      if (success) {
+        console.log('Login successful, redirecting to dashboard');
+        router.push('/dashboard');
+      } else {
+        console.log('Login failed but no error was thrown');
+      }
+    } catch (loginError) {
+      console.error('Login error:', loginError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Toggle password visibility
+   */
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <LoginForm />
+    <div className="flex justify-center">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg overflow-hidden">
+        {/* Title Section (White Background) */}
+        <div className="bg-white px-8 py-6">
+          <h2 className="text-xl font-medium text-center">Đăng nhập</h2>
+          <p className="text-center text-gray-500 text-sm mt-3">
+            Nhập tên đăng nhập và mật khẩu để truy cập hệ thống
+          </p>
+        </div>
+
+        {/* Form Section (Gray Background) */}
+        <div className="bg-gray-50 px-8 py-6 border-t">
+          {/* User type selection */}
+          <div className="mb-6">
+            <Tabs defaultValue={userType} onValueChange={(value) => setUserType(value as UserType)}>
+              <Tabs.List className="w-full">
+                <Tabs.Trigger value={UserType.CITIZEN} className="flex-1">
+                  Công dân
+                </Tabs.Trigger>
+                <Tabs.Trigger value={UserType.STAFF} className="flex-1">
+                  Cán bộ
+                </Tabs.Trigger>
+              </Tabs.List>
+            </Tabs>
+          </div>
+          
+          {/* Error alert */}
+          {error && (
+            <Alert variant="error" className="mb-4">
+              <Text>{error}</Text>
+            </Alert>
+          )}
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username field */}
+            <div>
+              <Label htmlFor="username" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
+                Tên đăng nhập
+              </Label>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                required
+                placeholder="tên đăng nhập của bạn"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            {/* Password field */}
+            <div>
+              <Label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
+                Mật khẩu
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  placeholder="********"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={togglePasswordVisibility}
+                >
+                  {showPassword ? (
+                    <EyeSlash className="text-gray-400" />
+                  ) : (
+                    <Eye className="text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox id="remember-me" name="remember-me" />
+                <Label htmlFor="remember-me" className="!mb-0 text-sm">
+                  Ghi nhớ đăng nhập
+                </Label>
+              </div>
+
+              <div>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-ui-fg-interactive hover:text-ui-fg-interactive-hover"
+                >
+                  Quên mật khẩu?
+                </Link>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full py-2"
+              isLoading={loading}
+            >
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+            </Button>
+          </form>
+
+          {/* Signup Link */}
+          <div className="text-center mt-4 text-sm text-gray-600">
+            Chưa có tài khoản?{" "}
+            <Link href="/register" className="text-ui-fg-interactive font-medium hover:underline">
+              Đăng ký miễn phí.
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default LoginPage;
+} 

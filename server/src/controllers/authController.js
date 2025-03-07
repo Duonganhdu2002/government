@@ -10,12 +10,16 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database"); // PostgreSQL connection pool
 const redisClient = require("../config/redis"); // Redis client for refresh tokens
+const { executeQuery } = require('../utils/db.util');
+const { sendSuccess, sendError } = require('../utils/response.util');
+const { createError } = require('../middleware/error.middleware');
+const logger = require('../utils/logger.util');
+const authUtil = require('../utils/auth.util');
 
 // Load environment variables for JWT secrets and token expiry settings
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
-const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
-const REFRESH_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds
+const { ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_EXPIRY } = authUtil.constants;
 
 /**
  * Generates a JWT access token.
@@ -39,7 +43,7 @@ const generateRefreshToken = (user) => {
   return jwt.sign(
     { id: user.citizenid, username: user.username },
     REFRESH_TOKEN_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRY_SECONDS }
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
   );
 };
 
@@ -51,7 +55,7 @@ const authController = {
    *   - identificationnumber (string): Identification Number
    *   - address (string): Address
    *   - phonenumber (string): Phone Number
-   *   - email (string): Email Address
+   - email (string): Email Address
    *   - username (string): Username
    *   - password (string): Plain text password
    *   - areacode (number): Area Code
@@ -134,7 +138,7 @@ const authController = {
 
       // Store the refresh token in Redis with an expiration time
       await redisClient.set(`refreshToken_${user.citizenid}`, refreshToken, {
-        EX: REFRESH_TOKEN_EXPIRY_SECONDS,
+        EX: REFRESH_TOKEN_EXPIRY,
       });
 
       // Respond with the created user details and tokens
@@ -167,60 +171,95 @@ const authController = {
    *
    * If the credentials are valid, returns new access and refresh tokens.
    */
-  login: async (req, res) => {
+  login: async (req, res, next) => {
+    const { username, password, userType } = req.body;
+    
+    // Validate request
+    if (!username || !password) {
+      return sendError(res, 'Username and password are required', 400);
+    }
+    
+    if (!['staff', 'citizen'].includes(userType)) {
+      return sendError(res, 'Invalid user type', 400);
+    }
+    
     try {
-      const { username, password } = req.body;
-      if (!username || !password) {
-        return res
-          .status(400)
-          .json({ error: "Username and password are required." });
-      }
-
-      // Retrieve the user record by username
-      const result = await pool.query(
-        "SELECT * FROM citizens WHERE username = $1",
-        [username]
-      );
+      // Different tables based on user type
+      const table = userType === 'staff' ? 'staff' : 'citizens';
+      const idField = userType === 'staff' ? 'staffid' : 'citizenid';
+      
+      // Query user
+      const query = `
+        SELECT ${idField}, username, passwordhash, 
+        ${userType === 'staff' ? 'role, agencyid' : 'fullname, areacode'} 
+        FROM ${table} 
+        WHERE username = $1;
+      `;
+      
+      const result = await executeQuery(query, [username]);
+      
       if (result.rows.length === 0) {
-        return res.status(400).json({ error: "Invalid credentials." });
+        logger.warn('Login attempt with invalid username', { username, userType });
+        return sendError(res, 'Invalid credentials', 401);
       }
+      
       const user = result.rows[0];
-
-      // Compare provided password with stored password hash
-      const passwordMatch = await bcrypt.compare(password, user.passwordhash);
-      if (!passwordMatch) {
-        return res.status(400).json({ error: "Invalid credentials." });
+      
+      // Verify password
+      const isPasswordValid = await authUtil.comparePassword(password, user.passwordhash);
+      
+      if (!isPasswordValid) {
+        logger.warn('Login attempt with invalid password', { username, userType });
+        return sendError(res, 'Invalid credentials', 401);
       }
-
-      // Generate new tokens
-      const accessToken = generateAccessToken(user);
-      const refreshToken = generateRefreshToken(user);
-
-      // Store the refresh token in Redis
-      await redisClient.set(`refreshToken_${user.citizenid}`, refreshToken, {
-        EX: REFRESH_TOKEN_EXPIRY_SECONDS,
-      });
-
-      // Return the user info and tokens, bao gồm imagelink
-      res.status(200).json({
-        message: "Logged in successfully.",
-        user: {
-          id: user.citizenid,
-          fullname: user.fullname,
-          identificationnumber: user.identificationnumber,
-          address: user.address,
-          phonenumber: user.phonenumber,
-          email: user.email,
-          username: user.username,
-          areacode: user.areacode,
-          imagelink: user.imagelink, 
-        },
-        accessToken,
-        refreshToken,
+      
+      // Generate tokens
+      const accessToken = authUtil.generateToken(
+        {
+          id: user[idField],
+          role: userType === 'staff' ? user.role : 'citizen',
+          type: userType
+        }, 
+        ACCESS_TOKEN_SECRET, 
+        ACCESS_TOKEN_EXPIRY
+      );
+      
+      const refreshToken = authUtil.generateToken(
+        {
+          id: user[idField],
+          type: userType
+        }, 
+        REFRESH_TOKEN_SECRET, 
+        REFRESH_TOKEN_EXPIRY
+      );
+      
+      // Save refresh token to database
+      await authUtil.storeTokenInDatabase(user[idField], refreshToken, userType);
+      
+      // User data to return (excluding password)
+      const userData = {
+        id: user[idField],
+        username: user.username,
+        type: userType,
+        ...(userType === 'staff' 
+          ? { role: user.role, agencyId: user.agencyid } 
+          : { name: user.fullname, areaCode: user.areacode })
+      };
+      
+      logger.info('User logged in successfully', { userId: user[idField], userType });
+      
+      // Send response
+      return sendSuccess(res, {
+        user: userData,
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: ACCESS_TOKEN_EXPIRY
+        }
       });
     } catch (error) {
-      console.error("Error during login:", error);
-      res.status(500).json({ error: "Failed to log in." });
+      logger.error('Login error:', { error: error.message, username, userType });
+      next(createError('Authentication failed', 500));
     }
   },
 
@@ -231,45 +270,102 @@ const authController = {
    *
    * Returns a new access token if the refresh token is valid.
    */
-  refreshToken: async (req, res) => {
+  refreshToken: async (req, res, next) => {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return sendError(res, 'Refresh token is required', 400);
+    }
+    
     try {
-      const { refreshToken } = req.body;
-      if (!refreshToken) {
-        return res.status(400).json({ error: "Refresh token is required." });
+      // Verify the refresh token but don't check if expired
+      const decoded = jwt.decode(refreshToken);
+      
+      if (!decoded || !decoded.id || !decoded.type) {
+        logger.warn('Invalid refresh token format', { token: refreshToken });
+        return sendError(res, 'Invalid refresh token', 401);
       }
-
-      // Verify the refresh token
-      jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, async (err, decoded) => {
-        if (err) {
-          return res.status(403).json({ error: "Invalid refresh token." });
+      
+      // Check if token is valid in database
+      const isValid = await authUtil.validateTokenInDatabase(
+        decoded.id, 
+        refreshToken, 
+        decoded.type
+      );
+      
+      if (!isValid) {
+        logger.warn('Invalid or expired refresh token', { 
+          userId: decoded.id, 
+          userType: decoded.type 
+        });
+        return sendError(res, 'Invalid or expired refresh token', 401);
+      }
+      
+      // Get user info to include in new token
+      const userTable = decoded.type === 'staff' ? 'staff' : 'citizens';
+      const idField = decoded.type === 'staff' ? 'staffid' : 'citizenid';
+      const userQuery = `
+        SELECT ${idField}, ${decoded.type === 'staff' ? 'role' : 'fullname'}
+        FROM ${userTable}
+        WHERE ${idField} = $1;
+      `;
+      
+      const userResult = await executeQuery(userQuery, [decoded.id]);
+      
+      if (userResult.rows.length === 0) {
+        logger.warn('User not found during token refresh', { 
+          userId: decoded.id, 
+          userType: decoded.type 
+        });
+        return sendError(res, 'User not found', 404);
+      }
+      
+      const user = userResult.rows[0];
+      
+      // Generate new access token
+      const accessToken = authUtil.generateToken(
+        {
+          id: user[idField],
+          role: decoded.type === 'staff' ? user.role : 'citizen',
+          type: decoded.type
+        },
+        ACCESS_TOKEN_SECRET,
+        ACCESS_TOKEN_EXPIRY
+      );
+      
+      // Generate new refresh token (token rotation for security)
+      const newRefreshToken = authUtil.generateToken(
+        {
+          id: user[idField],
+          type: decoded.type
+        },
+        REFRESH_TOKEN_SECRET,
+        REFRESH_TOKEN_EXPIRY
+      );
+      
+      // Update refresh token in database
+      await authUtil.storeTokenInDatabase(
+        decoded.id, 
+        newRefreshToken, 
+        decoded.type
+      );
+      
+      logger.info('Token refreshed successfully', { 
+        userId: decoded.id, 
+        userType: decoded.type 
+      });
+      
+      // Send response
+      return sendSuccess(res, {
+        tokens: {
+          accessToken,
+          refreshToken: newRefreshToken,
+          expiresIn: ACCESS_TOKEN_EXPIRY
         }
-
-        const userId = decoded.id;
-        // Retrieve the stored refresh token from Redis
-        const storedRefreshToken = await redisClient.get(
-          `refreshToken_${userId}`
-        );
-        if (storedRefreshToken !== refreshToken) {
-          return res.status(403).json({ error: "Refresh token mismatch." });
-        }
-
-        // Retrieve the user record from the database
-        const result = await pool.query(
-          "SELECT * FROM citizens WHERE citizenid = $1",
-          [userId]
-        );
-        if (result.rows.length === 0) {
-          return res.status(404).json({ error: "User not found." });
-        }
-        const user = result.rows[0];
-
-        // Generate a new access token
-        const newAccessToken = generateAccessToken(user);
-        res.status(200).json({ accessToken: newAccessToken });
       });
     } catch (error) {
-      console.error("Error refreshing token:", error);
-      res.status(500).json({ error: "Failed to refresh token." });
+      logger.error('Token refresh error:', { error: error.message });
+      next(createError('Token refresh failed', 500));
     }
   },
 
@@ -280,21 +376,44 @@ const authController = {
    *
    * Removes the refresh token from Redis.
    */
-  logout: async (req, res) => {
+  logout: async (req, res, next) => {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return sendError(res, 'Refresh token is required', 400);
+    }
+    
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res
-          .status(400)
-          .json({ error: "User ID is required for logout." });
+      // Verify and decode the refresh token without checking expiry
+      const decoded = jwt.decode(refreshToken);
+      
+      if (!decoded || !decoded.id || !decoded.type) {
+        return sendError(res, 'Invalid refresh token format', 400);
       }
-
-      // Remove the refresh token from Redis
-      await redisClient.del(`refreshToken_${userId}`);
-      res.status(200).json({ message: "Logged out successfully." });
+      
+      // Delete the refresh token from database
+      const success = await authUtil.removeTokenFromDatabase(
+        decoded.id, 
+        refreshToken, 
+        decoded.type
+      );
+      
+      if (success) {
+        logger.info('User logged out successfully', { 
+          userId: decoded.id, 
+          userType: decoded.type 
+        });
+      } else {
+        logger.warn('Token not found during logout', { 
+          userId: decoded.id, 
+          userType: decoded.type 
+        });
+      }
+      
+      return sendSuccess(res, null, 'Logged out successfully');
     } catch (error) {
-      console.error("Error during logout:", error);
-      res.status(500).json({ error: "Failed to log out." });
+      logger.error('Logout error:', { error: error.message });
+      next(createError('Logout failed', 500));
     }
   },
 
@@ -365,6 +484,29 @@ const authController = {
       res.status(500).json({ error: "Failed to change password." });
     }
   },
+};
+
+/**
+ * Store refresh token in database
+ * 
+ * @param {number} userId - User ID
+ * @param {string} token - Refresh token
+ * @param {string} userType - Type of user (staff or citizen)
+ * @returns {Promise<void>}
+ */
+const storeRefreshToken = async (userId, token, userType) => {
+  const table = userType === 'staff' ? 'staff_refresh_tokens' : 'citizen_refresh_tokens';
+  const idField = userType === 'staff' ? 'staffid' : 'citizenid';
+  
+  // Delete any existing tokens for this user
+  await executeQuery(`DELETE FROM ${table} WHERE ${idField} = $1;`, [userId]);
+  
+  // Insert new token
+  await executeQuery(
+    `INSERT INTO ${table} (${idField}, token, expires_at)
+     VALUES ($1, $2, NOW() + interval '7 days');`,
+    [userId, token]
+  );
 };
 
 module.exports = authController;

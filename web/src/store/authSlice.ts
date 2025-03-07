@@ -1,97 +1,99 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { loginUserAPI, LoginCredentials, AuthResponse } from '@/services/authService';
+/**
+ * authSlice.ts
+ * 
+ * Redux slice for authentication state management
+ */
 
-export interface DecodedUser {
-  id: number;
-  fullname: string;
-  identificationnumber: string;
-  address: string;
-  phonenumber: string;
-  email: string;
-  username: string;
-  areacode: number;
-  imagelink?: string;
-  iat?: number;
-  exp?: number;
-}
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { AuthState, CitizenUser, StaffUser, User } from '@/lib/types/auth.types';
+import Cookies from 'js-cookie';
 
-interface AuthState {
-  user: DecodedUser | null;
-  accessToken: string | null;
-  refreshToken: string | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  error: string | null;
-}
-
+/**
+ * Initial authentication state
+ */
 const initialState: AuthState = {
+  isAuthenticated: false,
   user: null,
-  accessToken: null,
-  refreshToken: null,
-  status: 'idle',
-  error: null,
+  loading: false,
+  error: null
 };
 
-export const loginUser = createAsyncThunk<
-  { user: DecodedUser; accessToken: string; refreshToken: string },
-  LoginCredentials,
-  { rejectValue: string }
->(
-  'auth/loginUser',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      const data: AuthResponse = await loginUserAPI(credentials);
-      // Ở đây, dữ liệu user được trả về từ API đã chứa đầy đủ thông tin
-      return {
-        user: data.user,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-      };
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
+/**
+ * Auth slice with reducers for login, logout, etc
+ */
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.user = null;
-      state.accessToken = null;
-      state.refreshToken = null;
-      state.status = 'idle';
+    /**
+     * Set loading state
+     */
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+    
+    /**
+     * Set error message
+     */
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+    },
+    
+    /**
+     * Set user data
+     */
+    setUser: (state, action: PayloadAction<User | null>) => {
+      state.user = action.payload;
+      state.isAuthenticated = !!action.payload;
+    },
+    
+    /**
+     * Set user and authentication state on login
+     */
+    login: (state, action: PayloadAction<User>) => {
+      state.isAuthenticated = true;
+      state.user = action.payload;
       state.error = null;
     },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(loginUser.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(
-        loginUser.fulfilled,
-        (
-          state,
-          action: PayloadAction<{
-            user: DecodedUser;
-            accessToken: string;
-            refreshToken: string;
-          }>
-        ) => {
-          state.status = 'succeeded';
-          state.user = action.payload.user;
-          state.accessToken = action.payload.accessToken;
-          state.refreshToken = action.payload.refreshToken;
-        }
-      )
-      .addCase(loginUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || action.error.message || 'Login failed';
-      });
-  },
+    
+    /**
+     * Clear authentication state on logout
+     */
+    logout: (state) => {
+      state.isAuthenticated = false;
+      state.user = null;
+      state.error = null;
+      
+      // Ensure cookies are removed
+      Cookies.remove('accessToken');
+      Cookies.remove('refreshToken');
+    },
+    
+    /**
+     * Update user profile data
+     */
+    updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        // Preserve the user type when updating properties
+        const updatedUser = {
+          ...state.user,
+          ...action.payload,
+          type: state.user.type // Ensure type remains the same
+        };
+        
+        state.user = updatedUser as CitizenUser | StaffUser;
+      }
+    }
+  }
 });
 
-export const { logout } = authSlice.actions;
+export const { 
+  setLoading, 
+  setError, 
+  setUser, 
+  login, 
+  logout, 
+  updateUserProfile 
+} = authSlice.actions;
+
 export default authSlice.reducer;

@@ -1,29 +1,38 @@
-// src/utils/logoutHandler.ts
-import { useAppDispatch } from "@/store/hooks";
-import { logout } from "@/store/authSlice";
-import Cookies from "js-cookie";
-import { useRouter } from "next/navigation";
+/**
+ * logoutHandler.ts
+ * 
+ * Hook for handling user logout
+ * Provides a consistent way to log users out across the application
+ */
 
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
+
+/**
+ * Hook for handling user logout
+ * 
+ * @returns Function to handle logout with optional redirect
+ */
 export const useLogoutHandler = () => {
-  const dispatch = useAppDispatch();
+  const { logout } = useAuth();
   const router = useRouter();
 
-  const handleLogout = async () => {
+  /**
+   * Handle user logout
+   * 
+   * @param redirectPath Optional path to redirect after logout (defaults to /login)
+   */
+  const handleLogout = async (redirectPath = '/login') => {
     try {
-      // Nếu có API logout phía server, bạn có thể gọi ở đây
-      // await logoutUserAPI(userId); // Nếu cần
-
-      // Xoá các token khỏi cookie
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-
-      // Cập nhật state Redux
-      dispatch(logout());
-
-      // Chuyển hướng người dùng đến trang đăng nhập (hoặc trang chủ)
-      router.push("/login");
+      // Use the logout function from useAuth
+      await logout(redirectPath);
+      
+      // The redirection is handled by useAuth.logout
     } catch (error) {
       console.error("Logout error:", error);
+      
+      // Fallback navigation in case of error
+      router.push(redirectPath);
     }
   };
 

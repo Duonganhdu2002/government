@@ -1,21 +1,84 @@
-// routes/citizensRoutes.js
+/**
+ * citizensRoutes.js
+ * 
+ * Routes for citizen management
+ * Handles all HTTP endpoints related to citizen data
+ */
+
 const express = require('express');
 const router = express.Router();
 const citizensController = require('../controllers/citizensController');
+const { 
+  verifyToken, 
+  isAdmin, 
+  validateCitizenData, 
+  validateIdParam,
+  validatePagination
+} = require('../middleware');
+const { asyncErrorHandler } = require('../middleware/error.middleware');
 
-// GET all citizens
-router.get('/', citizensController.getAllCitizens);
+/**
+ * @route GET /api/citizens
+ * @desc Get all citizens with pagination
+ * @access Private - Admin only
+ */
+router.get(
+  '/', 
+  verifyToken, 
+  isAdmin, 
+  validatePagination,
+  asyncErrorHandler(citizensController.getAllCitizens)
+);
 
-// GET citizen by ID
-router.get('/:id', citizensController.getCitizenById);
+/**
+ * @route GET /api/citizens/:id
+ * @desc Get citizen by ID
+ * @access Private - Admin or same citizen only
+ */
+router.get(
+  '/:id', 
+  verifyToken, 
+  validateIdParam,
+  asyncErrorHandler(citizensController.getCitizenById)
+);
 
-// CREATE a new citizen
-router.post('/', citizensController.createCitizen);
+/**
+ * @route POST /api/citizens
+ * @desc Create a new citizen
+ * @access Private - Admin only
+ */
+router.post(
+  '/', 
+  verifyToken, 
+  isAdmin, 
+  validateCitizenData,
+  asyncErrorHandler(citizensController.createCitizen)
+);
 
-// UPDATE an existing citizen
-router.put('/:id', citizensController.updateCitizen);
+/**
+ * @route PUT /api/citizens/:id
+ * @desc Update an existing citizen
+ * @access Private - Admin or same citizen only
+ */
+router.put(
+  '/:id', 
+  verifyToken, 
+  validateIdParam,
+  validateCitizenData,
+  asyncErrorHandler(citizensController.updateCitizen)
+);
 
-// DELETE a citizen
-router.delete('/:id', citizensController.deleteCitizen);
+/**
+ * @route DELETE /api/citizens/:id
+ * @desc Delete a citizen
+ * @access Private - Admin only
+ */
+router.delete(
+  '/:id', 
+  verifyToken, 
+  isAdmin, 
+  validateIdParam,
+  asyncErrorHandler(citizensController.deleteCitizen)
+);
 
 module.exports = router;
