@@ -8,6 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const { verifyToken } = require('../middleware/auth.middleware');
 
 // POST /api/auth/register - Register a new user
 router.post('/register', authController.register);
@@ -24,5 +25,7 @@ router.post('/logout', authController.logout);
 // POST /api/auth/change-password - Change user's password (requires citizenid, oldPassword, and newPassword)
 router.post('/change-password', authController.changePassword);
 
+// GET /api/auth/me - Get current user information based on token
+router.get('/me', verifyToken, authController.getCurrentUser);
 
 module.exports = router;

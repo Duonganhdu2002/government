@@ -551,6 +551,75 @@ const authController = {
       res.status(500).json({ error: "Failed to change password." });
     }
   },
+
+  /**
+   * Lấy thông tin người dùng hiện tại dựa trên token
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>}
+   */
+  getCurrentUser: async (req, res) => {
+    try {
+      const userId = req.userId;
+      
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated'
+        });
+      }
+      
+      // Thử tìm trong bảng citizens trước
+      let result = await pool.query(
+        'SELECT citizenid, fullname, username, email, identificationnumber, phonenumber, address, areacode FROM citizens WHERE citizenid = $1',
+        [userId]
+      );
+      
+      if (result.rows.length > 0) {
+        // Là công dân
+        const user = result.rows[0];
+        return res.status(200).json({
+          status: 'success',
+          user: {
+            ...user,
+            type: 'citizen'
+          }
+        });
+      }
+      
+      // Nếu không tìm thấy trong bảng citizens, thử tìm trong bảng staff
+      result = await pool.query(
+        'SELECT staffid, fullname, username, email, role, agencyid FROM staff WHERE staffid = $1',
+        [userId]
+      );
+      
+      if (result.rows.length > 0) {
+        // Là nhân viên
+        const user = result.rows[0];
+        return res.status(200).json({
+          status: 'success',
+          user: {
+            ...user,
+            type: 'staff'
+          }
+        });
+      }
+      
+      // Không tìm thấy người dùng
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+      
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Internal server error'
+      });
+    }
+  }
 };
 
 /**

@@ -84,12 +84,14 @@ app.use(limiter);
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    origin: process.env.ALLOWED_ORIGINS?.split(', ') || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Accept', 'X-Requested-With'],
     exposedHeaders: ['Content-Length', 'Content-Range'],
     credentials: true,
-    maxAge: 86400 // 24 hours
+    maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   })
 );
 

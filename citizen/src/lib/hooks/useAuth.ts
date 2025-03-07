@@ -61,9 +61,17 @@ export const useAuth = () => {
           // Direct user and tokens in response
           const { accessToken, refreshToken } = response.tokens;
           
-          // Store tokens in cookies
-          Cookies.set('accessToken', accessToken, { expires: 1 }); // 1 day
-          Cookies.set('refreshToken', refreshToken, { expires: 7 }); // 7 days
+          // Store tokens in cookies with proper settings
+          Cookies.set('accessToken', accessToken, { 
+            expires: 1,  // 1 day
+            path: '/',
+            sameSite: 'lax' 
+          });
+          Cookies.set('refreshToken', refreshToken, { 
+            expires: 7,  // 7 days
+            path: '/',
+            sameSite: 'lax'
+          });
           
           // Store user in Redux
           dispatch(loginAction(response.user));
@@ -72,9 +80,17 @@ export const useAuth = () => {
           // User and tokens nested inside data property
           const { accessToken, refreshToken } = response.data.tokens;
           
-          // Store tokens in cookies
-          Cookies.set('accessToken', accessToken, { expires: 1 }); // 1 day
-          Cookies.set('refreshToken', refreshToken, { expires: 7 }); // 7 days
+          // Store tokens in cookies with proper settings
+          Cookies.set('accessToken', accessToken, { 
+            expires: 1,  // 1 day
+            path: '/',
+            sameSite: 'lax'
+          });
+          Cookies.set('refreshToken', refreshToken, { 
+            expires: 7,  // 7 days
+            path: '/',
+            sameSite: 'lax'
+          });
           
           // Store user in Redux
           dispatch(loginAction(response.data.user));
@@ -92,9 +108,17 @@ export const useAuth = () => {
           };
           
           if (user && tokens.accessToken && tokens.refreshToken) {
-            // Store tokens in cookies
-            Cookies.set('accessToken', tokens.accessToken, { expires: 1 });
-            Cookies.set('refreshToken', tokens.refreshToken, { expires: 7 });
+            // Store tokens in cookies with proper settings
+            Cookies.set('accessToken', tokens.accessToken, { 
+              expires: 1,
+              path: '/',
+              sameSite: 'lax' 
+            });
+            Cookies.set('refreshToken', tokens.refreshToken, { 
+              expires: 7,
+              path: '/',
+              sameSite: 'lax'
+            });
             
             // Store user in Redux
             dispatch(loginAction(user));
@@ -177,9 +201,15 @@ export const useAuth = () => {
             });
         }
         
-        // Remove cookies
-        Cookies.remove('accessToken');
-        Cookies.remove('refreshToken');
+        // Remove cookies with the same options they were set with
+        Cookies.remove('accessToken', { 
+          path: '/',
+          sameSite: 'lax'
+        });
+        Cookies.remove('refreshToken', { 
+          path: '/',
+          sameSite: 'lax'
+        });
         
         // Clear user from Redux
         dispatch(logoutAction());
@@ -276,6 +306,80 @@ export const useAuth = () => {
     [dispatch, user]
   );
 
+  /**
+   * Kiểm tra và khôi phục phiên đăng nhập
+   * Gọi hàm này khi ứng dụng khởi động để kiểm tra trạng thái token
+   */
+  const checkAuthState = useCallback(async () => {
+    // Nếu đã xác thực trong redux, không cần làm gì
+    if (isAuthenticated && user) {
+      console.log('User already authenticated in Redux store');
+      return true;
+    }
+
+    const accessToken = Cookies.get('accessToken');
+    const refreshToken = Cookies.get('refreshToken');
+
+    // Ghi log để debug
+    console.log('Checking auth state. Access token exists:', !!accessToken);
+    console.log('Checking auth state. Refresh token exists:', !!refreshToken);
+
+    if (!accessToken && !refreshToken) {
+      console.log('No tokens found in cookies');
+      dispatch(logoutAction());
+      return false;
+    }
+
+    try {
+      if (!accessToken && refreshToken) {
+        // Nếu chỉ có refresh token, thử làm mới token
+        console.log('Access token expired, attempting to refresh');
+        
+        const response = await apiClient.post('/api/auth/refresh', { refreshToken });
+        
+        if (response?.accessToken) {
+          // Lưu token mới
+          Cookies.set('accessToken', response.accessToken, { 
+            expires: 1,
+            path: '/',
+            sameSite: 'lax'
+          });
+          
+          if (response.refreshToken) {
+            Cookies.set('refreshToken', response.refreshToken, { 
+              expires: 7,
+              path: '/',
+              sameSite: 'lax'
+            });
+          }
+          
+          console.log('Token refreshed successfully');
+        } else {
+          console.log('Token refresh failed, logging out');
+          dispatch(logoutAction());
+          return false;
+        }
+      }
+      
+      // Nếu có access token (hoặc vừa được làm mới), thử lấy thông tin người dùng
+      const userInfo = await apiClient.get('/api/auth/me');
+      
+      if (userInfo && userInfo.user) {
+        dispatch(loginAction(userInfo.user));
+        console.log('Auth state restored successfully');
+        return true;
+      } else {
+        console.log('Failed to get user info, logging out');
+        dispatch(logoutAction());
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking auth state:', error);
+      dispatch(logoutAction());
+      return false;
+    }
+  }, [dispatch, isAuthenticated, user]);
+
   return {
     user,
     isAuthenticated,
@@ -285,6 +389,7 @@ export const useAuth = () => {
     registerCitizen,
     logout,
     changePassword,
-    updateProfile
+    updateProfile,
+    checkAuthState
   };
 }; 

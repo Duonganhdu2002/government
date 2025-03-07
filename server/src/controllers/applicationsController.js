@@ -298,6 +298,44 @@ const applicationsController = {
       console.error('Error fetching application statistics:', error.message);
       res.status(500).json({ error: 'Failed to fetch application statistics' });
     }
+  },
+
+  // GET APPLICATIONS FOR CURRENT USER
+  getCurrentUserApplications: async (req, res) => {
+    try {
+      // Lấy ID của người dùng hiện tại từ token (đã được xử lý bởi middleware verifyToken)
+      const citizenId = req.userId;
+      
+      if (!citizenId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
+      const redisKey = `citizen_applications_${citizenId}`;
+      const cached = await redisClient.get(redisKey);
+      
+      if (cached) {
+        return res.status(200).json(JSON.parse(cached));
+      }
+      
+      const result = await pool.query(
+        `SELECT a.*, 
+          at.typename as applicationtypename, 
+          sat.typename as specialapplicationtypename 
+        FROM applications a
+        LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+        LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+        WHERE a.citizenid = $1
+        ORDER BY a.submissiondate DESC;`,
+        [citizenId]
+      );
+      
+      await redisClient.set(redisKey, JSON.stringify(result.rows), { EX: 60 });
+      
+      res.status(200).json(result.rows);
+    } catch (error) {
+      console.error('Error fetching current user applications:', error.message);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
   }
 };
 

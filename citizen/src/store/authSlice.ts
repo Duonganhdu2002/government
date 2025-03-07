@@ -64,9 +64,15 @@ const authSlice = createSlice({
       state.user = null;
       state.error = null;
       
-      // Ensure cookies are removed
-      Cookies.remove('accessToken');
-      Cookies.remove('refreshToken');
+      // Ensure cookies are removed with proper options
+      Cookies.remove('accessToken', { 
+        path: '/',
+        sameSite: 'lax'
+      });
+      Cookies.remove('refreshToken', { 
+        path: '/',
+        sameSite: 'lax'
+      });
     },
     
     /**

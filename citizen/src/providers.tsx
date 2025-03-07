@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '@/store/store';
+import AuthChecker from '@/components/AuthChecker';
 
 // Import UI providers if needed
 // import { MediaContextProvider } from 'your-ui-library';
@@ -37,6 +38,8 @@ export function Providers({ children }: ProvidersProps) {
       {isClient ? (
         // Chỉ render PersistGate khi đang ở phía client
         <PersistGate loading={null} persistor={persistor}>
+          {/* Kiểm tra và khôi phục phiên đăng nhập */}
+          <AuthChecker />
           {/* Add additional providers here as needed */}
           {children}
         </PersistGate>

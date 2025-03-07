@@ -129,10 +129,12 @@ export const uploadMediaFiles = async (applicationId: number, files: File[], fil
       formData.append('filetype', fileType);
     }
     
+    const authHeaders = getAuthHeaders();
+    
     const response = await fetch(`${API_BASE_URL}/api/media-files`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        ...authHeaders
       },
       body: formData
     });
@@ -323,6 +325,97 @@ export const testDatabaseSchema = async (): Promise<any> => {
     }
   } catch (error) {
     console.error('Error testing database schema:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lấy danh sách đơn đã nộp của người dùng hiện tại
+ */
+export const fetchUserApplications = async (): Promise<any> => {
+  try {
+    const authHeaders = getAuthHeaders();
+    
+    console.log('Auth headers for fetchUserApplications:', authHeaders);
+    
+    // Debug: Kiểm tra token có tồn tại không
+    if (!Object.keys(authHeaders).length) {
+      console.error('No authentication token found in cookies');
+      throw new Error('Authentication token not found. Please log in again.');
+    }
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
+    
+    const response = await fetch(`${API_BASE_URL}/api/applications/current-user`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      credentials: 'include',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error('Error fetching applications:', response.status, response.statusText);
+      
+      // Log server error response if any
+      try {
+        const errorData = await response.text();
+        console.error('Server error response:', errorData);
+      } catch (e) {
+        console.error('Could not parse error response', e);
+      }
+      
+      if (response.status === 404) {
+        // Không có đơn nào, trả về mảng rỗng
+        return [];
+      }
+      
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Vui lòng đăng nhập lại để tiếp tục');
+      }
+      
+      throw new Error(`Failed to fetch applications: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching user applications:', error);
+    throw error;
+  }
+};
+
+/**
+ * Lấy chi tiết đơn theo ID
+ */
+export const fetchApplicationById = async (id: string): Promise<any> => {
+  try {
+    const authHeaders = getAuthHeaders();
+    
+    const response = await fetch(`${API_BASE_URL}/api/applications/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        ...authHeaders
+      },
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Không tìm thấy đơn');
+      }
+      throw new Error(`Failed to fetch application: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching application with ID ${id}:`, error);
     throw error;
   }
 }; 
