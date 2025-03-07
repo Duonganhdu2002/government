@@ -5,7 +5,7 @@
  * It uses the NEXT_PUBLIC_API_URL environment variable.
  */
 
-import { getAuthHeaders } from '@/utils/authHeaders';
+import { getAuthHeaders } from '@/lib/api';
 
 export interface PostCategory {
   category_id: number;
@@ -23,7 +23,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export const getAllPostCategoriesAPI = async (): Promise<PostCategory[]> => {
   const response = await fetch(`${API_URL}/api/post-categories`, {
     method: "GET",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -37,7 +37,7 @@ export const getPostCategoryByIdAPI = async (
 ): Promise<PostCategory> => {
   const response = await fetch(`${API_URL}/api/post-categories/${id}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -51,7 +51,7 @@ export const createPostCategoryAPI = async (
 ): Promise<PostCategory> => {
   const response = await fetch(`${API_URL}/api/post-categories`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -67,7 +67,7 @@ export const updatePostCategoryAPI = async (
 ): Promise<PostCategory> => {
   const response = await fetch(`${API_URL}/api/post-categories/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -82,7 +82,7 @@ export const deletePostCategoryAPI = async (
 ): Promise<{ message: string }> => {
   const response = await fetch(`${API_URL}/api/post-categories/${id}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();

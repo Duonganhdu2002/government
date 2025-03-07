@@ -4,6 +4,7 @@
  * This module defines functions to call the authentication endpoints.
  * It uses the NEXT_PUBLIC_API_URL environment variable.
  */
+import { getAuthHeaders } from '@/lib/api';
 
 export interface RegisterData {
   fullname: string;
@@ -50,7 +51,7 @@ export const registerUserAPI = async (
 ): Promise<AuthResponse> => {
   const response = await fetch(`${API_URL}/api/auth/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -65,7 +66,7 @@ export const loginUserAPI = async (
 ): Promise<AuthResponse> => {
   const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(credentials),
   });
   if (!response.ok) {
@@ -80,7 +81,7 @@ export const refreshTokenAPI = async (
 ): Promise<{ accessToken: string }> => {
   const response = await fetch(`${API_URL}/api/auth/refresh`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ refreshToken }),
   });
   if (!response.ok) {
@@ -95,7 +96,7 @@ export const logoutUserAPI = async (
 ): Promise<{ message: string }> => {
   const response = await fetch(`${API_URL}/api/auth/logout`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ userId }),
   });
   if (!response.ok) {
@@ -110,7 +111,7 @@ export const changePasswordAPI = async (
 ): Promise<{ message: string }> => {
   const response = await fetch(`${API_URL}/api/auth/change-password`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 

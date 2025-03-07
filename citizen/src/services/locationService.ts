@@ -1,6 +1,7 @@
 /**
  * Service for fetching location data (provinces, districts, wards) in Vietnam
  */
+import { getAuthHeaders } from '@/lib/api';
 
 export interface Province {
   code: string;
@@ -36,7 +37,10 @@ const BASE_URL = 'https://vietnam-administrative-division-json-server-swart.verc
  */
 export const fetchProvinces = async (): Promise<Province[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/province`);
+    const headers = getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/province`, {
+      headers
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch provinces');
@@ -62,7 +66,10 @@ export const fetchProvinces = async (): Promise<Province[]> => {
  */
 export const fetchDistrictsByProvince = async (provinceCode: string): Promise<District[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/district/?idProvince=${provinceCode}`);
+    const headers = getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/district/?idProvince=${provinceCode}`, {
+      headers
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch districts');
@@ -89,7 +96,10 @@ export const fetchDistrictsByProvince = async (provinceCode: string): Promise<Di
  */
 export const fetchWardsByDistrict = async (districtCode: string): Promise<Ward[]> => {
   try {
-    const response = await fetch(`${BASE_URL}/commune/?idDistrict=${districtCode}`);
+    const headers = getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/commune/?idDistrict=${districtCode}`, {
+      headers
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch wards');

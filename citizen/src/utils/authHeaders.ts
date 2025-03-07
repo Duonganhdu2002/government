@@ -3,5 +3,19 @@ import Cookies from 'js-cookie';
 
 export const getAuthHeaders = (): { [key: string]: string } => {
   const token = Cookies.get('accessToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  
+  // Default headers that should be included in all requests
+  const headers: { [key: string]: string } = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  };
+  
+  // Add Authorization header if token exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };

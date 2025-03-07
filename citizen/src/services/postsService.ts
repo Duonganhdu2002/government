@@ -5,7 +5,7 @@
  * It uses the NEXT_PUBLIC_API_URL environment variable.
  */
 
-import { getAuthHeaders } from '@/utils/authHeaders';
+import { getAuthHeaders } from '@/lib/api';
 
 export interface Post {
   post_id: number;
@@ -27,7 +27,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export const getAllPostsAPI = async (): Promise<Post[]> => {
   const response = await fetch(`${API_URL}/api/posts`, {
     method: "GET",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -41,7 +41,7 @@ export const getPostByIdAPI = async (
 ): Promise<Post> => {
   const response = await fetch(`${API_URL}/api/posts/${id}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -55,7 +55,7 @@ export const getPostsByCategoryIdAPI = async (
 ): Promise<Post[]> => {
   const response = await fetch(`${API_URL}/api/posts/category/${categoryId}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -69,7 +69,7 @@ export const createPostAPI = async (
 ): Promise<Post> => {
   const response = await fetch(`${API_URL}/api/posts`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -85,7 +85,7 @@ export const updatePostAPI = async (
 ): Promise<Post> => {
   const response = await fetch(`${API_URL}/api/posts/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -100,7 +100,7 @@ export const deletePostAPI = async (
 ): Promise<{ message: string }> => {
   const response = await fetch(`${API_URL}/api/posts/${id}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     const errorData = await response.json();

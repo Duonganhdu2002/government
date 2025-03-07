@@ -13,10 +13,7 @@ export const fetchApplicationTypes = async (): Promise<ApplicationType[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/application-types`, {
       signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
+      headers: getAuthHeaders()
     });
     
     clearTimeout(timeoutId);
@@ -95,10 +92,7 @@ export const createApplication = async (applicationData: any) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/applications`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(applicationData)
     });
 
@@ -129,13 +123,14 @@ export const uploadMediaFiles = async (applicationId: number, files: File[], fil
       formData.append('filetype', fileType);
     }
     
+    // When submitting FormData, we should not include Content-Type header
+    // as the browser will set it automatically with the correct boundary
     const authHeaders = getAuthHeaders();
+    delete authHeaders['Content-Type']; // Remove Content-Type for FormData
     
     const response = await fetch(`${API_BASE_URL}/api/media-files`, {
       method: 'POST',
-      headers: {
-        ...authHeaders
-      },
+      headers: authHeaders,
       body: formData
     });
     
@@ -205,12 +200,13 @@ export const submitApplicationWithFiles = async (
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 giây timeout
     
     try {
+      // For FormData, we need to remove Content-Type header
+      const headers = getAuthHeaders();
+      delete headers['Content-Type']; // Browser will set this with boundary for FormData
+      
       const response = await fetch(`${API_BASE_URL}/api/application-upload`, {
         method: 'POST',
-        headers: {
-          ...authHeaders,
-          // Don't set Content-Type for multipart/form-data - browser will set it with boundary
-        },
+        headers,
         body: formData,
         credentials: 'include', // Include cookies if needed
         signal: controller.signal
@@ -275,15 +271,11 @@ export const submitApplicationWithFiles = async (
  */
 export const testApplicationUploadConnection = async (): Promise<any> => {
   try {
-    const authHeaders = getAuthHeaders();
     console.log('Testing connection to application upload endpoint');
     
     const response = await fetch(`${API_BASE_URL}/api/application-upload/test`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...authHeaders
-      },
+      headers: getAuthHeaders(),
       credentials: 'include'
     });
     
@@ -293,7 +285,7 @@ export const testApplicationUploadConnection = async (): Promise<any> => {
     try {
       return JSON.parse(data);
     } catch (e) {
-      return { message: 'Received non-JSON response', raw: data };
+      return { message: data };
     }
   } catch (error) {
     console.error('Error testing application upload connection:', error);
@@ -310,9 +302,7 @@ export const testDatabaseSchema = async (): Promise<any> => {
     
     const response = await fetch(`${API_BASE_URL}/api/application-upload/test-schema`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      }
+      headers: getAuthHeaders()
     });
     
     const data = await response.text();
@@ -321,7 +311,7 @@ export const testDatabaseSchema = async (): Promise<any> => {
     try {
       return JSON.parse(data);
     } catch (e) {
-      return { message: 'Received non-JSON response', raw: data };
+      return { message: data };
     }
   } catch (error) {
     console.error('Error testing database schema:', error);
@@ -349,11 +339,7 @@ export const fetchUserApplications = async (): Promise<any> => {
     
     const response = await fetch(`${API_BASE_URL}/api/applications/current-user`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...authHeaders
-      },
+      headers: getAuthHeaders(),
       credentials: 'include',
       signal: controller.signal
     });
@@ -395,14 +381,9 @@ export const fetchUserApplications = async (): Promise<any> => {
  */
 export const fetchApplicationById = async (id: string): Promise<any> => {
   try {
-    const authHeaders = getAuthHeaders();
-    
     const response = await fetch(`${API_BASE_URL}/api/applications/${id}`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...authHeaders
-      },
+      headers: getAuthHeaders(),
       credentials: 'include'
     });
     

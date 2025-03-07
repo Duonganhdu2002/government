@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
@@ -10,8 +10,12 @@ import {
   Badge,
   Input,
   Textarea,
+  Select,
+  Container,
+  IconButton,
+  FocusModal
 } from '@medusajs/ui';
-import { ChevronRight, Check, Calendar, MagnifyingGlass, Plus } from '@medusajs/icons';
+import { ChevronRight, Check, Calendar, MagnifyingGlass, Plus, ChevronLeft, Minus } from '@medusajs/icons';
 
 // Interface for ApplicationType
 interface ApplicationType {
@@ -19,15 +23,71 @@ interface ApplicationType {
   typename: string;
   description: string;
   processingtimelimit: number;
+  category?: string; // Optional category field
+  processingTimeRange?: {
+    min: number;
+    max: number;
+  };
 }
+
+// Interface for SpecialApplicationType
+interface SpecialApplicationType {
+  specialapplicationtypeid: number;
+  applicationtypeid: number;
+  typename: string;
+  processingtimelimit: number;
+  applicationtypename?: string;
+}
+
+// Application categories
+const APPLICATION_CATEGORIES: Record<string, string> = {
+  'PERSONAL': 'Hồ sơ cá nhân',
+  'LEGAL': 'Pháp lý & Tư pháp',
+  'PROPERTY': 'Nhà đất & Tài sản',
+  'BUSINESS': 'Doanh nghiệp & Kinh doanh',
+  'SOCIAL': 'Xã hội & Cộng đồng',
+  'OTHER': 'Loại hồ sơ khác'
+};
+
+// Định nghĩa hàm assignCategoryToType ở cấp cao nhất để tránh lỗi
+// "Cannot access 'assignCategoryToType' before initialization"
+const assignCategoryToType = (type: ApplicationType): string => {
+  if (type.category) return type.category;
+
+  const typeName = type.typename.toLowerCase();
+  
+  if (typeName.includes('khai sinh') || typeName.includes('kết hôn') || typeName.includes('căn cước') || typeName.includes('hộ khẩu') || typeName.includes('thường trú')) {
+    return 'PERSONAL';
+  }
+  
+  if (typeName.includes('giấy phép') || typeName.includes('xây dựng') || typeName.includes('nhà đất') || typeName.includes('tài sản')) {
+    return 'PROPERTY';
+  }
+  
+  if (typeName.includes('doanh nghiệp') || typeName.includes('kinh doanh') || typeName.includes('thuế')) {
+    return 'BUSINESS';
+  }
+  
+  if (typeName.includes('pháp lý') || typeName.includes('tư pháp') || typeName.includes('luật')) {
+    return 'LEGAL';
+  }
+  
+  if (typeName.includes('xã hội') || typeName.includes('cộng đồng') || typeName.includes('sự kiện')) {
+    return 'SOCIAL';
+  }
+  
+  return 'OTHER';
+};
 
 // Application submission form
 const ApplicationForm = ({ 
   selectedType, 
+  selectedSpecialType,
   onSubmit, 
   isSubmitting 
 }: { 
   selectedType: ApplicationType | null;
+  selectedSpecialType: SpecialApplicationType | null;
   onSubmit: (formData: any) => void;
   isSubmitting: boolean;
 }) => {
@@ -36,14 +96,14 @@ const ApplicationForm = ({
   const [description, setDescription] = useState('');
   const [hasAttachments, setHasAttachments] = useState(false);
   const [formError, setFormError] = useState('');
-
+  
   // Reset form when selected type changes
   useEffect(() => {
     setTitle('');
     setDescription('');
     setHasAttachments(false);
     setFormError('');
-  }, [selectedType]);
+  }, [selectedType, selectedSpecialType]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +118,7 @@ const ApplicationForm = ({
     onSubmit({
       citizenid: user?.id,
       applicationtypeid: selectedType?.applicationtypeid,
+      specialapplicationtypeid: selectedSpecialType?.specialapplicationtypeid || null,
       title,
       description,
       submissiondate: new Date().toISOString(),
@@ -78,6 +139,19 @@ const ApplicationForm = ({
           </Badge>
         </div>
         <Text className="text-ui-fg-subtle">{selectedType.description}</Text>
+        
+        {selectedSpecialType && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
+            <div className="flex justify-between">
+              <Heading level="h3" className="text-sm font-medium text-blue-800">
+                Loại hồ sơ đặc biệt: {selectedSpecialType.typename}
+              </Heading>
+              <Badge className="bg-blue-100 text-blue-800">
+                {selectedSpecialType.processingtimelimit} ngày
+              </Badge>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -154,18 +228,28 @@ const ApplicationForm = ({
 const ApplicationTypeCard = ({ 
   type, 
   onSelect, 
-  isSelected 
+  isSelected,
+  processingTimeRange
 }: { 
   type: ApplicationType;
   onSelect: () => void;
   isSelected: boolean;
+  processingTimeRange?: { min: number, max: number } | null;
 }) => {
+  // Hiển thị khoảng thời gian xử lý
+  const renderProcessingTime = () => {
+    if (processingTimeRange && processingTimeRange.min !== processingTimeRange.max) {
+      return `${processingTimeRange.min} - ${processingTimeRange.max} ngày`;
+    }
+    return `${type.processingtimelimit} ngày`;
+  };
+
   return (
     <div 
       className={`p-4 cursor-pointer transition-all duration-200 border rounded-lg ${
         isSelected 
-          ? 'border-blue-500 shadow-md' 
-          : 'border-ui-border-base hover:border-gray-300 hover:shadow-sm'
+          ? 'border-blue-500 bg-blue-50 shadow-md' 
+          : 'border-ui-border-base hover:border-gray-300 hover:shadow-sm hover:bg-gray-50'
       }`}
       onClick={onSelect}
     >
@@ -173,11 +257,11 @@ const ApplicationTypeCard = ({
         <Heading level="h3" className="text-base font-medium">
           {type.typename}
         </Heading>
-        <Badge className="bg-gray-100 text-gray-700 text-xs">
-          {type.processingtimelimit} ngày
+        <Badge className={`${isSelected ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'} text-xs`}>
+          {renderProcessingTime()}
         </Badge>
       </div>
-      <Text className="text-ui-fg-subtle text-sm line-clamp-2">
+      <Text className="text-ui-fg-subtle text-sm line-clamp-2 mb-3">
         {type.description}
       </Text>
       <div className="mt-4 flex justify-end">
@@ -201,6 +285,223 @@ const ApplicationTypeCard = ({
   );
 };
 
+// Category Accordion Component
+const CategoryAccordion = ({
+  title,
+  children,
+  defaultOpen = false,
+  count
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  count?: number;
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border border-gray-200 rounded-lg mb-6 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <div 
+        className="flex justify-between items-center p-4 cursor-pointer bg-gray-50 hover:bg-gray-100"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center">
+          <Heading level="h3" className="text-lg font-medium">{title}</Heading>
+          {count !== undefined && (
+            <Badge className="ml-2 bg-blue-50 text-blue-600">
+              {count}
+            </Badge>
+          )}
+        </div>
+        <span>
+          {isOpen ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+        </span>
+      </div>
+      {isOpen && (
+        <div className="p-4 border-t border-gray-200 bg-white">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Pagination Component
+const Pagination = ({
+  currentPage,
+  totalPages,
+  onPageChange
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => {
+  if (totalPages <= 1) return null;
+  
+  return (
+    <div className="flex items-center justify-center space-x-2 mt-6 pt-4 border-t border-gray-100">
+      <Button 
+        variant="secondary" 
+        size="small" 
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage <= 1}
+        className="px-3 py-1"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </Button>
+      
+      <div className="flex items-center space-x-1">
+        {[...Array(totalPages)].map((_, idx) => {
+          const pageNumber = idx + 1;
+          const isActive = pageNumber === currentPage;
+          
+          return (
+            <button
+              key={idx}
+              onClick={() => onPageChange(pageNumber)}
+              className={`w-8 h-8 rounded-md text-sm flex items-center justify-center ${
+                isActive 
+                  ? 'bg-blue-500 text-white font-medium' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {pageNumber}
+            </button>
+          );
+        })}
+      </div>
+      
+      <Button 
+        variant="secondary" 
+        size="small" 
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage >= totalPages}
+        className="px-3 py-1"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </Button>
+    </div>
+  );
+};
+
+// Special Application Type Card
+const SpecialApplicationTypeCard = ({
+  specialType,
+  onSelect,
+}: {
+  specialType: SpecialApplicationType;
+  onSelect: (specialType: SpecialApplicationType) => void;
+}) => {
+  return (
+    <div 
+      className="p-4 cursor-pointer transition-all duration-200 border rounded-lg hover:border-blue-500 hover:shadow-md"
+      onClick={() => onSelect(specialType)}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <Heading level="h3" className="text-base font-medium">
+          {specialType.typename}
+        </Heading>
+        <Badge className="bg-blue-100 text-blue-700 text-xs">
+          {specialType.processingtimelimit} ngày
+        </Badge>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button 
+          variant="secondary" 
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(specialType);
+          }}
+        >
+          Chọn
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// Special Types Modal
+const SpecialTypesModal = ({
+  isOpen,
+  onClose,
+  selectedType,
+  specialTypes,
+  onSelectSpecialType,
+  onDirectSubmit,
+  loading
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedType: ApplicationType | null;
+  specialTypes: SpecialApplicationType[];
+  onSelectSpecialType: (specialType: SpecialApplicationType) => void;
+  onDirectSubmit: () => void;
+  loading: boolean;
+}) => {
+  if (!isOpen || !selectedType) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full overflow-hidden">
+        <div className="p-6">
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <Heading level="h2" className="text-xl mb-1">
+                  {selectedType.typename}
+                </Heading>
+                <Text className="text-ui-fg-subtle">
+                  Chọn loại hồ sơ đặc biệt hoặc sử dụng hồ sơ chung
+                </Text>
+              </div>
+              <Badge className="bg-gray-100 text-gray-700">
+                {selectedType.processingtimelimit} ngày
+              </Badge>
+            </div>
+          </div>
+          
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-border-base mx-auto"></div>
+              <Text className="ml-3">Đang tải loại hồ sơ đặc biệt...</Text>
+            </div>
+          ) : (
+            <>
+              {specialTypes.length > 0 ? (
+                <div className="mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {specialTypes.map((specialType) => (
+                      <SpecialApplicationTypeCard
+                        key={specialType.specialapplicationtypeid}
+                        specialType={specialType}
+                        onSelect={onSelectSpecialType}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-ui-fg-subtle">
+                  Không có loại hồ sơ đặc biệt cho loại hồ sơ này
+                </div>
+              )}
+            </>
+          )}
+          
+          <div className="border-t border-gray-200 pt-4 mt-4 flex justify-between items-center">
+            <Button variant="secondary" onClick={onClose}>
+              Hủy
+            </Button>
+            <Button onClick={onDirectSubmit}>
+              Tiếp tục với hồ sơ chung
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ApplicationsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
@@ -208,25 +509,98 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedType, setSelectedType] = useState<ApplicationType | null>(null);
+  const [specialTypes, setSpecialTypes] = useState<SpecialApplicationType[]>([]);
+  const [loadingSpecialTypes, setLoadingSpecialTypes] = useState(false);
+  const [selectedSpecialType, setSelectedSpecialType] = useState<SpecialApplicationType | null>(null);
   const [activeTab, setActiveTab] = useState("browse");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showSpecialTypesModal, setShowSpecialTypesModal] = useState(false);
+  
+  // Pagination state for each category
+  const [paginationState, setPaginationState] = useState<{[key: string]: number}>({});
+  const ITEMS_PER_PAGE = 4;
+  
+  // Category filter state
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   useEffect(() => {
     const fetchApplicationTypes = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/application-types`);
+        console.log('Gọi API lấy danh sách loại hồ sơ');
+        
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/application-types`);
         
         if (!response.ok) {
-          throw new Error('Failed to fetch application types');
+          throw new Error(`Không thể tải loại hồ sơ: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
-        setApplicationTypes(data);
+        console.log(`Đã tải ${data.length} loại hồ sơ`);
+        
+        // Lấy thông tin processingTimeRange cho từng loại hồ sơ
+        const typesWithTimeRanges = await Promise.all(
+          data.map(async (type: ApplicationType) => {
+            // Gọi API lấy các loại hồ sơ đặc biệt cho từng loại hồ sơ
+            try {
+              const specialResponse = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/special-application-types/by-application-type/${type.applicationtypeid}`
+              );
+              
+              if (!specialResponse.ok && specialResponse.status !== 404) {
+                throw new Error(`Failed to fetch special types: ${specialResponse.status}`);
+              }
+              
+              if (specialResponse.status === 404 || !specialResponse.ok) {
+                // Không có loại hồ sơ đặc biệt
+                return {
+                  ...type,
+                  processingTimeRange: { 
+                    min: type.processingtimelimit, 
+                    max: type.processingtimelimit 
+                  }
+                };
+              }
+              
+              const specialTypes = await specialResponse.json();
+              
+              if (!specialTypes || specialTypes.length === 0) {
+                return {
+                  ...type,
+                  processingTimeRange: { 
+                    min: type.processingtimelimit, 
+                    max: type.processingtimelimit 
+                  }
+                };
+              }
+              
+              // Tính toán thời gian xử lý nhỏ nhất và lớn nhất
+              const processingTimes = specialTypes.map((st: any) => st.processingtimelimit);
+              const min = Math.min(...processingTimes, type.processingtimelimit);
+              const max = Math.max(...processingTimes, type.processingtimelimit);
+              
+              return {
+                ...type,
+                processingTimeRange: { min, max }
+              };
+            } catch (error) {
+              console.error(`Error fetching special types for ${type.typename}:`, error);
+              return {
+                ...type,
+                processingTimeRange: { 
+                  min: type.processingtimelimit, 
+                  max: type.processingtimelimit 
+                }
+              };
+            }
+          })
+        );
+        
+        setApplicationTypes(typesWithTimeRanges);
       } catch (err) {
-        console.error('Error fetching application types:', err);
+        console.error('Lỗi khi tải loại hồ sơ:', err);
         setError('Không thể tải danh sách loại hồ sơ. Vui lòng thử lại sau.');
       } finally {
         setLoading(false);
@@ -234,12 +608,102 @@ export default function ApplicationsPage() {
     };
 
     fetchApplicationTypes();
+    
+    // Khởi tạo phân trang cho mỗi danh mục
+    const initPagination = Object.keys(APPLICATION_CATEGORIES).reduce((acc, category) => {
+      acc[category] = 1;
+      return acc;
+    }, {} as {[key: string]: number});
+    initPagination['ALL'] = 1;
+    
+    setPaginationState(initPagination);
   }, []);
+
+  // Fetch special application types for a selected application type
+  const fetchSpecialApplicationTypes = async (applicationTypeId: number) => {
+    try {
+      setLoadingSpecialTypes(true);
+      console.log('Fetching special types for:', applicationTypeId);
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/special-application-types/by-application-type/${applicationTypeId}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          // No special types found is normal
+          console.log('No special application types found for this category');
+          setSpecialTypes([]);
+          return [];
+        }
+        throw new Error(`Failed to fetch special application types: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Special application types:', data);
+      setSpecialTypes(data);
+      return data;
+    } catch (err) {
+      console.error('Error fetching special application types:', err);
+      setSpecialTypes([]);
+      return [];
+    } finally {
+      setLoadingSpecialTypes(false);
+    }
+  };
+
+  // Phân loại dữ liệu theo category - hàm này dùng trong trường hợp backend
+  // không trả về category, hoặc cần phân loại lại theo logic frontend
+  const categorizedApplicationTypes = useMemo(() => {
+    // Lọc dữ liệu theo từ khóa tìm kiếm
+    const filtered = applicationTypes.filter((type) => 
+      type.typename.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      type.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    // Nhóm theo danh mục
+    const grouped = filtered.reduce((acc, type) => {
+      // Sử dụng category đã có hoặc phân loại nếu không có
+      const category = type.category || assignCategoryToType(type);
+      
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(type);
+      return acc;
+    }, {} as {[key: string]: ApplicationType[]});
+    
+    return grouped;
+  }, [applicationTypes, searchQuery]);
+
+  const handleSelectType = async (type: ApplicationType) => {
+    setSelectedType(type);
+    
+    // Fetch special application types for this application type
+    const specialTypes = await fetchSpecialApplicationTypes(type.applicationtypeid);
+    
+    if (specialTypes.length === 0) {
+      // If no special types, go directly to the submission form
+      setActiveTab("submit");
+    } else {
+      // Show modal with special application types
+      setShowSpecialTypesModal(true);
+    }
+  };
+
+  const handleSelectSpecialType = (specialType: SpecialApplicationType | null) => {
+    setSelectedSpecialType(specialType);
+    setShowSpecialTypesModal(false);
+    setActiveTab("submit");
+  };
+
+  const handleCloseSpecialTypesModal = () => {
+    setShowSpecialTypesModal(false);
+    setSelectedSpecialType(null);
+  };
 
   const handleSubmitApplication = async (formData: any) => {
     try {
       setIsSubmitting(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/applications`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/applications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,6 +720,7 @@ export default function ApplicationsPage() {
       
       // Reset form
       setSelectedType(null);
+      setSelectedSpecialType(null);
       setActiveTab("browse");
     } catch (err) {
       console.error('Error submitting application:', err);
@@ -269,61 +734,36 @@ export default function ApplicationsPage() {
     setSearchQuery(e.target.value);
   };
 
-  const handleSelectType = (type: ApplicationType) => {
-    setSelectedType(type);
-    setActiveTab("submit");
+  const handlePageChange = (category: string, page: number) => {
+    setPaginationState(prev => ({
+      ...prev,
+      [category]: page
+    }));
   };
 
-  const filteredTypes = applicationTypes.filter((type) => 
-    type.typename.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    type.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Get all application types to show when "ALL" is selected
+  const allFilteredApplicationTypes = useMemo(() => {
+    return Object.values(categorizedApplicationTypes).flat();
+  }, [categorizedApplicationTypes]);
 
+  // Handle pagination for a specific category
+  const getPaginatedItems = (items: ApplicationType[], category: string) => {
+    const currentPage = paginationState[category] || 1;
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    
+    return {
+      items: items.slice(startIndex, endIndex),
+      totalPages: Math.ceil(items.length / ITEMS_PER_PAGE),
+      currentPage
+    };
+  };
+
+  // Format date string for display
   const formatDateString = (date: string) => {
     const d = new Date(date);
     return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
   };
-
-  // Sample application types data for testing (if API is not available)
-  const sampleTypes = [
-    {
-      applicationtypeid: 1,
-      typename: "Đăng ký khai sinh",
-      description: "Đăng ký khai sinh cho trẻ em mới sinh tại Việt Nam hoặc trẻ em có quốc tịch Việt Nam sinh ra ở nước ngoài.",
-      processingtimelimit: 5
-    },
-    {
-      applicationtypeid: 2,
-      typename: "Cấp mới căn cước công dân",
-      description: "Cấp mới thẻ căn cước công dân cho công dân từ đủ 14 tuổi trở lên.",
-      processingtimelimit: 7
-    },
-    {
-      applicationtypeid: 3,
-      typename: "Đăng ký kết hôn",
-      description: "Đăng ký kết hôn giữa công dân Việt Nam với nhau hoặc với người nước ngoài.",
-      processingtimelimit: 10
-    },
-    {
-      applicationtypeid: 4,
-      typename: "Xin giấy phép xây dựng",
-      description: "Cấp giấy phép xây dựng mới, sửa chữa, cải tạo công trình dân dụng và công nghiệp.",
-      processingtimelimit: 15
-    },
-    {
-      applicationtypeid: 5,
-      typename: "Đăng ký thường trú",
-      description: "Đăng ký thường trú, chuyển đổi nơi đăng ký thường trú cho công dân.",
-      processingtimelimit: 7
-    }
-  ];
-  
-  // Use sample data if API data is not available
-  useEffect(() => {
-    if (!loading && applicationTypes.length === 0 && !error) {
-      setApplicationTypes(sampleTypes);
-    }
-  }, [loading, applicationTypes]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -355,13 +795,29 @@ export default function ApplicationsPage() {
 
       {activeTab === "browse" && (
         <div className="space-y-6">
-          <div className="flex flex-col mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center mb-6">
             <Input
               placeholder="Tìm kiếm loại hồ sơ..."
               value={searchQuery}
               onChange={handleSearch}
-              className="max-w-md"
+              className="max-w-md flex-grow"
             />
+            <div className="min-w-[200px]">
+              <Select 
+                value={selectedCategory} 
+                onValueChange={(value) => setSelectedCategory(value)}
+              >
+                <Select.Trigger className="w-full">
+                  <Select.Value placeholder="Chọn loại hồ sơ" />
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="ALL">Tất cả loại hồ sơ</Select.Item>
+                  {Object.entries(APPLICATION_CATEGORIES).map(([key, value]) => (
+                    <Select.Item key={key} value={key}>{value}</Select.Item>
+                  ))}
+                </Select.Content>
+              </Select>
+            </div>
           </div>
 
           {loading ? (
@@ -377,18 +833,88 @@ export default function ApplicationsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {filteredTypes.length > 0 ? (
-                filteredTypes.map((type) => (
-                  <ApplicationTypeCard
-                    key={type.applicationtypeid}
-                    type={type}
-                    onSelect={() => handleSelectType(type)}
-                    isSelected={selectedType?.applicationtypeid === type.applicationtypeid}
-                  />
-                ))
+            <div className="space-y-6">
+              {selectedCategory === 'ALL' ? (
+                // Show all application types sorted by category
+                Object.entries(APPLICATION_CATEGORIES).map(([categoryKey, categoryName]) => {
+                  const types = categorizedApplicationTypes[categoryKey] || [];
+                  
+                  if (types.length === 0) return null;
+                  
+                  const { items, totalPages, currentPage } = getPaginatedItems(types, categoryKey);
+                  
+                  return (
+                    <CategoryAccordion 
+                      key={categoryKey} 
+                      title={categoryName}
+                      defaultOpen={categoryKey === 'PERSONAL'}
+                      count={types.length}
+                    >
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {items.map((type: ApplicationType) => (
+                          <ApplicationTypeCard
+                            key={type.applicationtypeid}
+                            type={type}
+                            onSelect={() => handleSelectType(type)}
+                            isSelected={selectedType?.applicationtypeid === type.applicationtypeid}
+                            processingTimeRange={type.processingTimeRange}
+                          />
+                        ))}
+                      </div>
+                      
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={(page) => handlePageChange(categoryKey, page)}
+                      />
+                    </CategoryAccordion>
+                  );
+                })
               ) : (
-                <div className="col-span-2 text-center py-8 text-ui-fg-subtle">
+                // Show only the selected category
+                <div>
+                  <div className="mb-4">
+                    <Heading level="h2" className="text-xl">
+                      {APPLICATION_CATEGORIES[selectedCategory]} 
+                      <Badge className="ml-2 bg-blue-50 text-blue-600">
+                        {(categorizedApplicationTypes[selectedCategory] || []).length}
+                      </Badge>
+                    </Heading>
+                  </div>
+                  
+                  {categorizedApplicationTypes[selectedCategory]?.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {getPaginatedItems(
+                          categorizedApplicationTypes[selectedCategory] || [], 
+                          selectedCategory
+                        ).items.map((type: ApplicationType) => (
+                          <ApplicationTypeCard
+                            key={type.applicationtypeid}
+                            type={type}
+                            onSelect={() => handleSelectType(type)}
+                            isSelected={selectedType?.applicationtypeid === type.applicationtypeid}
+                            processingTimeRange={type.processingTimeRange}
+                          />
+                        ))}
+                      </div>
+                      
+                      <Pagination
+                        currentPage={paginationState[selectedCategory] || 1}
+                        totalPages={Math.ceil((categorizedApplicationTypes[selectedCategory] || []).length / ITEMS_PER_PAGE)}
+                        onPageChange={(page) => handlePageChange(selectedCategory, page)}
+                      />
+                    </>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                      <Text className="text-gray-500">Không có loại hồ sơ nào trong danh mục này</Text>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {allFilteredApplicationTypes.length === 0 && (
+                <div className="text-center py-8 text-ui-fg-subtle">
                   Không tìm thấy loại hồ sơ phù hợp với từ khóa "{searchQuery}"
                 </div>
               )}
@@ -400,6 +926,7 @@ export default function ApplicationsPage() {
       {activeTab === "submit" && (
         <ApplicationForm
           selectedType={selectedType}
+          selectedSpecialType={selectedSpecialType}
           onSubmit={handleSubmitApplication}
           isSubmitting={isSubmitting}
         />
@@ -430,6 +957,23 @@ export default function ApplicationsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Special Types Modal */}
+      {showSpecialTypesModal && (
+        <SpecialTypesModal
+          isOpen={showSpecialTypesModal}
+          onClose={handleCloseSpecialTypesModal}
+          selectedType={selectedType}
+          specialTypes={specialTypes}
+          onSelectSpecialType={handleSelectSpecialType}
+          onDirectSubmit={() => {
+            setSelectedSpecialType(null);
+            setShowSpecialTypesModal(false);
+            setActiveTab("submit");
+          }}
+          loading={loadingSpecialTypes}
+        />
       )}
     </div>
   );

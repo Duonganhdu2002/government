@@ -52,11 +52,25 @@ const timeoutPromise = (ms: number): Promise<never> => {
 /**
  * Get authentication headers from cookies
  * 
- * @returns Object containing auth headers if token exists
+ * @returns Object containing all required headers including auth header if token exists
  */
 export const getAuthHeaders = (): Record<string, string> => {
   const token = Cookies.get('accessToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  
+  // Default headers that should be included in all requests
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  };
+  
+  // Add Authorization header if token exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 /**
@@ -185,7 +199,6 @@ export const apiClient = {
         fetch(url, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
             ...getAuthHeaders(),
             ...(options.headers || {})
           },
@@ -226,7 +239,6 @@ export const apiClient = {
         fetch(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             ...getAuthHeaders(),
             ...(options.headers || {})
           },
@@ -268,7 +280,6 @@ export const apiClient = {
         fetch(url, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
             ...getAuthHeaders(),
             ...(options.headers || {})
           },
@@ -309,7 +320,6 @@ export const apiClient = {
         fetch(url, {
           method: 'DELETE',
           headers: {
-            'Content-Type': 'application/json',
             ...getAuthHeaders(),
             ...(options.headers || {})
           },
