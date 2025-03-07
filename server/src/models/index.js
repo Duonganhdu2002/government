@@ -18,80 +18,80 @@ const Post = require('./post');
 const MediaPostFile = require('./mediaPostFiles');
 
 // Association between Areas and Citizens
-Area.hasMany(Citizen, { foreignKey: 'AreaCode' });
-Citizen.belongsTo(Area, { foreignKey: 'AreaCode' });
+Area.hasMany(Citizen, { foreignKey: 'areacode' });
+Citizen.belongsTo(Area, { foreignKey: 'areacode' });
 
 // Self-referencing associations for Areas (Parent-Children relationship)
-Area.belongsTo(Area, { as: 'Parent', foreignKey: 'ParentAreaCode' });
-Area.hasMany(Area, { as: 'Children', foreignKey: 'ParentAreaCode' });
+Area.belongsTo(Area, { as: 'Parent', foreignKey: 'parentareacode' });
+Area.hasMany(Area, { as: 'Children', foreignKey: 'parentareacode' });
 
 // Association between Citizens and Applications
-Citizen.hasMany(Application, { foreignKey: 'CitizenID' });
-Application.belongsTo(Citizen, { foreignKey: 'CitizenID' });
+Citizen.hasMany(Application, { foreignKey: 'citizenid' });
+Application.belongsTo(Citizen, { foreignKey: 'citizenid' });
 
 // Association between ApplicationTypes and Applications
-ApplicationType.hasMany(Application, { foreignKey: 'ApplicationTypeID' });
-Application.belongsTo(ApplicationType, { foreignKey: 'ApplicationTypeID' });
+ApplicationType.hasMany(Application, { foreignKey: 'applicationtypeid' });
+Application.belongsTo(ApplicationType, { foreignKey: 'applicationtypeid' });
 
 // Association between ApplicationTypes and SpecialApplicationTypes
-ApplicationType.hasMany(SpecialApplicationType, { foreignKey: 'ApplicationTypeID' });
-SpecialApplicationType.belongsTo(ApplicationType, { foreignKey: 'ApplicationTypeID' });
+ApplicationType.hasMany(SpecialApplicationType, { foreignKey: 'applicationtypeid' });
+SpecialApplicationType.belongsTo(ApplicationType, { foreignKey: 'applicationtypeid' });
 
 // Association between Agencies and Applications
-Agency.hasMany(Application, { foreignKey: 'CurrentAgencyID' });
-Application.belongsTo(Agency, { foreignKey: 'CurrentAgencyID' });
+Agency.hasMany(Application, { foreignKey: 'currentagencyid' });
+Application.belongsTo(Agency, { foreignKey: 'currentagencyid' });
 
 // Association between Areas and Agencies
-Area.hasMany(Agency, { foreignKey: 'AreaCode' });
-Agency.belongsTo(Area, { foreignKey: 'AreaCode' });
+Area.hasMany(Agency, { foreignKey: 'areacode' });
+Agency.belongsTo(Area, { foreignKey: 'areacode' });
 
 // Association between Agencies and Staff
-Agency.hasMany(Staff, { foreignKey: 'AgencyID' });
-Staff.belongsTo(Agency, { foreignKey: 'AgencyID' });
+Agency.hasMany(Staff, { foreignKey: 'agencyid' });
+Staff.belongsTo(Agency, { foreignKey: 'agencyid' });
 
 // Association between Applications and ProcessingHistory
-Application.hasMany(ProcessingHistory, { foreignKey: 'ApplicationID' });
-ProcessingHistory.belongsTo(Application, { foreignKey: 'ApplicationID' });
+Application.hasMany(ProcessingHistory, { foreignKey: 'applicationid' });
+ProcessingHistory.belongsTo(Application, { foreignKey: 'applicationid' });
 
 // Association between Staff and ProcessingHistory
-Staff.hasMany(ProcessingHistory, { foreignKey: 'StaffID' });
-ProcessingHistory.belongsTo(Staff, { foreignKey: 'StaffID' });
+Staff.hasMany(ProcessingHistory, { foreignKey: 'staffid' });
+ProcessingHistory.belongsTo(Staff, { foreignKey: 'staffid' });
 
 // Association between Applications and Notifications
-Application.hasMany(Notification, { foreignKey: 'ApplicationID' });
-Notification.belongsTo(Application, { foreignKey: 'ApplicationID' });
+Application.hasMany(Notification, { foreignKey: 'applicationid' });
+Notification.belongsTo(Application, { foreignKey: 'applicationid' });
 
 // Association between Citizens and Notifications
-Citizen.hasMany(Notification, { foreignKey: 'CitizenID' });
-Notification.belongsTo(Citizen, { foreignKey: 'CitizenID' });
+Citizen.hasMany(Notification, { foreignKey: 'citizenid' });
+Notification.belongsTo(Citizen, { foreignKey: 'citizenid' });
 
 // Association between Agencies and AgencyDelays
-Agency.hasMany(AgencyDelay, { foreignKey: 'AgencyID' });
-AgencyDelay.belongsTo(Agency, { foreignKey: 'AgencyID' });
+Agency.hasMany(AgencyDelay, { foreignKey: 'agencyid' });
+AgencyDelay.belongsTo(Agency, { foreignKey: 'agencyid' });
 
 // Association between Applications and AgencyDelays
-Application.hasMany(AgencyDelay, { foreignKey: 'ApplicationID' });
-AgencyDelay.belongsTo(Application, { foreignKey: 'ApplicationID' });
+Application.hasMany(AgencyDelay, { foreignKey: 'applicationid' });
+AgencyDelay.belongsTo(Application, { foreignKey: 'applicationid' });
 
 // Association between Agencies and PublicNotifications
-Agency.hasMany(PublicNotification, { foreignKey: 'AgencyID' });
-PublicNotification.belongsTo(Agency, { foreignKey: 'AgencyID' });
+Agency.hasMany(PublicNotification, { foreignKey: 'agencyid' });
+PublicNotification.belongsTo(Agency, { foreignKey: 'agencyid' });
 
 // Association between Areas and PublicNotifications
-Area.hasMany(PublicNotification, { foreignKey: 'TargetArea' });
-PublicNotification.belongsTo(Area, { foreignKey: 'TargetArea', targetKey: 'AreaCode' });
+Area.hasMany(PublicNotification, { foreignKey: 'targetarea' });
+PublicNotification.belongsTo(Area, { foreignKey: 'targetarea', targetKey: 'areacode' });
 
 // Association between Applications and MediaFiles
-Application.hasMany(MediaFile, { foreignKey: 'ApplicationID' });
-MediaFile.belongsTo(Application, { foreignKey: 'ApplicationID' });
+Application.hasMany(MediaFile, { foreignKey: 'applicationid' });
+MediaFile.belongsTo(Application, { foreignKey: 'applicationid' });
 
 // Association between PostCategories and Posts
-PostCategory.hasMany(Post, { foreignKey: 'CategoryID' });
-Post.belongsTo(PostCategory, { foreignKey: 'CategoryID' });
+PostCategory.hasMany(Post, { foreignKey: 'categoryid' });
+Post.belongsTo(PostCategory, { foreignKey: 'categoryid' });
 
 // Association between Posts and MediaPostFiles
-Post.hasMany(MediaPostFile, { foreignKey: 'PostID' });
-MediaPostFile.belongsTo(Post, { foreignKey: 'PostID' });
+Post.hasMany(MediaPostFile, { foreignKey: 'postid' });
+MediaPostFile.belongsTo(Post, { foreignKey: 'postid' });
 
 // Export all models
 module.exports = {

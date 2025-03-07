@@ -57,6 +57,9 @@ app.use(logger.requestLogger());
 // Static file serving
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
+// Thêm thông tin log để dễ debug
+console.log('Public directory path:', path.join(__dirname, 'public'));
+
 // Security middleware
 app.use(helmet());        // Secure HTTP headers
 app.use(xssClean());      // Prevent XSS attacks

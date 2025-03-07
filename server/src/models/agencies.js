@@ -1,36 +1,36 @@
 // models/agencies.js
-// This model represents the 'Agencies' table.
+// This model represents the 'agencies' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Agency = sequelize.define('Agency', {
-  AgencyID: {
+  agencyid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  AgencyName: {
+  agencyname: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  Address: {
+  address: {
     type: DataTypes.STRING,
   },
-  PhoneNumber: {
+  phonenumber: {
     type: DataTypes.STRING,
   },
-  Email: {
+  email: {
     type: DataTypes.STRING,
   },
-  SpecializedFields: {
+  specializedfields: {
     type: DataTypes.TEXT,
   },
-  AreaCode: {
+  areacode: {
     type: DataTypes.INTEGER,
   }
 }, {
-  tableName: 'Agencies',
+  tableName: 'agencies',
   timestamps: false,
 });
 

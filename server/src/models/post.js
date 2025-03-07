@@ -3,34 +3,40 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Post = sequelize.define('Post', {
-  PostID: {
+  postid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
-  CategoryID: {
+  categoryid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  Title: {
+  title: {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  Content: {
+  content: {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  CreatedAt: {
+  createdat: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
-  UpdatedAt: {
+  updatedat: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
+  },
+  authorid: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
   }
 }, {
-  tableName: 'Posts',
-  timestamps: true, 
+  tableName: 'posts',
+  timestamps: true,
+  createdAt: 'createdat',
+  updatedAt: 'updatedat'
 });
 
 module.exports = Post;

@@ -1,34 +1,34 @@
 // models/mediaFiles.js
-// This model represents the 'MediaFiles' table,
+// This model represents the 'mediafiles' table,
 // which stores media files associated with applications.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const MediaFile = sequelize.define('MediaFile', {
-  MediaFileID: {
+  mediafileid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  ApplicationID: {
+  applicationid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  FileType: {
+  filetype: {
     type: DataTypes.STRING,
   },
-  FilePath: {
+  filepath: {
     type: DataTypes.STRING,
   },
-  FileSize: {
+  filesize: {
     type: DataTypes.INTEGER,
   },
-  UploadDate: {
+  uploaddate: {
     type: DataTypes.DATE,
   }
 }, {
-  tableName: 'MediaFiles',
+  tableName: 'mediafiles',
   timestamps: false,
 });
 

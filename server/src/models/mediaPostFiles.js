@@ -1,7 +1,7 @@
 /**
  * mediaPostFiles.js
  * 
- * Sequelize model for the 'MediaPostFiles' table
+ * Sequelize model for the 'mediapostfiles' table
  * Defines structure for media files associated with posts
  */
 
@@ -15,44 +15,44 @@ const sequelize = require('../config/database');
 const MediaPostFile = sequelize.define(
   'MediaPostFile',
   {
-    MediaPostFileID: {
+    mediapostfileid: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
       allowNull: false,
       comment: 'Unique identifier for the media post file'
     },
-    PostID: {
+    postid: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Posts',
-        key: 'PostID'
+        model: 'posts',
+        key: 'postid'
       },
       comment: 'Reference to the associated post'
     },
-    FileType: {
+    filetype: {
       type: DataTypes.STRING(50),
       allowNull: false,
       comment: 'Type of the file (image, document, video, etc.)'
     },
-    FilePath: {
+    filepath: {
       type: DataTypes.STRING(255),
       allowNull: false,
       comment: 'Path to the stored file'
     },
-    FileSize: {
+    filesize: {
       type: DataTypes.INTEGER,
       comment: 'Size of the file in bytes'
     },
-    UploadDate: {
+    uploaddate: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
       comment: 'Timestamp when the file was uploaded'
     }
   },
   {
-    tableName: 'MediaPostFiles',
+    tableName: 'mediapostfiles',
     timestamps: false
   }
 );
@@ -60,8 +60,8 @@ const MediaPostFile = sequelize.define(
 // Define associations
 MediaPostFile.associate = (models) => {
   MediaPostFile.belongsTo(models.Post, {
-    foreignKey: 'PostID',
-    targetKey: 'PostID'
+    foreignKey: 'postid',
+    targetKey: 'postid'
   });
 };
 

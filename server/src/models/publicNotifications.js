@@ -1,35 +1,35 @@
 // models/publicNotifications.js
-// This model represents the 'PublicNotifications' table,
+// This model represents the 'publicnotifications' table,
 // used for broadcasting notifications to the public by agencies.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const PublicNotification = sequelize.define('PublicNotification', {
-  NotificationID: {
+  notificationid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  AgencyID: {
+  agencyid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  Title: {
+  title: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  Content: {
+  content: {
     type: DataTypes.TEXT,
   },
-  TargetArea: {
+  targetarea: {
     type: DataTypes.INTEGER,
   },
-  SentDate: {
+  sentdate: {
     type: DataTypes.DATE,
   }
 }, {
-  tableName: 'PublicNotifications',
+  tableName: 'publicnotifications',
   timestamps: false,
 });
 

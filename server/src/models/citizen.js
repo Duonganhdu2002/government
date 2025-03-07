@@ -1,7 +1,7 @@
 /**
  * citizen.js
  * 
- * Sequelize model for the 'Citizens' table
+ * Sequelize model for the 'citizens' table
  * Defines structure and validations for citizen data
  */
 
@@ -16,14 +16,14 @@ const bcrypt = require('bcrypt');
 const Citizen = sequelize.define(
   'Citizen',
   {
-    CitizenID: {
+    citizenid: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
       allowNull: false,
       comment: 'Unique identifier for the citizen'
     },
-    FullName: {
+    fullname: {
       type: DataTypes.STRING(100),
       allowNull: false,
       validate: {
@@ -32,7 +32,7 @@ const Citizen = sequelize.define(
       },
       comment: 'Full name of the citizen'
     },
-    IdentificationNumber: {
+    identificationnumber: {
       type: DataTypes.STRING(20),
       allowNull: false,
       unique: true,
@@ -42,25 +42,25 @@ const Citizen = sequelize.define(
       },
       comment: 'National ID number or identification document number'
     },
-    Address: {
+    address: {
       type: DataTypes.STRING(255),
       comment: 'Residential address of the citizen'
     },
-    PhoneNumber: {
+    phonenumber: {
       type: DataTypes.STRING(20),
       validate: {
         is: /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/
       },
       comment: 'Contact phone number'
     },
-    Email: {
+    email: {
       type: DataTypes.STRING(100),
       validate: {
         isEmail: true
       },
       comment: 'Email address for communication'
     },
-    Username: {
+    username: {
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
@@ -71,7 +71,7 @@ const Citizen = sequelize.define(
       },
       comment: 'Username for authentication'
     },
-    PasswordHash: {
+    passwordhash: {
       type: DataTypes.STRING(100),
       allowNull: false,
       validate: {
@@ -79,7 +79,7 @@ const Citizen = sequelize.define(
       },
       comment: 'Bcrypt-hashed password'
     },
-    AreaCode: {
+    areacode: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -88,37 +88,37 @@ const Citizen = sequelize.define(
       },
       comment: 'Reference to the area where the citizen resides'
     },
-    ImageLink: {
+    imagelink: {
       type: DataTypes.STRING(255),
       allowNull: true,
       comment: 'URL or path to profile image'
     },
-    CreatedAt: {
+    createdat: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
       comment: 'Timestamp when record was created'
     },
-    UpdatedAt: {
+    updatedat: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
       comment: 'Timestamp when record was last updated'
     }
   },
   {
-    tableName: 'Citizens',
+    tableName: 'citizens',
     timestamps: true,
-    createdAt: 'CreatedAt',
-    updatedAt: 'UpdatedAt',
+    createdAt: 'createdat',
+    updatedAt: 'updatedat',
     
     // Model hooks (lifecycle events)
     hooks: {
       // Hash password before saving if changed
       beforeSave: async (citizen) => {
-        if (citizen.changed('PasswordHash')) {
+        if (citizen.changed('passwordhash')) {
           // Only hash if not already hashed
-          if (!citizen.PasswordHash.startsWith('$2b$') && !citizen.PasswordHash.startsWith('$2a$')) {
+          if (!citizen.passwordhash.startsWith('$2b$') && !citizen.passwordhash.startsWith('$2a$')) {
             const saltRounds = 10;
-            citizen.PasswordHash = await bcrypt.hash(citizen.PasswordHash, saltRounds);
+            citizen.passwordhash = await bcrypt.hash(citizen.passwordhash, saltRounds);
           }
         }
       }
@@ -128,7 +128,7 @@ const Citizen = sequelize.define(
     instanceMethods: {
       // Method to validate password
       validatePassword: async function(password) {
-        return await bcrypt.compare(password, this.PasswordHash);
+        return await bcrypt.compare(password, this.passwordhash);
       }
     }
   }
@@ -146,7 +146,7 @@ const Citizen = sequelize.define(
  */
 Citizen.findByUsername = async function(username) {
   return await this.findOne({
-    where: { Username: username }
+    where: { username: username }
   });
 };
 
@@ -158,7 +158,7 @@ Citizen.findByUsername = async function(username) {
  */
 Citizen.findByIdNumber = async function(idNumber) {
   return await this.findOne({
-    where: { IdentificationNumber: idNumber }
+    where: { identificationnumber: idNumber }
   });
 };
 
@@ -170,25 +170,25 @@ Citizen.findByIdNumber = async function(idNumber) {
  */
 Citizen.findByAreaCode = async function(areaCode) {
   return await this.findAll({
-    where: { AreaCode: areaCode }
+    where: { areacode: areaCode }
   });
 };
 
 // Define associations
 Citizen.associate = (models) => {
   Citizen.belongsTo(models.Area, {
-    foreignKey: 'AreaCode',
-    targetKey: 'AreaCode'
+    foreignKey: 'areacode',
+    targetKey: 'areacode'
   });
   
   Citizen.hasMany(models.Application, {
-    foreignKey: 'CitizenID',
-    sourceKey: 'CitizenID'
+    foreignKey: 'citizenid',
+    sourceKey: 'citizenid'
   });
   
   Citizen.hasMany(models.Notification, {
-    foreignKey: 'CitizenID',
-    sourceKey: 'CitizenID'
+    foreignKey: 'citizenid',
+    sourceKey: 'citizenid'
   });
 };
 

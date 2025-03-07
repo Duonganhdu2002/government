@@ -1,34 +1,34 @@
 // models/notifications.js
-// This model represents the 'Notifications' table.
+// This model represents the 'notifications' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Notification = sequelize.define('Notification', {
-  NotificationID: {
+  notificationid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  CitizenID: {
+  citizenid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  ApplicationID: {
+  applicationid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  Content: {
+  content: {
     type: DataTypes.TEXT,
   },
-  NotificationType: {
+  notificationtype: {
     type: DataTypes.STRING,
   },
-  SentDate: {
+  sentdate: {
     type: DataTypes.DATE,
   }
 }, {
-  tableName: 'Notifications',
+  tableName: 'notifications',
   timestamps: false,
 });
 

@@ -89,12 +89,12 @@ export default function RegisterPage() {
         email,
         username,
         password,
-        areacode: areaCode
+        areacode: Number(areaCode)
       });
 
       if (success) {
-        console.log('Registration successful, redirecting to dashboard');
-        router.push('/dashboard');
+        console.log('Registration successful, redirecting to login');
+        router.push('/login');
       } else {
         console.log('Registration failed but no error was thrown');
         setLoading(false);

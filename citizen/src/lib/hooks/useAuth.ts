@@ -56,7 +56,20 @@ export const useAuth = () => {
         const response = await apiClient.post('/api/auth/login', credentials);
         console.log('Login response:', response);
         
-        if (response?.data?.user && response?.data?.tokens) {
+        // Try to handle different response structures
+        if (response?.user && response?.tokens) {
+          // Direct user and tokens in response
+          const { accessToken, refreshToken } = response.tokens;
+          
+          // Store tokens in cookies
+          Cookies.set('accessToken', accessToken, { expires: 1 }); // 1 day
+          Cookies.set('refreshToken', refreshToken, { expires: 7 }); // 7 days
+          
+          // Store user in Redux
+          dispatch(loginAction(response.user));
+          return true;
+        } else if (response?.data?.user && response?.data?.tokens) {
+          // User and tokens nested inside data property
           const { accessToken, refreshToken } = response.data.tokens;
           
           // Store tokens in cookies
@@ -125,15 +138,9 @@ export const useAuth = () => {
       try {
         const response = await apiClient.post('/api/auth/register', userData);
         
-        if (response?.data?.tokens) {
-          const { accessToken, refreshToken } = response.data.tokens;
-          
-          // Store tokens in cookies
-          Cookies.set('accessToken', accessToken, { expires: 1 }); // 1 day
-          Cookies.set('refreshToken', refreshToken, { expires: 7 }); // 7 days
-          
-          // Store user in Redux
-          dispatch(loginAction(response.data.user));
+        if (response?.tokens) {
+          // Không lưu token và đăng nhập ngay, mà để người dùng đăng nhập thủ công
+          console.log('Registration successful');
           return true;
         }
         

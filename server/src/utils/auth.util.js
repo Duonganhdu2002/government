@@ -107,7 +107,7 @@ const hasRole = (user, requiredRoles) => {
  * @returns {Promise<void>}
  */
 const storeTokenInDatabase = async (userId, token, userType, expiryDays = 7) => {
-  const table = userType === 'staff' ? 'staff_refresh_tokens' : 'citizen_refresh_tokens';
+  const table = userType === 'staff' ? 'staffrefreshtoken' : 'citizenrefreshtoken';
   const idField = userType === 'staff' ? 'staffid' : 'citizenid';
   
   try {
@@ -116,7 +116,7 @@ const storeTokenInDatabase = async (userId, token, userType, expiryDays = 7) => 
     
     // Insert new token
     await executeQuery(
-      `INSERT INTO ${table} (${idField}, token, expires_at)
+      `INSERT INTO ${table} (${idField}, token, expiresat)
        VALUES ($1, $2, NOW() + interval '${expiryDays} days');`,
       [userId, token]
     );
@@ -141,13 +141,13 @@ const storeTokenInDatabase = async (userId, token, userType, expiryDays = 7) => 
  * @returns {Promise<boolean>} True if token is valid
  */
 const validateTokenInDatabase = async (userId, token, userType) => {
-  const table = userType === 'staff' ? 'staff_refresh_tokens' : 'citizen_refresh_tokens';
+  const table = userType === 'staff' ? 'staffrefreshtoken' : 'citizenrefreshtoken';
   const idField = userType === 'staff' ? 'staffid' : 'citizenid';
   
   try {
     const result = await executeQuery(
       `SELECT token FROM ${table} 
-       WHERE ${idField} = $1 AND token = $2 AND expires_at > NOW();`,
+       WHERE ${idField} = $1 AND token = $2 AND expiresat > NOW();`,
       [userId, token]
     );
     
@@ -171,7 +171,7 @@ const validateTokenInDatabase = async (userId, token, userType) => {
  * @returns {Promise<boolean>} True if token was removed
  */
 const removeTokenFromDatabase = async (userId, token, userType) => {
-  const table = userType === 'staff' ? 'staff_refresh_tokens' : 'citizen_refresh_tokens';
+  const table = userType === 'staff' ? 'staffrefreshtoken' : 'citizenrefreshtoken';
   const idField = userType === 'staff' ? 'staffid' : 'citizenid';
   
   try {

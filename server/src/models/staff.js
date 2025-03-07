@@ -1,37 +1,37 @@
 // models/staff.js
-// This model represents the 'Staff' table.
+// This model represents the 'staff' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Staff = sequelize.define('Staff', {
-  StaffID: {
+  staffid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  AgencyID: {
+  agencyid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  FullName: {
+  fullname: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  EmployeeCode: {
+  employeecode: {
     type: DataTypes.STRING,
   },
-  Role: {
+  role: {
     type: DataTypes.STRING,
   },
-  Username: {
+  username: {
     type: DataTypes.STRING,
   },
-  PasswordHash: {
+  passwordhash: {
     type: DataTypes.STRING,
   }
 }, {
-  tableName: 'Staff',
+  tableName: 'staff',
   timestamps: false,
 });
 

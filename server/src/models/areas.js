@@ -1,26 +1,30 @@
 // models/areas.js
-// This model represents the 'Areas' table.
+// This model represents the 'areas' table.
 // Each area can have a parent area (self-referencing relationship).
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Area = sequelize.define('Area', {
-  AreaCode: {
+  areacode: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  AreaName: {
+  areaname: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  ParentAreaCode: {
+  parentareacode: {
     type: DataTypes.INTEGER,
     allowNull: true,
+  },
+  level: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
   }
 }, {
-  tableName: 'Areas',
+  tableName: 'areas',
   timestamps: false, 
 });
 

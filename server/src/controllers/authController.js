@@ -28,7 +28,7 @@ const { ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_EXPIRY } = authUtil.constants;
  */
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { id: user.citizenid, username: user.username },
+    { id: user.citizenid || user.staffid, username: user.username },
     ACCESS_TOKEN_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
@@ -41,7 +41,7 @@ const generateAccessToken = (user) => {
  */
 const generateRefreshToken = (user) => {
   return jwt.sign(
-    { id: user.citizenid, username: user.username },
+    { id: user.citizenid || user.staffid, username: user.username },
     REFRESH_TOKEN_SECRET,
     { expiresIn: REFRESH_TOKEN_EXPIRY }
   );
@@ -75,6 +75,9 @@ const authController = {
         areacode,
       } = req.body;
 
+      // Ensure areacode is a number
+      const areaCodeNum = parseInt(areacode, 10);
+      
       // Validate that all required fields are provided
       if (
         !fullname ||
@@ -84,7 +87,7 @@ const authController = {
         !email ||
         !username ||
         !password ||
-        !areacode
+        !areaCodeNum
       ) {
         return res.status(400).json({
           error:
@@ -92,32 +95,50 @@ const authController = {
         });
       }
 
+      // Log which fields are missing for debugging
+      const missingFields = [];
+      if (!fullname) missingFields.push('fullname');
+      if (!identificationnumber) missingFields.push('identificationnumber');
+      if (!address) missingFields.push('address');
+      if (!phonenumber) missingFields.push('phonenumber');
+      if (!email) missingFields.push('email');
+      if (!username) missingFields.push('username');
+      if (!password) missingFields.push('password');
+      if (!areaCodeNum) missingFields.push('areacode');
+      
+      if (missingFields.length > 0) {
+        console.log('Missing fields:', missingFields);
+      }
+
       // Check if a user already exists with the same username, identification number, email, or phone number
       const userCheck = await pool.query(
-        "SELECT * FROM citizens WHERE username = $1 OR identificationnumber = $2 OR email = $3 OR phonenumber = $4",
+        "SELECT * FROM Citizens WHERE Username = $1 OR IdentificationNumber = $2 OR Email = $3 OR PhoneNumber = $4",
         [username, identificationnumber, email, phonenumber]
       );
       if (userCheck.rows.length > 0) {
-        return res.status(400).json({
-          error:
-            "Username, Identification Number, Email, or Phone Number already exists.",
-        });
+        // Find which specific field is duplicated
+        const duplicateRecord = userCheck.rows[0];
+        let duplicateField = [];
+        
+        if (duplicateRecord.Username === username) duplicateField.push('username');
+        if (duplicateRecord.IdentificationNumber === identificationnumber) duplicateField.push('identification number');
+        if (duplicateRecord.Email === email) duplicateField.push('email');
+        if (duplicateRecord.PhoneNumber === phonenumber) duplicateField.push('phone number');
+        
+        const errorMessage = `The following field(s) already exist: ${duplicateField.join(', ')}`;
+        return res.status(400).json({ error: errorMessage });
       }
 
       // Hash the user's password using bcrypt
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
-      // Lấy giá trị ảnh mặc định từ .env
-      const defaultImageLink = `${process.env.APP_BASE_URL}${process.env.STATIC_FILES_PATH}/${process.env.DEFAULT_AVATAR_FILENAME}`;
-      console.log("Default Image Link:", defaultImageLink);
-
-      // Insert the new user into the database (chèn thêm cột imagelink)
+      // Insert the new user into the database
       const result = await pool.query(
-        `INSERT INTO citizens 
-          (fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode, imagelink)
+        `INSERT INTO Citizens 
+          (FullName, IdentificationNumber, Address, PhoneNumber, Email, Username, PasswordHash, AreaCode)
          VALUES 
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
+          ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`,
         [
           fullname,
           identificationnumber,
@@ -126,8 +147,7 @@ const authController = {
           email,
           username,
           passwordHash,
-          areacode,
-          defaultImageLink,
+          areaCodeNum,
         ]
       );
       const user = result.rows[0];
@@ -146,20 +166,62 @@ const authController = {
         message: "User registered successfully.",
         user: {
           id: user.citizenid,
-          fullname: user.fullname,
-          identificationnumber: user.identificationnumber,
-          address: user.address,
-          phonenumber: user.phonenumber,
-          email: user.email,
-          username: user.username,
-          areacode: user.areacode,
+          fullname: user.FullName,
+          identificationnumber: user.IdentificationNumber,
+          address: user.Address,
+          phonenumber: user.PhoneNumber,
+          email: user.Email,
+          username: user.Username,
+          areacode: user.AreaCode,
         },
-        accessToken,
-        refreshToken,
+        tokens: {
+          accessToken,
+          refreshToken
+        }
       });
     } catch (error) {
       console.error("Error during registration:", error);
-      res.status(500).json({ error: "Failed to register user." });
+      
+      // Provide more detailed error information for debugging
+      if (error.code) {
+        console.error(`Database error code: ${error.code}`);
+      }
+      
+      if (error.detail) {
+        console.error(`Error detail: ${error.detail}`);
+      }
+      
+      if (error.constraint) {
+        console.error(`Constraint violation: ${error.constraint}`);
+      }
+      
+      if (error.stack) {
+        console.error(`Stack trace: ${error.stack}`);
+      }
+      
+      // Handle specific error cases
+      if (error.code === '23505') {
+        // Unique violation
+        return res.status(400).json({ 
+          error: "Duplicate information detected. Please check your identification number, email, phone number, or username."
+        });
+      }
+      
+      if (error.code === '23502') {
+        // Not null violation
+        return res.status(400).json({ 
+          error: "Missing required information. Please complete all required fields."
+        });
+      }
+      
+      if (error.code === '23503') {
+        // Foreign key violation
+        return res.status(400).json({ 
+          error: "Invalid area code. Please select a valid area."
+        });
+      }
+      
+      res.status(500).json({ error: "Failed to register user. Please try again or contact support." });
     }
   },
 
@@ -172,7 +234,12 @@ const authController = {
    * If the credentials are valid, returns new access and refresh tokens.
    */
   login: async (req, res, next) => {
-    const { username, password, userType } = req.body;
+    let { username, password, userType } = req.body;
+    
+    // Normalize userType from potential object to string
+    if (typeof userType === 'object' && userType !== null) {
+      userType = userType.toString();
+    }
     
     // Validate request
     if (!username || !password) {
@@ -259,7 +326,7 @@ const authController = {
       });
     } catch (error) {
       logger.error('Login error:', { error: error.message, username, userType });
-      next(createError('Authentication failed', 500));
+      return sendError(res, 'Authentication failed: ' + (error.message || 'Unknown error'), 500);
     }
   },
 
@@ -495,7 +562,7 @@ const authController = {
  * @returns {Promise<void>}
  */
 const storeRefreshToken = async (userId, token, userType) => {
-  const table = userType === 'staff' ? 'staff_refresh_tokens' : 'citizen_refresh_tokens';
+  const table = userType === 'staff' ? 'staffrefreshtoken' : 'citizenrefreshtoken';
   const idField = userType === 'staff' ? 'staffid' : 'citizenid';
   
   // Delete any existing tokens for this user
@@ -503,7 +570,7 @@ const storeRefreshToken = async (userId, token, userType) => {
   
   // Insert new token
   await executeQuery(
-    `INSERT INTO ${table} (${idField}, token, expires_at)
+    `INSERT INTO ${table} (${idField}, token, expiresat)
      VALUES ($1, $2, NOW() + interval '7 days');`,
     [userId, token]
   );

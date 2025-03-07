@@ -1,38 +1,38 @@
 // models/processingHistory.js
-// This model represents the 'ProcessingHistory' table,
+// This model represents the 'processinghistory' table,
 // which tracks the processing actions performed on applications.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const ProcessingHistory = sequelize.define('ProcessingHistory', {
-  HistoryID: {
+  historyid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  ApplicationID: {
+  applicationid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  StaffID: {
+  staffid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  ActionTaken: {
+  actiontaken: {
     type: DataTypes.STRING,
   },
-  ActionDate: {
+  actiondate: {
     type: DataTypes.DATE,
   },
-  Notes: {
+  notes: {
     type: DataTypes.TEXT,
   },
-  IsDelayed: {
+  isdelayed: {
     type: DataTypes.BOOLEAN,
   }
 }, {
-  tableName: 'ProcessingHistory',
+  tableName: 'processinghistory',
   timestamps: false,
 });
 

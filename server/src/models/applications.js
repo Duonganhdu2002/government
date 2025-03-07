@@ -1,65 +1,65 @@
 // models/applications.js
-// This model represents the 'Applications' table.
+// This model represents the 'applications' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Application = sequelize.define('Application', {
-  ApplicationID: {
+  applicationid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  CitizenID: {
+  citizenid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  ApplicationTypeID: {
+  applicationtypeid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  SpecialApplicationTypeID: {
+  specialapplicationtypeid: {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
-  Title: {
+  title: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  Description: {
+  description: {
     type: DataTypes.TEXT,
   },
-  SubmissionDate: {
+  submissiondate: {
     type: DataTypes.DATEONLY,
   },
-  Status: {
+  status: {
     type: DataTypes.STRING,
   },
-  CurrentAgencyID: {
+  currentagencyid: {
     type: DataTypes.INTEGER,
   },
-  LastUpdated: {
+  lastupdated: {
     type: DataTypes.DATE,
   },
-  DueDate: {
+  duedate: {
     type: DataTypes.DATEONLY,
   },
-  IsOverdue: {
+  isoverdue: {
     type: DataTypes.BOOLEAN,
   },
-  HasMedia: {
+  hasmedia: {
     type: DataTypes.BOOLEAN,
   },
-  EventDate: {
+  eventdate: {
     type: DataTypes.DATEONLY,
     allowNull: true,
   },
-  Location: {
+  location: {
     type: DataTypes.STRING(500),
     allowNull: true,
   }
 }, {
-  tableName: 'Applications',
+  tableName: 'applications',
   timestamps: false,
 });
 

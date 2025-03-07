@@ -34,7 +34,7 @@ const postControllers = {
       if (cached) {
         return res.status(200).json(JSON.parse(cached));
       }
-      const result = await pool.query('SELECT * FROM posts WHERE post_id = $1;', [id]);
+      const result = await pool.query('SELECT * FROM posts WHERE postid = $1;', [id]);
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Post not found' });
       }
@@ -58,7 +58,7 @@ const postControllers = {
       if (cached) {
         return res.status(200).json(JSON.parse(cached));
       }
-      const result = await pool.query('SELECT * FROM posts WHERE category_id = $1;', [categoryId]);
+      const result = await pool.query('SELECT * FROM posts WHERE categoryid = $1;', [categoryId]);
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'No posts found for this category' });
       }
@@ -72,19 +72,19 @@ const postControllers = {
 
   // CREATE POST
   createPost: async (req, res) => {
-    const { category_id, title, content } = req.body;
-    if (!category_id || !title || !content) {
-      return res.status(400).json({ error: 'category_id, title, and content are required' });
+    const { categoryid, title, content } = req.body;
+    if (!categoryid || !title || !content) {
+      return res.status(400).json({ error: 'categoryid, title, and content are required' });
     }
     try {
       const result = await pool.query(
-        `INSERT INTO posts (category_id, title, content, created_at, updated_at)
+        `INSERT INTO posts (categoryid, title, content, createdat, updatedat)
          VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *;`,
-        [category_id, title, content]
+        [categoryid, title, content]
       );
       // Xóa cache liên quan
       await redisClient.del('all_posts');
-      await redisClient.del(`posts_category_${category_id}`);
+      await redisClient.del(`posts_category_${categoryid}`);
       res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Error creating post:', error.message);
@@ -95,24 +95,24 @@ const postControllers = {
   // UPDATE POST
   updatePost: async (req, res) => {
     const { id } = req.params;
-    const { category_id, title, content } = req.body;
+    const { categoryid, title, content } = req.body;
     if (!id || isNaN(id)) {
       return res.status(400).json({ error: 'Invalid post ID' });
     }
     try {
       const result = await pool.query(
         `UPDATE posts
-         SET category_id = $1, title = $2, content = $3, updated_at = CURRENT_TIMESTAMP
-         WHERE post_id = $4
+         SET categoryid = $1, title = $2, content = $3, updatedat = CURRENT_TIMESTAMP
+         WHERE postid = $4
          RETURNING *;`,
-        [category_id, title, content, id]
+        [categoryid, title, content, id]
       );
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Post not found' });
       }
       await redisClient.del('all_posts');
       await redisClient.del(`post_${id}`);
-      await redisClient.del(`posts_category_${category_id}`);
+      await redisClient.del(`posts_category_${categoryid}`);
       res.status(200).json(result.rows[0]);
     } catch (error) {
       console.error('Error updating post:', error.message);
@@ -127,15 +127,15 @@ const postControllers = {
       return res.status(400).json({ error: 'Invalid post ID' });
     }
     try {
-      // Lấy thông tin category_id của bài viết cần xóa để xóa cache liên quan
-      const postResult = await pool.query('SELECT category_id FROM posts WHERE post_id = $1;', [id]);
+      // Lấy thông tin categoryid của bài viết cần xóa để xóa cache liên quan
+      const postResult = await pool.query('SELECT categoryid FROM posts WHERE postid = $1;', [id]);
       if (postResult.rows.length === 0) {
         return res.status(404).json({ message: 'Post not found' });
       }
-      const catId = postResult.rows[0].category_id;
+      const catId = postResult.rows[0].categoryid;
 
       const result = await pool.query(
-        'DELETE FROM posts WHERE post_id = $1 RETURNING *;',
+        'DELETE FROM posts WHERE postid = $1 RETURNING *;',
         [id]
       );
       if (result.rows.length === 0) {

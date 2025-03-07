@@ -59,7 +59,7 @@ export default function LoginPage() {
       const success = await login({
         username,
         password,
-        userType,
+        userType: UserType.CITIZEN, // Use the enum for citizen portal
       });
 
       if (success) {

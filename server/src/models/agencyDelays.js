@@ -1,35 +1,35 @@
 // models/agencyDelays.js
-// This model represents the 'AgencyDelays' table,
+// This model represents the 'agencydelays' table,
 // which logs any delays incurred by agencies in processing applications.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const AgencyDelay = sequelize.define('AgencyDelay', {
-  DelayID: {
+  delayid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  AgencyID: {
+  agencyid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  ApplicationID: {
+  applicationid: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  DelayDuration: {
+  delayduration: {
     type: DataTypes.INTEGER,
   },
-  Reason: {
+  reason: {
     type: DataTypes.TEXT,
   },
-  RecordedDate: {
+  recordeddate: {
     type: DataTypes.DATE,
   }
 }, {
-  tableName: 'AgencyDelays',
+  tableName: 'agencydelays',
   timestamps: false,
 });
 

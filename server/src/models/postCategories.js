@@ -1,16 +1,16 @@
 // models/postCategories.js
-// This model represents the 'post_categories' table.
+// This model represents the 'postcategories' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const PostCategory = sequelize.define('PostCategory', {
-  category_id: {
+  categoryid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  category_name: {
+  categoryname: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
@@ -19,7 +19,7 @@ const PostCategory = sequelize.define('PostCategory', {
     allowNull: true
   }
 }, {
-  tableName: 'post_categories',
+  tableName: 'postcategories',
   timestamps: false
 });
 

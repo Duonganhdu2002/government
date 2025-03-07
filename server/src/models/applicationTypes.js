@@ -1,27 +1,27 @@
 // models/applicationTypes.js
-// This model represents the 'ApplicationTypes' table.
+// This model represents the 'applicationtypes' table.
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const ApplicationType = sequelize.define('ApplicationType', {
-  ApplicationTypeID: {
+  applicationtypeid: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     allowNull: false,
   },
-  TypeName: {
+  typename: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  Description: {
+  description: {
     type: DataTypes.TEXT,
   },
-  ProcessingTimeLimit: {
+  processingtimelimit: {
     type: DataTypes.INTEGER,
   }
 }, {
-  tableName: 'ApplicationTypes',
+  tableName: 'applicationtypes',
   timestamps: false,
 });
 
