@@ -18,6 +18,10 @@ const Application = sequelize.define('Application', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
+  SpecialApplicationTypeID: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
   Title: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -45,6 +49,14 @@ const Application = sequelize.define('Application', {
   },
   HasMedia: {
     type: DataTypes.BOOLEAN,
+  },
+  EventDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  Location: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
   }
 }, {
   tableName: 'Applications',
