@@ -1,4 +1,5 @@
 import { ApplicationType, SpecialApplicationType } from '@/types/application';
+import { getAuthHeaders } from '@/lib/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -143,6 +144,185 @@ export const uploadMediaFiles = async (applicationId: number, files: File[], fil
     return await response.json();
   } catch (error) {
     console.error('Error in uploadMediaFiles:', error);
+    throw error;
+  }
+};
+
+/**
+ * Tạo đơn mới và upload files trong cùng một request
+ */
+export const submitApplicationWithFiles = async (
+  applicationData: any, 
+  images: File[], 
+  video: File | null
+) => {
+  try {
+    const formData = new FormData();
+    
+    // Thêm dữ liệu đơn
+    Object.keys(applicationData).forEach(key => {
+      if (applicationData[key] !== null && applicationData[key] !== undefined) {
+        // Đảm bảo rằng các ID được gửi dưới dạng số nguyên
+        if (key === 'applicationtypeid' || key === 'specialapplicationtypeid') {
+          const numValue = Number(applicationData[key]);
+          if (!isNaN(numValue)) {
+            formData.append(key, numValue.toString());
+          }
+        } else {
+          formData.append(key, applicationData[key].toString());
+        }
+      }
+    });
+    
+    // Thêm các file ảnh
+    if (images && images.length > 0) {
+      images.forEach(image => {
+        formData.append('files', image);
+      });
+    }
+    
+    // Thêm file video nếu có
+    if (video) {
+      formData.append('files', video);
+    }
+    
+    console.log('Submitting application with data:', {
+      title: applicationData.title,
+      applicationtypeid: applicationData.applicationtypeid,
+      numFiles: images.length + (video ? 1 : 0)
+    });
+    
+    // Lấy headers auth từ utility function
+    const authHeaders = getAuthHeaders();
+    console.log('Using auth headers:', Object.keys(authHeaders).length > 0 ? 'Available' : 'None');
+    
+    console.log(`Sending request to: ${API_BASE_URL}/api/application-upload`);
+    
+    // Thêm timeout dài hơn vì uploading có thể mất thời gian
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 giây timeout
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/application-upload`, {
+        method: 'POST',
+        headers: {
+          ...authHeaders,
+          // Don't set Content-Type for multipart/form-data - browser will set it with boundary
+        },
+        body: formData,
+        credentials: 'include', // Include cookies if needed
+        signal: controller.signal
+      });
+      
+      // Clear timeout
+      clearTimeout(timeoutId);
+      
+      let responseText = '';
+      try {
+        responseText = await response.text();
+      } catch (textError) {
+        console.error('Error reading response text:', textError);
+        responseText = 'Could not read response';
+      }
+      
+      // Check if response is OK
+      if (!response.ok) {
+        console.error('Error response:', responseText);
+        
+        // Try to parse as JSON if possible
+        let errorDetails = 'Unknown error';
+        try {
+          const errorJson = JSON.parse(responseText);
+          errorDetails = errorJson.details || errorJson.error || errorJson.message || 'Unknown error';
+        } catch (parseError) {
+          errorDetails = responseText || `${response.status} ${response.statusText}`;
+        }
+        
+        throw new Error(`Failed to submit application: ${errorDetails}`);
+      }
+      
+      // Try to parse success response
+      let result;
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error('Error parsing success response:', parseError);
+        console.error('Raw response:', responseText);
+        result = { message: 'Application submitted but response invalid' };
+      }
+      
+      console.log('Application submission successful:', result);
+      return result;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timeout - the server took too long to respond');
+      }
+      
+      throw fetchError;
+    }
+  } catch (error) {
+    console.error('Error in submitApplicationWithFiles:', error);
+    throw error;
+  }
+};
+
+/**
+ * Kiểm tra kết nối đến endpoint upload
+ */
+export const testApplicationUploadConnection = async (): Promise<any> => {
+  try {
+    const authHeaders = getAuthHeaders();
+    console.log('Testing connection to application upload endpoint');
+    
+    const response = await fetch(`${API_BASE_URL}/api/application-upload/test`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        ...authHeaders
+      },
+      credentials: 'include'
+    });
+    
+    const data = await response.text();
+    console.log('Response:', data);
+    
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return { message: 'Received non-JSON response', raw: data };
+    }
+  } catch (error) {
+    console.error('Error testing application upload connection:', error);
+    throw error;
+  }
+};
+
+/**
+ * Kiểm tra schema của database
+ */
+export const testDatabaseSchema = async (): Promise<any> => {
+  try {
+    console.log('Testing database schema...');
+    
+    const response = await fetch(`${API_BASE_URL}/api/application-upload/test-schema`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    const data = await response.text();
+    console.log('Schema response:', data);
+    
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return { message: 'Received non-JSON response', raw: data };
+    }
+  } catch (error) {
+    console.error('Error testing database schema:', error);
     throw error;
   }
 }; 

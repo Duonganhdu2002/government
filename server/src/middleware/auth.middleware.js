@@ -20,6 +20,8 @@ const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 const verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    console.log('Auth header:', authHeader ? `${authHeader.substring(0, 20)}...` : 'Not provided');
+    
     if (!authHeader) {
       return res.status(401).json({ 
         status: 'error',
@@ -28,6 +30,8 @@ const verifyToken = (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1]; // Expecting "Bearer <token>"
+    console.log('Token extracted:', token ? `${token.substring(0, 10)}...` : 'Not available');
+    
     if (!token) {
       return res.status(401).json({ 
         status: 'error',
@@ -37,12 +41,14 @@ const verifyToken = (req, res, next) => {
 
     jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
+        console.error('Token verification error:', err.message);
         return res.status(403).json({ 
           status: 'error',
           message: 'Invalid or expired token' 
         });
       }
       
+      console.log('Token decoded successfully, user ID:', decoded.id);
       // Attach userId from token to request
       req.userId = decoded.id;
       next();

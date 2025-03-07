@@ -42,7 +42,8 @@ const routes = {
   mediaPostFiles: require('./routes/mediaPostFilesRoutes'),
   auth: require('./routes/authRoutes'),
   postCategories: require('./routes/postCategoriesRoutes'),
-  posts: require('./routes/postRoutes')
+  posts: require('./routes/postRoutes'),
+  applicationUpload: require('./routes/applicationUploadRoutes')
 };
 
 const app = express();
@@ -55,10 +56,16 @@ const app = express();
 app.use(logger.requestLogger());
 
 // Static file serving
-app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/public', express.static(path.join(__dirname, '..', 'public')));
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+if (!require('fs').existsSync(uploadsDir)) {
+  require('fs').mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Thêm thông tin log để dễ debug
-console.log('Public directory path:', path.join(__dirname, 'public'));
+console.log('Public directory path:', path.join(__dirname, '..', 'public'));
 
 // Security middleware
 app.use(helmet());        // Secure HTTP headers
@@ -79,8 +86,10 @@ app.use(
   cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Accept', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'Content-Range'],
     credentials: true,
+    maxAge: 86400 // 24 hours
   })
 );
 
@@ -109,6 +118,7 @@ app.use('/api/media-post-files', routes.mediaPostFiles);
 app.use('/api/auth', routes.auth);
 app.use('/api/post-categories', routes.postCategories);
 app.use('/api/posts', routes.posts);
+app.use('/api/application-upload', routes.applicationUpload);
 
 // Basic health check route
 app.get('/', (req, res) => {

@@ -93,7 +93,7 @@ export default function NewApplicationModal({
     resetForm,
     validateBasicInfo,
     validateDetailInfo
-  } = useApplicationForm(onSuccess);
+  } = useApplicationForm(onSuccess, onClose);
 
   // Reset form khi mở modal
   useEffect(() => {

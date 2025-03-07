@@ -15,8 +15,8 @@ export interface SpecialApplicationType {
   specialapplicationtypeid: number;
   applicationtypeid: number;
   typename: string;
+  description?: string;
   processingtimelimit: number;
-  applicationtypename?: string;
 }
 
 /**
@@ -25,24 +25,26 @@ export interface SpecialApplicationType {
 export interface UploadedFile {
   file: File;
   preview: string;
-  progress: number;
-  error?: string;
 }
 
 /**
  * Interface cho dữ liệu đơn mới
  */
 export interface ApplicationFormData {
-  citizenid: number | null;
+  citizenid?: number | null;
   applicationtypeid: number | string;
   specialapplicationtypeid?: number | string | null;
   title: string;
-  description: string;
-  submissiondate: string;
-  status: string;
-  hasmedia: boolean;
-  eventdate: string;
-  location: string;
+  description?: string;
+  submissiondate?: string;
+  status?: string;
+  currentagencyid?: number;
+  lastupdated?: string;
+  duedate?: string;
+  isoverdue?: boolean;
+  hasmedia?: boolean;
+  eventdate?: string;
+  location?: string;
 }
 
 /**

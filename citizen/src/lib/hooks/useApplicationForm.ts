@@ -10,7 +10,8 @@ import {
   fetchApplicationTypes as fetchTypes, 
   fetchSpecialApplicationTypes as fetchSpecialTypes,
   createApplication,
-  uploadMediaFiles 
+  uploadMediaFiles,
+  submitApplicationWithFiles
 } from '@/services/applicationService';
 import { 
   fetchProvinces,
@@ -55,7 +56,7 @@ const sampleTypes: ApplicationType[] = [
 /**
  * Hook xử lý form đơn
  */
-export const useApplicationForm = (onSuccess?: (applicationId: number) => void) => {
+export const useApplicationForm = (onSuccess?: (applicationId: number) => void, onClose?: () => void) => {
   const { user } = useAuth();
   
   // Refs cho các input file
@@ -396,7 +397,7 @@ export const useApplicationForm = (onSuccess?: (applicationId: number) => void) 
     
     // Chuẩn bị dữ liệu form
     const applicationData: ApplicationFormData = {
-      citizenid: user?.id || null,
+      // citizenid sẽ được lấy từ token nên không cần gửi
       applicationtypeid: selectedTypeId,
       specialapplicationtypeid: selectedSpecialTypeId || null,
       title,
@@ -405,40 +406,28 @@ export const useApplicationForm = (onSuccess?: (applicationId: number) => void) 
       status: 'Submitted',
       hasmedia: (images.length > 0 || video !== null),
       eventdate: eventDate,
-      location
+      location,
+      // Thêm trường duedate (mặc định 7 ngày sau ngày nộp)
+      duedate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0]
     };
 
     try {
       setIsSubmitting(true);
       setFormError('');
       
-      // 1. Tạo đơn mới
-      const applicationResult = await createApplication(applicationData);
-      const applicationId = applicationResult.applicationid;
+      // Lấy các file gốc từ state images và video
+      const imageFiles = images.map(img => img.file);
+      const videoFile = video ? video.file : null;
       
-      // 2. Upload files nếu có
-      if (images.length > 0 || video !== null) {
-        // Upload các tệp ảnh
-        if (images.length > 0) {
-          try {
-            await uploadMediaFiles(
-              applicationId, 
-              images.map(img => img.file)
-            );
-          } catch (err) {
-            console.error('Error uploading images:', err);
-          }
-        }
-        
-        // Upload video nếu có
-        if (video) {
-          try {
-            await uploadMediaFiles(applicationId, [video.file], 'video');
-          } catch (err) {
-            console.error('Error uploading video:', err);
-          }
-        }
-      }
+      // Gọi API để tạo đơn và upload files cùng lúc
+      const result = await submitApplicationWithFiles(
+        applicationData,
+        imageFiles,
+        videoFile
+      );
+      
+      // Lấy applicationId từ response
+      const applicationId = result.application.applicationid;
       
       // Hiển thị thông báo thành công
       setSuccess(true);
@@ -446,6 +435,13 @@ export const useApplicationForm = (onSuccess?: (applicationId: number) => void) 
       // Gọi callback onSuccess nếu có
       if (onSuccess && applicationId) {
         onSuccess(applicationId);
+      }
+      
+      // Tự động đóng popup sau 2 giây nếu có callback onClose
+      if (onClose) {
+        setTimeout(() => {
+          onClose();
+        }, 2000); // 2 giây
       }
       
     } catch (err) {

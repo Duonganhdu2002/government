@@ -1,0 +1,43 @@
+### Submit new application with files
+# Note: This is a test file for VS Code REST Client extension
+# For actual file upload testing, you'll need to use Postman or similar tool that supports multipart/form-data
+
+POST http://localhost:5000/api/application-upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="citizenid"
+
+1
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="applicationtypeid"
+
+1
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="title"
+
+Đơn xin cấp giấy phép kinh doanh
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+Đơn xin cấp giấy phép kinh doanh cho cửa hàng thực phẩm
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="eventdate"
+
+2023-06-15
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="location"
+
+Số 123 Đường Nguyễn Huệ, Quận 1, TP HCM
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="business_proposal.jpg"
+Content-Type: image/jpeg
+
+< ./path/to/your/test/image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="location_video.mp4"
+Content-Type: video/mp4
+
+< ./path/to/your/test/video.mp4
+------WebKitFormBoundary7MA4YWxkTrZu0gW-- 
