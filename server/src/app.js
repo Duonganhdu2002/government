@@ -79,7 +79,7 @@ app.use(hpp());             // Ngăn chặn HTTP parameter pollution
 // Giới hạn tốc độ yêu cầu để phòng chống brute force và DDoS
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 100,                 // Mỗi IP tối đa 100 yêu cầu trong 15 phút
+  max: 1000,                 // Mỗi IP tối đa 100 yêu cầu trong 15 phút
   message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau.'
 });
 app.use(limiter);
