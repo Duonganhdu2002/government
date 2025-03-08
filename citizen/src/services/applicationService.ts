@@ -3,6 +3,20 @@ import { getAuthHeaders } from '@/lib/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// Định nghĩa kiểu dữ liệu cho MediaFile
+interface MediaFile {
+  mediafileid?: number;
+  id?: number;
+  applicationid: number;
+  mimetype?: string;
+  filename?: string;
+  originalfilename?: string;
+  filesize?: number;
+  filepath?: string;
+  uploaddate?: string;
+  [key: string]: any;
+}
+
 /**
  * Lấy danh sách loại đơn
  */
@@ -381,20 +395,100 @@ export const fetchUserApplications = async (): Promise<any> => {
  */
 export const fetchApplicationById = async (id: string): Promise<any> => {
   try {
+    console.log(`Fetching application details for ID: ${id}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 giây timeout
+    
+    // Lấy thông tin đơn từ bảng Applications
     const response = await fetch(`${API_BASE_URL}/api/applications/${id}`, {
       method: 'GET',
-      headers: getAuthHeaders(),
-      credentials: 'include'
+      headers: {
+        ...getAuthHeaders(),
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      credentials: 'include',
+      signal: controller.signal,
+      mode: 'cors'
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('Không tìm thấy đơn');
       }
-      throw new Error(`Failed to fetch application: ${response.status} ${response.statusText}`);
+      
+      let errorMessage;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || `Error: ${response.status} ${response.statusText}`;
+      } catch (e) {
+        errorMessage = `Error: ${response.status} ${response.statusText}`;
+      }
+      
+      console.error(`Error fetching application with ID ${id}:`, errorMessage);
+      throw new Error(errorMessage);
     }
     
-    return await response.json();
+    const applicationData = await response.json();
+    console.log(`Successfully fetched application ${id}`);
+    
+    // Sau khi lấy thông tin đơn, lấy các tệp đính kèm từ bảng MediaFiles
+    try {
+      console.log(`Fetching media files for application ID: ${id}`);
+      const mediaController = new AbortController();
+      const mediaTimeoutId = setTimeout(() => mediaController.abort(), 15000);
+      
+      const mediaResponse = await fetch(`${API_BASE_URL}/api/media-files/by-application/${id}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        credentials: 'include',
+        signal: mediaController.signal,
+        mode: 'cors'
+      });
+      
+      clearTimeout(mediaTimeoutId);
+      
+      if (mediaResponse.ok) {
+        const mediaFiles = await mediaResponse.json();
+        console.log(`Successfully fetched ${mediaFiles.length} media files for application ${id}`);
+        
+        // Thêm thông tin tệp đính kèm vào dữ liệu đơn
+        applicationData.attachments = mediaFiles.map((file: MediaFile) => ({
+          ...file,
+          // Đảm bảo các trường cần thiết tồn tại
+          mediafileid: file.mediafileid || file.id,
+          mimetype: file.mimetype || 'application/octet-stream',
+          originalfilename: file.originalfilename || file.filename || `File-${file.mediafileid || file.id}`
+        }));
+        
+        // Kiểm tra nếu có tệp đính kèm thì đánh dấu đơn có media
+        applicationData.hasmedia = applicationData.attachments.length > 0;
+        
+        // Log thông tin về các tệp đính kèm để debug
+        console.log('Attachment details:', applicationData.attachments.map((a: MediaFile) => ({
+          id: a.mediafileid,
+          type: a.mimetype,
+          name: a.originalfilename
+        })));
+      } else if (mediaResponse.status !== 404) {
+        // Nếu lỗi không phải 404 (không có tệp đính kèm), thì log lỗi
+        console.warn(`Could not fetch media files: ${mediaResponse.status} ${mediaResponse.statusText}`);
+      }
+    } catch (mediaError) {
+      // Lỗi khi lấy tệp đính kèm không nên làm hỏng toàn bộ luồng
+      console.error('Error fetching media files:', mediaError);
+      // Vẫn tiếp tục với thông tin đơn, không có tệp đính kèm
+      applicationData.attachments = [];
+      applicationData.hasmedia = false;
+    }
+    
+    return applicationData;
   } catch (error) {
     console.error(`Error fetching application with ID ${id}:`, error);
     throw error;

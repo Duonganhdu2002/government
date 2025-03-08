@@ -13,6 +13,12 @@ const mediaFilesController = require('../controllers/mediaFilesController');
 // Lấy danh sách tất cả các file media
 router.get('/', mediaFilesController.getAllMediaFiles);
 
+// Lấy danh sách file media theo application ID
+router.get('/by-application/:applicationId', mediaFilesController.getMediaFilesByApplicationId);
+
+// Truy cập trực tiếp nội dung file media theo ID
+router.get('/serve/:id', mediaFilesController.serveMediaFile);
+
 // Lấy thông tin chi tiết của file media theo ID
 router.get('/:id', mediaFilesController.getMediaFileById);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   Heading, 
   Text, 
@@ -118,37 +119,272 @@ const getStatusBadge = (status: string) => {
   }
 };
 
+// Định nghĩa kiểu cho attachment
+interface MediaAttachment {
+  mediafileid: number;
+  applicationid: number;
+  mimetype: string;
+  originalfilename: string;
+  filesize?: number;
+  uploaddate?: string;
+  filetype?: string;
+  filepath?: string;
+  [key: string]: any;
+}
+
 interface ApplicationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   applicationId: number | null;
 }
 
+// Custom ImageWithFallback component
+function ImageWithFallback({
+  src,
+  fallbackSrc = '/placeholder-image.svg',
+  alt,
+  onError,
+  ...rest
+}: {
+  src: string;
+  fallbackSrc?: string;
+  alt: string;
+  onError?: (error: Error) => void;
+  [x: string]: any;
+}) {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src);
+    setHasError(false);
+  }, [src]);
+
+  return (
+    <Image
+      {...rest}
+      src={hasError ? fallbackSrc : imgSrc}
+      alt={alt}
+      onError={(e) => {
+        if (!hasError) {
+          setHasError(true);
+          setImgSrc(fallbackSrc);
+          if (onError) {
+            onError(new Error(`Failed to load image: ${src}`));
+          }
+        }
+      }}
+    />
+  );
+}
+
+// Component FallbackImage sử dụng thẻ img thông thường thay vì Next/Image
+function FallbackImage({ 
+  src, 
+  alt, 
+  attachment,
+  className,
+  onError
+}: { 
+  src: string; 
+  alt: string; 
+  attachment: MediaAttachment;
+  className?: string;
+  onError?: () => void;
+}) {
+  // State để theo dõi xem đã thử tải bao nhiêu lần
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  
+  // Tạo URL dựa vào số lần thử
+  const getUrlForAttempt = () => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    
+    // 1. Thử dùng filepath chuẩn
+    if (loadAttempt === 0 && attachment.filepath) {
+      const cleanPath = attachment.filepath.startsWith('/') 
+        ? attachment.filepath 
+        : `/${attachment.filepath}`;
+      return `${API_URL}${cleanPath}`;
+    }
+    
+    // 2. Thử dùng direct URL với timestamp để bypass cache
+    if (loadAttempt === 1 && attachment.filepath) {
+      const cleanPath = attachment.filepath.startsWith('/') 
+        ? attachment.filepath 
+        : `/${attachment.filepath}`;
+      return `${API_URL}${cleanPath}?v=${Date.now()}`;
+    }
+    
+    // 3. Thử dùng API serve
+    if (loadAttempt === 2) {
+      return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
+    }
+    
+    // 4. Fallback to placeholder
+    return '/placeholder-image.svg';
+  };
+
+  const currentUrl = loadAttempt <= 2 ? getUrlForAttempt() : '/placeholder-image.svg';
+  
+  return (
+    <Image 
+      src={currentUrl} 
+      alt={alt} 
+      className={className || "w-full h-full object-contain"} 
+      onError={(e) => {
+        console.error(`Lỗi tải ảnh (lần ${loadAttempt + 1}): ${currentUrl}`);
+        
+        if (loadAttempt < 3) {
+          // Thử tải lại với chiến lược khác
+          setLoadAttempt(prev => prev + 1);
+        } else {
+          // Đã thử đủ cách, sử dụng placeholder
+          if (onError) onError();
+        }
+      }} 
+    />
+  );
+}
+
+// Component Image cải tiến
+function OptionalImage({
+  attachment,
+  alt,
+  className
+}: {
+  attachment: MediaAttachment;
+  alt: string;
+  className?: string;
+}) {
+  const [error, setError] = useState(false);
+  
+  // Tạo URL từ attachment
+  const imageUrl = (() => {
+    // Dùng NEXT_PUBLIC_API_URL từ môi trường hoặc mặc định là localhost
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    
+    // Đường dẫn đầy đủ từ filepath
+    if (attachment.filepath) {
+      // Đảm bảo filepath bắt đầu với /
+      const cleanPath = attachment.filepath.startsWith('/') 
+        ? attachment.filepath 
+        : `/${attachment.filepath}`;
+        
+      return `${API_URL}${cleanPath}`;
+    }
+    
+    // Fallback: Dùng mediafileid nếu không có filepath
+    return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
+  })();
+  
+  if (error) {
+    return (
+      <Image 
+        src="/placeholder-image.svg" 
+        alt={alt} 
+        className={className || "w-full h-full object-contain"} 
+      />
+    );
+  }
+
+  return (
+    <FallbackImage 
+      src={imageUrl}
+      alt={alt}
+      attachment={attachment}
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+}
+
 export default function ApplicationDetailModal({ isOpen, onClose, applicationId }: ApplicationDetailModalProps) {
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mediaLoadErrors, setMediaLoadErrors] = useState<{[key: string]: boolean}>({});
+  
+  const fetchApplicationDetail = async () => {
+    if (!applicationId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      setMediaLoadErrors({});
+      console.log(`Fetching application details for ID: ${applicationId}`);
+      const data = await fetchApplicationById(applicationId.toString());
+      setApplication(data);
+    } catch (err: any) {
+      console.error('Failed to fetch application details:', err);
+      setError(err?.message || 'Không thể tải thông tin chi tiết của đơn. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   useEffect(() => {
     if (!isOpen || !applicationId) return;
-    
-    const fetchApplicationDetail = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await fetchApplicationById(applicationId.toString());
-        setApplication(data);
-      } catch (err) {
-        console.error('Failed to fetch application details:', err);
-        setError('Không thể tải thông tin chi tiết của đơn. Vui lòng thử lại sau.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchApplicationDetail();
   }, [isOpen, applicationId]);
   
+  // Debug: Log thông tin chi tiết về attachments khi có
+  useEffect(() => {
+    if (application?.attachments && application.attachments.length > 0) {
+      console.log(`Có ${application.attachments.length} tệp đính kèm:`);
+      application.attachments.forEach((att: MediaAttachment, index: number) => {
+        console.log(`Tệp ${index + 1}:`, { 
+          id: att.mediafileid,
+          type: att.mimetype || att.filetype,
+          name: att.originalfilename,
+          filepath: att.filepath
+        });
+        console.log(`URL cho tệp ${index + 1}:`, getMediaUrl(att));
+      });
+    }
+  }, [application?.attachments]);
+  
+  // Xử lý lỗi tải media
+  const handleMediaError = (mediaId: number, mediaType: 'image' | 'video') => {
+    console.error(`Lỗi tải ${mediaType} với ID: ${mediaId}`);
+    setMediaLoadErrors(prev => ({
+      ...prev,
+      [mediaId]: true
+    }));
+  };
+  
+  // Hàm tải lại tệp đính kèm
+  const handleRetryLoadMedia = () => {
+    if (!applicationId) return;
+    
+    // Nếu có lỗi tải media, thử tải lại toàn bộ chi tiết đơn
+    if (Object.keys(mediaLoadErrors).length > 0) {
+      fetchApplicationDetail();
+    }
+  };
+
+  // Xây dựng URL cho media file
+  const getMediaUrl = (attachment: MediaAttachment): string => {
+    // Dùng NEXT_PUBLIC_API_URL từ môi trường hoặc mặc định là localhost
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    
+    // Đường dẫn đầy đủ từ filepath
+    if (attachment.filepath) {
+      // Đảm bảo filepath bắt đầu với /
+      const cleanPath = attachment.filepath.startsWith('/') 
+        ? attachment.filepath 
+        : `/${attachment.filepath}`;
+        
+      const fullUrl = `${API_URL}${cleanPath}`;
+      console.log(`Image URL via filepath: ${fullUrl}`);
+      return fullUrl;
+    }
+    
+    // Fallback: Dùng mediafileid nếu không có filepath
+    const fallbackUrl = `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
+    console.log(`Image URL via mediafileid: ${fallbackUrl}`);
+    return fallbackUrl;
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="w-full max-w-4xl mx-auto">
       <Modal.Header className="px-6 py-5">
@@ -258,26 +494,191 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
             
             {application.hasmedia && (
               <Card className="mt-6">
-                <Card.Header>
+                <Card.Header className="flex justify-between items-center">
                   <Heading level="h3">Tài liệu đính kèm</Heading>
+                  
+                  {/* Nút tải lại nếu có lỗi tải media */}
+                  {Object.keys(mediaLoadErrors).length > 0 && (
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      onClick={handleRetryLoadMedia}
+                    >
+                      Tải lại tệp
+                    </Button>
+                  )}
                 </Card.Header>
                 <Card.Content>
+                  {/* Hiển thị thông báo nếu có lỗi tải media */}
+                  {Object.keys(mediaLoadErrors).length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                      <Text className="text-yellow-700 text-sm">
+                        Có {Object.keys(mediaLoadErrors).length} tệp không tải được. Vui lòng kiểm tra kết nối mạng và thử lại.
+                      </Text>
+                    </div>
+                  )}
+                  
                   <div className="space-y-4">
+                    {/* Thống kê tệp đính kèm */}
+                    {application.attachments && application.attachments.length > 0 ? (
+                      <div className="mb-4 flex flex-wrap gap-3">
+                        <Badge color="blue">
+                          Tổng số: {application.attachments.length} tệp
+                        </Badge>
+                        
+                        {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length > 0 && (
+                          <Badge color="green">
+                            <span className="flex items-center gap-1">
+                              <ImageIcon className="w-3 h-3" />
+                              {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length} ảnh
+                            </span>
+                          </Badge>
+                        )}
+                        
+                        {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length > 0 && (
+                          <Badge color="purple">
+                            <span className="flex items-center gap-1">
+                              <VideoIcon className="w-3 h-3" />
+                              {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length} video
+                            </span>
+                          </Badge>
+                        )}
+                        
+                        {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length > 0 && (
+                          <Badge color="grey">
+                            <span className="flex items-center gap-1">
+                              <FileTextIcon className="w-3 h-3" />
+                              {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length} tài liệu khác
+                            </span>
+                          </Badge>
+                        )}
+                      </div>
+                    ) : null}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Phần này sẽ hiển thị ảnh và video đính kèm */}
-                      <div className="border border-gray-200 rounded-md p-4 text-center hover:shadow-md transition-shadow">
-                        <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
-                          <span className="w-10 h-10 text-gray-400"><ImageIcon /></span>
-                        </div>
-                        <Text className="text-sm text-gray-500">Đang tải tệp đính kèm...</Text>
-                      </div>
+                      {/* Hiển thị ảnh đính kèm */}
+                      {application.attachments && application.attachments.length > 0 ? (
+                        application.attachments
+                          .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('image/'))
+                          .map((attachment: MediaAttachment, index: number) => (
+                            <div key={`image-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                              <a 
+                                href={getMediaUrl(attachment)} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden relative">
+                                  <OptionalImage 
+                                    attachment={attachment}
+                                    alt={`Tệp đính kèm ${index + 1}`} 
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="flex flex-col">
+                                  <Text className="text-sm text-center truncate">
+                                    {attachment.originalfilename || `Ảnh ${index + 1}`}
+                                  </Text>
+                                  <Text className="text-xs text-gray-500 text-center">
+                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                  </Text>
+                                </div>
+                              </a>
+                            </div>
+                          ))
+                      ) : null}
                       
-                      <div className="border border-gray-200 rounded-md p-4 text-center hover:shadow-md transition-shadow">
-                        <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
-                          <span className="w-10 h-10 text-gray-400"><VideoIcon /></span>
+                      {/* Hiển thị video đính kèm */}
+                      {application.attachments && application.attachments.length > 0 ? (
+                        application.attachments
+                          .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('video/'))
+                          .map((attachment: MediaAttachment, index: number) => (
+                            <div key={`video-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                              <a 
+                                href={getMediaUrl(attachment)} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
+                                  <video
+                                    src={getMediaUrl(attachment)}
+                                    controls
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                      console.error(`Lỗi tải video: ${attachment.mediafileid}, đường dẫn: ${attachment.filepath}`);
+                                      // Đánh dấu lỗi tải
+                                      handleMediaError(attachment.mediafileid, 'video');
+                                      // Hiển thị icon thay thế
+                                      const target = e.target as HTMLVideoElement;
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        target.style.display = 'none';
+                                        const iconDiv = document.createElement('div');
+                                        iconDiv.className = 'flex justify-center items-center w-full h-full bg-gray-100';
+                                        iconDiv.innerHTML = `<span class="w-10 h-10 text-gray-400">
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" /><line x1="10" y1="8" x2="10" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></svg>
+                                        </span>`;
+                                        parent.appendChild(iconDiv);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex flex-col">
+                                  <Text className="text-sm text-center truncate">
+                                    {attachment.originalfilename || `Video ${index + 1}`}
+                                  </Text>
+                                  <Text className="text-xs text-gray-500 text-center">
+                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                  </Text>
+                                </div>
+                              </a>
+                            </div>
+                          ))
+                      ) : null}
+                      
+                      {/* Hiển thị tài liệu khác */}
+                      {application.attachments && application.attachments.length > 0 ? (
+                        application.attachments
+                          .filter((attachment: MediaAttachment) => 
+                            attachment.mimetype && 
+                            !attachment.mimetype.startsWith('image/') && 
+                            !attachment.mimetype.startsWith('video/')
+                          )
+                          .map((attachment: MediaAttachment, index: number) => (
+                            <div key={`doc-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                              <a 
+                                href={getMediaUrl(attachment)} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
+                                  <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <Text className="text-sm text-center truncate">
+                                    {attachment.originalfilename || `Tài liệu ${index + 1}`}
+                                  </Text>
+                                  <Text className="text-xs text-gray-500 text-center">
+                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                  </Text>
+                                  <Text className="text-xs text-gray-500 text-center">{getMediaUrl(attachment)}</Text>
+                                </div>
+                              </a>
+                            </div>
+                          ))
+                      ) : null}
+                      
+                      {/* Hiển thị thông báo nếu không có tài liệu đính kèm */}
+                      {!application.attachments || application.attachments.length === 0 ? (
+                        <div className="col-span-full text-center py-8">
+                          <Text className="text-gray-500">Không có tài liệu đính kèm</Text>
                         </div>
-                        <Text className="text-sm text-gray-500">Đang tải tệp đính kèm...</Text>
-                      </div>
+                      ) : null}
                     </div>
                   </div>
                 </Card.Content>

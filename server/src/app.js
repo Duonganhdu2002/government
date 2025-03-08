@@ -60,6 +60,9 @@ app.use(logger.requestLogger());
 // Phục vụ file tĩnh từ thư mục public
 app.use('/public', express.static(path.join(__dirname, '..', 'public')));
 
+// Phục vụ file tĩnh từ thư mục uploads trực tiếp
+app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+
 // Kiểm tra và tạo thư mục uploads nếu chưa tồn tại
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
 const fs = require('fs');
@@ -71,7 +74,18 @@ if (!fs.existsSync(uploadsDir)) {
 console.log('Đường dẫn thư mục public:', path.join(__dirname, '..', 'public'));
 
 // Thiết lập các middleware bảo mật
-app.use(helmet());          // Bảo vệ các HTTP header
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', '*'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      connectSrc: ["'self'", '*']
+    }
+  }
+}));          // Bảo vệ các HTTP header
 app.use(xssClean());        // Ngăn chặn tấn công XSS
 app.use(mongoSanitize());   // Làm sạch dữ liệu để phòng chống NoSQL injection
 app.use(hpp());             // Ngăn chặn HTTP parameter pollution
