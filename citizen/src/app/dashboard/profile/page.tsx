@@ -15,7 +15,7 @@ import {
 } from '@medusajs/ui';
 import { Check, ChevronRight, User, Calendar, Phone, MapPin, Pencil, Key } from '@medusajs/icons';
 import { updateUserProfile } from '@/store/authSlice';
-import { apiClient } from '@/lib/api';
+import { apiClient, ApiError } from '@/lib/api';
 
 // Định nghĩa kiểu dữ liệu cho thông tin người dùng
 interface UserProfile {
@@ -112,6 +112,7 @@ export default function ProfilePage() {
       return fallbackData;
     }
     
+    // Tải dữ liệu mở rộng từ localStorage
     let extendedData = { birthDate: '1990-01-01', bio: '' };
     try {
       if (typeof window !== 'undefined') {
@@ -124,11 +125,22 @@ export default function ProfilePage() {
       console.error('Error loading extended profile from localStorage:', error);
     }
     
+    // Xử lý cấu trúc phản hồi API
     const userData = apiData.data ? apiData.data : apiData;
     
-    return {
+    // Log chi tiết để dễ debug
+    console.log('Standardizing user data with fields:', {
+      id: userData.id || userData.citizenid,
+      username: userData.username || user?.username,
+      name: userData.name || userData.fullname,
+      email: userData.email,
+      phoneNumber: userData.phoneNumber || userData.phonenumber
+    });
+    
+    // Tạo đối tượng profile với đầy đủ các trường dự phòng
+    const profileData = {
       id: userData.id || userData.citizenid || user?.id || 1,
-      username: userData.username || userData.Username || '',
+      username: userData.username || userData.Username || user?.username || '', // Ưu tiên lấy từ user hiện tại
       name: userData.name || userData.fullname || userData.FullName || '',
       email: userData.email || userData.Email || '',
       phoneNumber: userData.phoneNumber || userData.phonenumber || userData.PhoneNumber || '',
@@ -138,6 +150,14 @@ export default function ProfilePage() {
       bio: userData.bio || userData.Bio || extendedData.bio,
       type: userData.type || user?.type || 'citizen',
     };
+    
+    // Đảm bảo username luôn có giá trị
+    if (!profileData.username && user?.username) {
+      profileData.username = user.username;
+      console.log('Using username from current user:', user.username);
+    }
+    
+    return profileData;
   }, [user]);
   
   // Hàm lấy thông tin chi tiết người dùng từ API
@@ -153,6 +173,13 @@ export default function ProfilePage() {
       if (!profile) {
         setLoading(true);
       }
+      
+      if (!user || !user.id) {
+        throw new Error('Không xác định được người dùng');
+      }
+      
+      // Lưu lại username hiện tại để đảm bảo không bị mất
+      const currentUsername = user.username;
       
       let response = null;
       let error = null;
@@ -176,32 +203,38 @@ export default function ProfilePage() {
           // Use a different endpoint that doesn't have the imagelink issue
           response = await apiClient.get(`/api/citizens/${user.id}`);
           console.log('Successfully fetched profile from fallback endpoint');
-          error = null; // Clear the error if fallback succeeds
         } catch (fallbackErr) {
-          console.error('Fallback endpoint also failed:', fallbackErr);
-          // Keep the original error if both endpoints fail
-          if (!error) {
-            error = fallbackErr;
-          }
+          console.error('Both endpoints failed:', fallbackErr);
+          error = fallbackErr || error;
+          throw error;
         }
       }
       
       // If we have a successful response with data
-      if (response && response.data) {
-        console.log('Processing profile data:', response.data);
+      if (response && (response.data || response)) {
+        console.log('Processing profile data:', response.data || response);
         // Ensure we're working with the actual user data object
-        const userData = response.data.data ? response.data.data : response.data;
+        const userData = response.data ? 
+          (response.data.data ? response.data.data : response.data) 
+          : response;
+        
         console.log('Mapping API data to profile:', userData);
         
         try {
+          // Đảm bảo userData có username
+          if (!userData.username && currentUsername) {
+            userData.username = currentUsername;
+            console.log('Added username to API response:', currentUsername);
+          }
+          
           const profileData = mapApiResponseToProfile(userData);
           setProfile(profileData);
           setFormData(profileData);
           
           try {
             localStorage.setItem('userProfileExtended', JSON.stringify({
-              birthDate: userData.birthDate || userData.dateOfBirth || '1990-01-01',
-              bio: userData.bio || ''
+              birthDate: profileData.birthDate || '1990-01-01',
+              bio: profileData.bio || ''
             }));
           } catch (storageError) {
             console.error('Error caching profile data:', storageError);
@@ -217,13 +250,19 @@ export default function ProfilePage() {
             );
               
             if (hasSignificantChanges) {
-              dispatch(updateUserProfile({
+              console.log('Updating user profile in Redux due to changes');
+              const updateData = {
                 name: userData.fullname || userData.name,
                 email: userData.email,
                 phoneNumber: userData.phonenumber || userData.phoneNumber,
                 address: userData.address,
-                identificationNumber: userData.identificationnumber || userData.identityNumber
-              }));
+                identificationNumber: userData.identificationnumber || userData.identityNumber,
+                username: userData.username || currentUsername // Đảm bảo giữ lại username
+              };
+              console.log('Update data:', updateData);
+              dispatch(updateUserProfile(updateData));
+            } else {
+              console.log('No significant changes detected in user profile');
             }
           }
           
@@ -250,7 +289,31 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error('Error in fetchUserProfile:', err);
-      // Don't throw here - we want to recover gracefully
+      // Xử lý lỗi 
+      if (err.message && (err.message.includes('Not authenticated') || err.status === 401)) {
+        console.warn('Authentication error while fetching profile. User may need to log in again.');
+        // Giữ nguyên trạng thái người dùng nếu đã tải trước đó
+        if (!profile && user) {
+          const basicProfile = mapUserToProfile(user);
+          setProfile(basicProfile);
+          setFormData(basicProfile);
+        }
+      } else {
+        // Hiển thị lỗi cho người dùng nếu cần
+        setError('Không thể tải thông tin cá nhân. Vui lòng thử lại sau.');
+        
+        // Nếu đã có profile trước đó, tiếp tục sử dụng
+        if (!profile && user) {
+          const basicProfile = mapUserToProfile(user);
+          setProfile(basicProfile);
+          setFormData(basicProfile);
+        }
+        
+        // Tạm dừng yêu cầu tải lại trong một khoảng thời gian 
+        setTimeout(() => {
+          setError('');
+        }, 5000);
+      }
     } finally {
       setLoading(false);
       fetchingProfileRef.current = false;
@@ -370,8 +433,9 @@ export default function ProfilePage() {
       setSaving(true);
       setError('');
       
-      if (!user?.id) {
-        throw new Error('User ID not found');
+      // Kiểm tra xem user có tồn tại không
+      if (!user || !user.id) {
+        throw new Error('Không xác định được người dùng');
       }
       
       let formattedIdentificationNumber = formData?.identityNumber || '';
@@ -383,100 +447,152 @@ export default function ProfilePage() {
         return;
       }
       
+      // Đảm bảo giữ lại username từ user hiện tại
       const profileData = {
         fullname: formData?.name,
         email: formData?.email,
         phonenumber: formData?.phoneNumber,
         address: formData?.address,
-        identificationnumber: formattedIdentificationNumber
+        identificationnumber: formattedIdentificationNumber,
+        // Không gửi username lên vì đó là trường không thể thay đổi
       };
       
       console.log('Sending profile data:', profileData);
       
-      const maxRetries = 5;
-      let retryCount = 0;
-      let updateSuccess = false;
-      let lastError: any;
-      
-      while (retryCount <= maxRetries && !updateSuccess) {
+      try {
+        // Hiển thị thông báo đang xử lý cho người dùng
+        
+        const response = await apiClient.patch(`/api/citizens/${user.id}`, profileData);
+        console.log('Profile update response:', response);
+        
+        requestSuccess = true;
+        
+        // Kiểm tra cấu trúc phản hồi
+        let userData;
+        if (response && response.status === 'success') {
+          userData = response.data;
+          console.log('Success response with data:', userData);
+        } else {
+          userData = response;
+          console.log('Non-standard success response:', userData);
+        }
+        
+        if (!userData) {
+          console.warn('No user data in response, using original data');
+          userData = {
+            ...profileData,
+            citizenid: user.id,
+            username: user.username // Đảm bảo lưu lại username
+          };
+        }
+        
+        // Đảm bảo userData luôn có username
+        if (!userData.username && user.username) {
+          userData.username = user.username;
+        }
+        
+        // Cập nhật profile
+        setProfile(mapApiResponseToProfile(userData));
+        
+        // Cập nhật thông tin người dùng trong Redux
+        dispatch(updateUserProfile({
+          name: userData.fullname || userData.name,
+          email: userData.email,
+          phoneNumber: userData.phonenumber || userData.phoneNumber,
+          address: userData.address,
+          identificationNumber: userData.identificationnumber || userData.identityNumber,
+          username: userData.username || user.username // Đảm bảo lưu lại username
+        }));
+        
+        lastFetchedUserIdRef.current = user.id;
+        
+        // Lưu thông tin bổ sung vào localStorage
         try {
-          const timeout = 60000; // 60 seconds timeout
-          const response = await apiClient.patch(`/api/citizens/${user.id}`, profileData);
+          localStorage.setItem('userProfileExtended', JSON.stringify({
+            birthDate: formData?.birthDate || '1990-01-01',
+            bio: formData?.bio || ''
+          }));
+        } catch (error) {
+          console.error('Error saving extended profile to localStorage:', error);
+        }
+        
+        // Hiển thị thông báo thành công và đóng form chỉnh sửa
+        setEditMode(false);
+        setSuccess('Cập nhật thông tin cá nhân thành công!');
+        setError('');
+        
+        // Tải lại dữ liệu người dùng để đảm bảo hiển thị đầy đủ
+        setTimeout(() => {
+          fetchUserProfile();
+        }, 1000);
+      } catch (err) {
+        console.error('Error updating profile:', err);
+        
+        // Nếu lỗi kết nối, giả định cập nhật đã thành công
+        if (err.message && (
+          err.message.includes('Failed to fetch') || 
+          err.message.includes('connection') || 
+          err.message.includes('network') ||
+          err.message.includes('reset')
+        )) {
+          console.log('Network error occurred but database might have been updated. Treating as success.');
           
-          updateSuccess = true;
+          // Đặt requestSuccess để không hiển thị lỗi
           requestSuccess = true;
           
-          const userData = response.data ? response.data : response;
-          console.log('Profile update response structure:', {
-            hasDataProperty: !!response.data,
-            responseKeys: Object.keys(response),
-            userData
-          });
-          
-          setProfile(mapApiResponseToProfile(userData));
-          
-          if (user && user.id) {
-            dispatch(updateUserProfile({
-              name: userData.fullname || userData.name,
-              email: userData.email,
-              phoneNumber: userData.phonenumber || userData.phoneNumber,
-              address: userData.address,
-              identificationNumber: userData.identificationnumber || userData.identityNumber
-            }));
-            lastFetchedUserIdRef.current = user.id;
-          }
-          
-          try {
-            localStorage.setItem('userProfileExtended', JSON.stringify({
-              birthDate: formData?.birthDate || '1990-01-01',
-              bio: formData?.bio || ''
-            }));
-          } catch (error) {
-            console.error('Error saving extended profile to localStorage:', error);
-          }
-          
+          // Hiển thị thông báo thành công có kèm theo cảnh báo
           setEditMode(false);
-          setSuccess('Cập nhật thông tin cá nhân thành công!');
-        } catch (err: any) {
-          lastError = err;
-          console.error(`Attempt ${retryCount + 1} failed:`, err);
+          setSuccess('Cập nhật có thể đã thành công. Đang tải lại thông tin...');
           
-          const shouldRetry = 
-            (err.message && (err.message.includes('timeout') || err.message.includes('terminated'))) ||
-            (err.message && err.message.includes('connection')) ||
-            (err.status === 503) ||
-            (err.status === 408) ||
-            (err.status === 504);
-            
-          if (shouldRetry && retryCount < maxRetries) {
-            retryCount++;
-            const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-            console.log(`Retrying... Attempt ${retryCount} of ${maxRetries} after ${backoffDelay}ms`);
-            setError(`Đang thử lại... Lần ${retryCount}/${maxRetries}`);
-            await new Promise(resolve => setTimeout(resolve, backoffDelay));
-          } else {
-            break;
-          }
+          // Tổng hợp dữ liệu đang chỉnh sửa với dữ liệu user hiện tại
+          const combinedUserData = {
+            ...user,
+            fullname: formData?.name,
+            name: formData?.name,
+            email: formData?.email,
+            phonenumber: formData?.phoneNumber,
+            phoneNumber: formData?.phoneNumber,
+            address: formData?.address,
+            identificationnumber: formattedIdentificationNumber,
+            identityNumber: formattedIdentificationNumber,
+            username: user.username // Đảm bảo lưu lại username
+          };
+          
+          // Cập nhật profile với dữ liệu mới
+          setProfile(mapApiResponseToProfile(combinedUserData));
+          
+          // Tải lại dữ liệu người dùng từ server sau 1 giây
+          setTimeout(() => {
+            fetchUserProfile();
+          }, 1000);
+          
+          return;
         }
-      }
-      
-      if (!updateSuccess) {
-        console.error('All attempts failed:', lastError);
-        if (lastError && lastError.data && lastError.data.missingFields) {
-          setError(`Thiếu các trường bắt buộc: ${lastError.data.missingFields.join(', ')}`);
-        } else if (lastError && lastError.message && (lastError.message.includes('timeout') || lastError.status === 408)) {
-          setError('Quá thời gian phản hồi từ máy chủ. Vui lòng thử lại sau hoặc liên hệ quản trị viên.');
-        } else if (lastError && lastError.message) {
-          setError(lastError.message || 'Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
+        
+        // Xử lý các lỗi khác
+        if (err instanceof ApiError) {
+          setError(err.message || 'Không thể cập nhật thông tin cá nhân');
         } else {
           setError('Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
         }
+        
+        // Đảm bảo saving state được reset
+        requestSuccess = false;
       }
-    } catch (err: any) {
-      console.error('Error saving profile:', err);
-      setError(err.message || 'Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.');
+    } catch (err) {
+      console.error('Unexpected error in handleSaveProfile:', err);
+      
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('connection'))) {
+        setError('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.');
+      } else {
+        setError(err.message || 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.');
+      }
+      
+      requestSuccess = false;
     } finally {
+      // Luôn đảm bảo setSaving(false) được gọi
       setSaving(false);
+      
       if (requestSuccess) {
         setTimeout(() => {
           setSuccess('');

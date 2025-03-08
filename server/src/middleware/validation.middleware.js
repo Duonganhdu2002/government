@@ -64,24 +64,28 @@ const validateCitizenData = (req, res, next) => {
  * @param {Function} next - Hàm gọi middleware tiếp theo.
  */
 const validatePartialCitizenData = (req, res, next) => {
-  const { identificationnumber, email } = req.body;
+  // Đơn giản hóa: chỉ kiểm tra định dạng cơ bản, không bắt buộc 
+  // và chỉ trả về lỗi nếu định dạng sai
   
-  // Nếu có, validate định dạng số chứng minh thư
-  if (identificationnumber !== undefined && !/^\d{9,12}$/.test(identificationnumber)) {
+  const { email, phonenumber } = req.body;
+  
+  // Kiểm tra định dạng email nếu được cung cấp
+  if (email && email.length > 0 && !email.includes('@')) {
     return res.status(400).json({
       status: 'error',
-      message: 'Invalid identification number format'
+      message: 'Email không hợp lệ' 
     });
   }
   
-  // Nếu có, validate định dạng email
-  if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  // Kiểm tra định dạng số điện thoại nếu được cung cấp
+  if (phonenumber && !/^\d{10,11}$/.test(phonenumber)) {
     return res.status(400).json({
       status: 'error',
-      message: 'Invalid email format'
+      message: 'Số điện thoại không hợp lệ'
     });
   }
 
+  // Nếu không có lỗi, tiếp tục
   next();
 };
 

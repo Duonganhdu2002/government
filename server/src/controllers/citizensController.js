@@ -187,6 +187,7 @@ const citizensController = {
    */
   updateCitizen: async (req, res) => {
     const { id } = req.params;
+    console.log('Updating citizen:', id);
     
     // Validate ID parameter
     if (!id || isNaN(id)) {
@@ -204,7 +205,7 @@ const citizensController = {
         return sendNotFound(res, 'Citizen not found');
       }
       
-      // Build dynamic update query based on provided fields
+      // Extract fields from request body
       const { 
         fullname, 
         identificationnumber, 
@@ -213,15 +214,15 @@ const citizensController = {
         email, 
         username, 
         password,
-        areacode,
-        // Remove imagelink
+        areacode
       } = req.body;
       
+      // Build update fields
       let updates = [];
       let values = [id]; // First parameter is always ID
       let paramIndex = 2;
       
-      // Add each field to updates if provided
+      // Add each provided field to the update query
       if (fullname !== undefined) {
         updates.push(`fullname = $${paramIndex++}`);
         values.push(fullname);
@@ -264,14 +265,12 @@ const citizensController = {
         values.push(areacode);
       }
       
-      // Remove imagelink check
-      
       // If no updates provided
       if (updates.length === 0) {
         return sendError(res, 'No update data provided', 400);
       }
       
-      // Build and execute the update query
+      // Execute update query
       const query = `
         UPDATE citizens 
         SET ${updates.join(', ')} 
@@ -279,23 +278,22 @@ const citizensController = {
         RETURNING *
       `;
       
+      // Update database
       const result = await executeQuery(query, values);
       
-      // Invalidate cache for this citizen
+      // Clear cache
       await invalidateCache(`citizen_${id}`);
       await invalidateCache('citizens_*');
       
-      // Return updated citizen with null imagelink
-      const updatedCitizen = {
+      // Return updated citizen
+      return sendSuccess(res, {
         ...result.rows[0],
-        imagelink: null // Add null imagelink to maintain consistency
-      };
-      
-      return sendSuccess(res, updatedCitizen, 'Citizen updated successfully');
+        imagelink: null
+      }, 'Citizen updated successfully');
     } catch (error) {
       console.error('Error updating citizen:', error);
       
-      // Check for duplicate key violation
+      // Handle duplicate key error
       if (error.code === '23505') {
         return sendError(
           res, 

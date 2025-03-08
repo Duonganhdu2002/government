@@ -74,7 +74,7 @@ router.put(
 
 /**
  * @route PATCH /api/citizens/:id
- * @desc Cập nhật một phần thông tin của công dân
+ * @desc Cập nhật một phần thông tin của công dân - Đã đơn giản hóa
  * @access Private - Dành cho Admin hoặc chính công dân đó
  */
 router.patch(
