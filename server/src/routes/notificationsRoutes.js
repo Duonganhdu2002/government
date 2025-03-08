@@ -1,21 +1,28 @@
-// routes/notificationsRoutes.js
+/**
+ * routes/notificationsRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý thông báo (notifications).
+ * Các route này cho phép lấy danh sách, lấy chi tiết, tạo mới,
+ * cập nhật và xóa thông báo.
+ */
+
 const express = require('express');
 const router = express.Router();
 const notificationsController = require('../controllers/notificationsController');
 
-// GET all notifications
+// Lấy danh sách tất cả các thông báo
 router.get('/', notificationsController.getAllNotifications);
 
-// GET notification by ID
+// Lấy thông báo theo ID
 router.get('/:id', notificationsController.getNotificationById);
 
-// CREATE a new notification
+// Tạo mới một thông báo
 router.post('/', notificationsController.createNotification);
 
-// UPDATE an existing notification
+// Cập nhật thông báo theo ID
 router.put('/:id', notificationsController.updateNotification);
 
-// DELETE a notification
+// Xóa một thông báo theo ID
 router.delete('/:id', notificationsController.deleteNotification);
 
 module.exports = router;

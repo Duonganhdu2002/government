@@ -1,8 +1,13 @@
 /**
  * auth.middleware.js
- * 
- * Authentication middleware functions for the application
- * Provides JWT verification and role-based access control functions
+ *
+ * Các middleware xác thực (authentication) và kiểm tra quyền truy cập (authorization)
+ * của người dùng trong ứng dụng.
+ * Cung cấp các hàm:
+ * - verifyToken: Xác minh JWT token và gắn userId vào request.
+ * - isStaff: Kiểm tra người dùng có phải là nhân viên không.
+ * - isAdmin: Kiểm tra người dùng có quyền admin không.
+ * - isCitizen: Kiểm tra người dùng có phải là công dân không.
  */
 
 const jwt = require('jsonwebtoken');
@@ -10,46 +15,50 @@ const pool = require('../config/database');
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 
 /**
- * Middleware to verify JWT token
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {void}
+ * Middleware xác thực JWT token.
+ * - Kiểm tra header Authorization.
+ * - Trích xuất token và xác minh token.
+ * - Nếu hợp lệ, gắn userId vào req và chuyển sang middleware tiếp theo.
+ *
+ * @param {Object} req - Đối tượng yêu cầu của Express.
+ * @param {Object} res - Đối tượng phản hồi của Express.
+ * @param {Function} next - Hàm gọi middleware tiếp theo.
  */
 const verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     console.log('Auth header:', authHeader ? `${authHeader.substring(0, 20)}...` : 'Not provided');
-    
+
     if (!authHeader) {
       return res.status(401).json({ 
         status: 'error',
-        message: 'No authorization header provided' 
+        message: 'No authorization header provided'
       });
     }
 
-    const token = authHeader.split(' ')[1]; // Expecting "Bearer <token>"
+    // Trích xuất token từ header (định dạng "Bearer <token>")
+    const token = authHeader.split(' ')[1];
     console.log('Token extracted:', token ? `${token.substring(0, 10)}...` : 'Not available');
-    
+
     if (!token) {
       return res.status(401).json({ 
         status: 'error',
-        message: 'No token provided' 
+        message: 'No token provided'
       });
     }
 
+    // Xác minh token với secret key
     jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
         console.error('Token verification error:', err.message);
         return res.status(403).json({ 
           status: 'error',
-          message: 'Invalid or expired token' 
+          message: 'Invalid or expired token'
         });
       }
-      
+
       console.log('Token decoded successfully, user ID:', decoded.id);
-      // Attach userId from token to request
+      // Gắn userId vào request để sử dụng sau này
       req.userId = decoded.id;
       next();
     });
@@ -57,18 +66,20 @@ const verifyToken = (req, res, next) => {
     console.error('Error in verifyToken middleware:', error);
     res.status(500).json({ 
       status: 'error',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 };
 
 /**
- * Middleware to verify user is staff
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {Promise<void>}
+ * Middleware kiểm tra người dùng là nhân viên (staff).
+ * - Truy vấn cơ sở dữ liệu dựa trên req.userId.
+ * - Nếu không tìm thấy hoặc không phải nhân viên, trả về lỗi 403.
+ * - Nếu hợp lệ, gắn role vào req và chuyển sang middleware tiếp theo.
+ *
+ * @param {Object} req - Đối tượng yêu cầu của Express.
+ * @param {Object} res - Đối tượng phản hồi của Express.
+ * @param {Function} next - Hàm gọi middleware tiếp theo.
  */
 const isStaff = async (req, res, next) => {
   try {
@@ -80,29 +91,31 @@ const isStaff = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(403).json({ 
         status: 'error',
-        message: 'User is not staff' 
+        message: 'User is not staff'
       });
     }
 
-    // Attach the role to req for potential use in controllers
+    // Gắn role vào request để sử dụng sau này
     req.userRole = result.rows[0].role;
     next();
   } catch (error) {
     console.error('Error in isStaff middleware:', error);
     res.status(500).json({ 
       status: 'error',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 };
 
 /**
- * Middleware to verify user is an admin
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {Promise<void>}
+ * Middleware kiểm tra người dùng là admin.
+ * - Truy vấn cơ sở dữ liệu dựa trên req.userId.
+ * - Nếu không tìm thấy hoặc role không phải admin, trả về lỗi 403.
+ * - Nếu hợp lệ, gắn role "admin" vào req và chuyển sang middleware tiếp theo.
+ *
+ * @param {Object} req - Đối tượng yêu cầu của Express.
+ * @param {Object} res - Đối tượng phản hồi của Express.
+ * @param {Function} next - Hàm gọi middleware tiếp theo.
  */
 const isAdmin = async (req, res, next) => {
   try {
@@ -114,14 +127,14 @@ const isAdmin = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(403).json({ 
         status: 'error',
-        message: 'User is not staff' 
+        message: 'User is not staff'
       });
     }
 
     if (result.rows[0].role !== 'admin') {
       return res.status(403).json({ 
         status: 'error',
-        message: 'User is not an admin' 
+        message: 'User is not an admin'
       });
     }
 
@@ -131,18 +144,20 @@ const isAdmin = async (req, res, next) => {
     console.error('Error in isAdmin middleware:', error);
     res.status(500).json({ 
       status: 'error',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 };
 
 /**
- * Middleware to verify user is a citizen
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {Promise<void>}
+ * Middleware kiểm tra người dùng là công dân (citizen).
+ * - Truy vấn cơ sở dữ liệu dựa trên req.userId trong bảng citizens.
+ * - Nếu không tìm thấy, trả về lỗi 403.
+ * - Nếu hợp lệ, chuyển sang middleware tiếp theo.
+ *
+ * @param {Object} req - Đối tượng yêu cầu của Express.
+ * @param {Object} res - Đối tượng phản hồi của Express.
+ * @param {Function} next - Hàm gọi middleware tiếp theo.
  */
 const isCitizen = async (req, res, next) => {
   try {
@@ -154,7 +169,7 @@ const isCitizen = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(403).json({ 
         status: 'error',
-        message: 'User is not a citizen' 
+        message: 'User is not a citizen'
       });
     }
 
@@ -163,7 +178,7 @@ const isCitizen = async (req, res, next) => {
     console.error('Error in isCitizen middleware:', error);
     res.status(500).json({ 
       status: 'error',
-      message: 'Internal server error' 
+      message: 'Internal server error'
     });
   }
 };
@@ -173,4 +188,4 @@ module.exports = {
   isStaff,
   isAdmin,
   isCitizen
-}; 
+};

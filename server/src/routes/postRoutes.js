@@ -1,24 +1,31 @@
-// routes/postRoutes.js
+/**
+ * routes/postRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý bài viết (posts).
+ * Các route này cho phép lấy danh sách, lấy bài viết theo danh mục,
+ * lấy chi tiết theo ID, tạo mới, cập nhật và xóa bài viết.
+ */
+
 const express = require('express');
 const router = express.Router();
 const postControllers = require('../controllers/postControllers');
 
-// GET all posts
+// Lấy danh sách tất cả các bài viết
 router.get('/', postControllers.getAllPosts);
 
-// GET posts by category ID
+// Lấy danh sách bài viết theo ID danh mục
 router.get('/category/:categoryId', postControllers.getPostsByCategoryId);
 
-// GET post by ID
+// Lấy thông tin chi tiết của bài viết theo ID
 router.get('/:id', postControllers.getPostById);
 
-// CREATE a new post
+// Tạo mới một bài viết
 router.post('/', postControllers.createPost);
 
-// UPDATE an existing post
+// Cập nhật bài viết theo ID
 router.put('/:id', postControllers.updatePost);
 
-// DELETE a post
+// Xóa bài viết theo ID
 router.delete('/:id', postControllers.deletePost);
 
 module.exports = router;

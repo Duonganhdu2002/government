@@ -1,13 +1,12 @@
 /**
- * logger.util.js
- * 
- * Centralized logging utility
- * Provides consistent logging across the application
+ * src/utils/logger.util.js
+ *
+ * Tiện ích ghi log tập trung, cung cấp các hàm log đồng nhất trong toàn bộ ứng dụng.
  */
 
 /**
- * Log levels
- * Define the priority of log messages
+ * Định nghĩa các mức log với thứ tự ưu tiên
+ * Mức log cao hơn sẽ in ra các thông tin log ở mức thấp hơn.
  */
 const LOG_LEVELS = {
   ERROR: 0,
@@ -16,18 +15,18 @@ const LOG_LEVELS = {
   DEBUG: 3
 };
 
-// Current log level from environment or default to INFO
+// Thiết lập mức log hiện tại từ biến môi trường hoặc mặc định là INFO
 const CURRENT_LOG_LEVEL = process.env.LOG_LEVEL 
   ? (LOG_LEVELS[process.env.LOG_LEVEL.toUpperCase()] || LOG_LEVELS.INFO)
   : LOG_LEVELS.INFO;
 
 /**
- * Format a log message with timestamp and metadata
- * 
- * @param {string} level - Log level
- * @param {string} message - Log message
- * @param {Object} meta - Additional metadata
- * @returns {string} Formatted log message
+ * Hàm định dạng thông điệp log với thời gian và metadata kèm theo.
+ *
+ * @param {string} level - Mức log (error, warn, info, debug)
+ * @param {string} message - Thông điệp log
+ * @param {Object} meta - Thông tin bổ sung (nếu có)
+ * @returns {string} Chuỗi log đã được định dạng
  */
 const formatLogMessage = (level, message, meta = {}) => {
   const timestamp = new Date().toISOString();
@@ -39,10 +38,10 @@ const formatLogMessage = (level, message, meta = {}) => {
 };
 
 /**
- * Log an error message
- * 
- * @param {string} message - Error message
- * @param {Object} meta - Additional error details
+ * Ghi log thông điệp lỗi.
+ *
+ * @param {string} message - Thông điệp lỗi
+ * @param {Object} meta - Thông tin chi tiết lỗi (nếu có)
  */
 const error = (message, meta = {}) => {
   if (CURRENT_LOG_LEVEL >= LOG_LEVELS.ERROR) {
@@ -51,10 +50,10 @@ const error = (message, meta = {}) => {
 };
 
 /**
- * Log a warning message
- * 
- * @param {string} message - Warning message
- * @param {Object} meta - Additional warning details
+ * Ghi log thông điệp cảnh báo.
+ *
+ * @param {string} message - Thông điệp cảnh báo
+ * @param {Object} meta - Thông tin chi tiết cảnh báo (nếu có)
  */
 const warn = (message, meta = {}) => {
   if (CURRENT_LOG_LEVEL >= LOG_LEVELS.WARN) {
@@ -63,10 +62,10 @@ const warn = (message, meta = {}) => {
 };
 
 /**
- * Log an info message
- * 
- * @param {string} message - Info message
- * @param {Object} meta - Additional information
+ * Ghi log thông điệp thông tin.
+ *
+ * @param {string} message - Thông điệp thông tin
+ * @param {Object} meta - Thông tin bổ sung (nếu có)
  */
 const info = (message, meta = {}) => {
   if (CURRENT_LOG_LEVEL >= LOG_LEVELS.INFO) {
@@ -75,10 +74,10 @@ const info = (message, meta = {}) => {
 };
 
 /**
- * Log a debug message
- * 
- * @param {string} message - Debug message
- * @param {Object} meta - Additional debug details
+ * Ghi log thông điệp debug.
+ *
+ * @param {string} message - Thông điệp debug
+ * @param {Object} meta - Thông tin chi tiết debug (nếu có)
  */
 const debug = (message, meta = {}) => {
   if (CURRENT_LOG_LEVEL >= LOG_LEVELS.DEBUG) {
@@ -87,11 +86,12 @@ const debug = (message, meta = {}) => {
 };
 
 /**
- * Log an HTTP request
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {number} time - Request processing time in ms
+ * Ghi log thông tin yêu cầu HTTP.
+ * Hàm này được gọi sau khi response đã được gửi về client.
+ *
+ * @param {Object} req - Đối tượng request của Express
+ * @param {Object} res - Đối tượng response của Express
+ * @param {number} time - Thời gian xử lý yêu cầu (ms)
  */
 const httpRequest = (req, res, time) => {
   if (CURRENT_LOG_LEVEL >= LOG_LEVELS.INFO) {
@@ -110,11 +110,11 @@ const httpRequest = (req, res, time) => {
 };
 
 /**
- * Log database query
- * 
- * @param {string} query - SQL query
- * @param {Array} params - Query parameters
- * @param {number} time - Query execution time in ms
+ * Ghi log truy vấn cơ sở dữ liệu.
+ *
+ * @param {string} query - Câu lệnh SQL đã thực thi
+ * @param {Array} params - Các tham số truyền vào truy vấn
+ * @param {number} time - Thời gian thực thi truy vấn (ms)
  */
 const dbQuery = (query, params, time) => {
   if (CURRENT_LOG_LEVEL >= LOG_LEVELS.DEBUG) {
@@ -129,15 +129,16 @@ const dbQuery = (query, params, time) => {
 };
 
 /**
- * Create a request logger middleware
- * 
- * @returns {Function} Express middleware function
+ * Middleware ghi log yêu cầu HTTP.
+ * Ghi log thông tin sau khi response đã được gửi về client.
+ *
+ * @returns {Function} Hàm middleware của Express
  */
 const requestLogger = () => {
   return (req, res, next) => {
     const start = Date.now();
     
-    // Log after response is sent
+    // Sau khi response hoàn thành, tính thời gian xử lý và ghi log yêu cầu
     res.on('finish', () => {
       const time = Date.now() - start;
       httpRequest(req, res, time);
@@ -155,4 +156,4 @@ module.exports = {
   httpRequest,
   dbQuery,
   requestLogger
-}; 
+};

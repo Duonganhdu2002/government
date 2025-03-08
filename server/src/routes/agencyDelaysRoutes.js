@@ -1,21 +1,27 @@
-// routes/agencyDelaysRoutes.js
+/**
+ * src/routes/agencyDelaysRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý thông tin trễ của cơ quan.
+ * Cho phép lấy danh sách, lấy chi tiết theo ID, tạo mới, cập nhật và xóa bản ghi về sự chậm trễ.
+ */
+
 const express = require('express');
 const router = express.Router();
 const agencyDelaysController = require('../controllers/agencyDelaysController');
 
-// GET all agency delays
+// Lấy danh sách tất cả các bản ghi trễ của cơ quan
 router.get('/', agencyDelaysController.getAllAgencyDelays);
 
-// GET agency delay by ID
+// Lấy thông tin chi tiết của bản ghi trễ theo ID
 router.get('/:id', agencyDelaysController.getAgencyDelayById);
 
-// CREATE a new agency delay record
+// Tạo mới một bản ghi trễ cho cơ quan
 router.post('/', agencyDelaysController.createAgencyDelay);
 
-// UPDATE an existing agency delay record
+// Cập nhật bản ghi trễ của cơ quan theo ID
 router.put('/:id', agencyDelaysController.updateAgencyDelay);
 
-// DELETE an agency delay record
+// Xóa một bản ghi trễ của cơ quan theo ID
 router.delete('/:id', agencyDelaysController.deleteAgencyDelay);
 
 module.exports = router;

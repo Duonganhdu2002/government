@@ -1,21 +1,28 @@
-// routes/mediaFilesRoutes.js
+/**
+ * routes/mediaFilesRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý file media.
+ * Các route này cho phép lấy danh sách, lấy chi tiết theo ID, tạo mới,
+ * cập nhật và xóa một bản ghi file media.
+ */
+
 const express = require('express');
 const router = express.Router();
 const mediaFilesController = require('../controllers/mediaFilesController');
 
-// GET all media files
+// Lấy danh sách tất cả các file media
 router.get('/', mediaFilesController.getAllMediaFiles);
 
-// GET media file by ID
+// Lấy thông tin chi tiết của file media theo ID
 router.get('/:id', mediaFilesController.getMediaFileById);
 
-// CREATE a new media file record
+// Tạo mới một bản ghi file media
 router.post('/', mediaFilesController.createMediaFile);
 
-// UPDATE an existing media file record
+// Cập nhật thông tin của file media theo ID
 router.put('/:id', mediaFilesController.updateMediaFile);
 
-// DELETE a media file record
+// Xóa file media theo ID
 router.delete('/:id', mediaFilesController.deleteMediaFile);
 
 module.exports = router;

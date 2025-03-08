@@ -1,8 +1,8 @@
 /**
  * routes/authRoutes.js
  *
- * This file defines the Express routes for user authentication, including 
- * registration, login, token refreshing, and logout.
+ * Định nghĩa các endpoint cho xác thực người dùng.
+ * Bao gồm đăng ký, đăng nhập, làm mới token, đăng xuất, thay đổi mật khẩu và lấy thông tin người dùng hiện tại.
  */
 
 const express = require('express');
@@ -10,22 +10,22 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const { verifyToken } = require('../middleware/auth.middleware');
 
-// POST /api/auth/register - Register a new user
+// Đăng ký người dùng mới
 router.post('/register', authController.register);
 
-// POST /api/auth/login - Log in an existing user
+// Đăng nhập người dùng đã có
 router.post('/login', authController.login);
 
-// POST /api/auth/refresh - Refresh the access token using a refresh token
+// Làm mới access token sử dụng refresh token
 router.post('/refresh', authController.refreshToken);
 
-// POST /api/auth/logout - Log out the user and invalidate the refresh token
+// Đăng xuất và hủy token refresh
 router.post('/logout', authController.logout);
 
-// POST /api/auth/change-password - Change user's password (requires citizenid, oldPassword, and newPassword)
+// Thay đổi mật khẩu (yêu cầu cung cấp citizenid, oldPassword, newPassword)
 router.post('/change-password', authController.changePassword);
 
-// GET /api/auth/me - Get current user information based on token
+// Lấy thông tin người dùng hiện tại dựa trên token (yêu cầu xác thực)
 router.get('/me', verifyToken, authController.getCurrentUser);
 
 module.exports = router;

@@ -1,21 +1,21 @@
 /**
  * middleware/index.js
- * 
- * Central export point for all middleware modules
- * Makes importing middleware in routes cleaner
+ *
+ * Điểm xuất (export) tập trung của các middleware trong ứng dụng.
+ * Giúp việc import middleware vào các file route trở nên gọn gàng và dễ bảo trì.
  */
 
 const authMiddleware = require('./auth.middleware');
 const validationMiddleware = require('./validation.middleware');
 
 module.exports = {
-  // Authentication middleware
+  // Các middleware xác thực
   verifyToken: authMiddleware.verifyToken,
   isStaff: authMiddleware.isStaff,
   isAdmin: authMiddleware.isAdmin,
   isCitizen: authMiddleware.isCitizen,
   
-  // Validation middleware
+  // Các middleware kiểm tra và validate dữ liệu
   validateCitizenData: validationMiddleware.validateCitizenData,
   validatePartialCitizenData: validationMiddleware.validatePartialCitizenData,
   validateApplicationData: validationMiddleware.validateApplicationData,

@@ -1,17 +1,21 @@
 /**
  * error.middleware.js
- * 
- * Global error handling middleware
- * Provides consistent error response format and logging
+ *
+ * Middleware xử lý lỗi toàn cục của ứng dụng.
+ * Cung cấp các hàm:
+ * - notFoundHandler: Xử lý lỗi 404 (Not Found) khi route không tồn tại.
+ * - errorHandler: Xử lý và định dạng tất cả các lỗi phát sinh.
+ * - asyncErrorHandler: Bọc các hàm async để tự động bắt lỗi.
+ * - createError: Tạo lỗi tùy chỉnh với mã trạng thái.
  */
 
 /**
- * Error handler for 404 Not Found
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {void}
+ * Middleware xử lý lỗi 404 Not Found.
+ * Tạo lỗi mới với thông tin URL không tìm thấy và chuyển sang middleware xử lý lỗi.
+ *
+ * @param {Object} req - Đối tượng yêu cầu của Express.
+ * @param {Object} res - Đối tượng phản hồi của Express.
+ * @param {Function} next - Hàm gọi middleware tiếp theo.
  */
 const notFoundHandler = (req, res, next) => {
   const error = new Error(`Not Found - ${req.originalUrl}`);
@@ -20,20 +24,20 @@ const notFoundHandler = (req, res, next) => {
 };
 
 /**
- * Global error handler middleware
- * Formats and returns all errors in a consistent way
- * 
- * @param {Error} err - Error object
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- * @returns {void}
+ * Middleware xử lý lỗi toàn cục.
+ * - Định dạng lỗi, log thông tin lỗi, và gửi phản hồi lỗi cho client.
+ * - Chỉ gửi stack trace khi không ở môi trường production.
+ *
+ * @param {Error} err - Đối tượng lỗi.
+ * @param {Object} req - Đối tượng yêu cầu của Express.
+ * @param {Object} res - Đối tượng phản hồi của Express.
+ * @param {Function} next - Hàm gọi middleware tiếp theo (không sử dụng ở đây).
  */
 const errorHandler = (err, req, res, next) => {
-  // Set default status code if not provided
+  // Sử dụng mã trạng thái mặc định nếu không được chỉ định
   const statusCode = err.statusCode || 500;
   
-  // Log error details
+  // Log thông tin lỗi chi tiết
   console.error(`[${new Date().toISOString()}] Error:`, {
     statusCode,
     message: err.message,
@@ -44,23 +48,23 @@ const errorHandler = (err, req, res, next) => {
     user: req.userId || 'unauthenticated'
   });
   
-  // Send error response
+  // Gửi phản hồi lỗi cho client
   res.status(statusCode).json({
     status: 'error',
     message: err.message || 'An unexpected error occurred',
-    // Only include stack trace in development
+    // Chỉ bao gồm stack trace khi không ở production
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
-    // Include validation errors if available
+    // Bao gồm thông tin lỗi chi tiết nếu có (ví dụ lỗi validate)
     ...(err.errors && { errors: err.errors })
   });
 };
 
 /**
- * Async function error wrapper
- * Catches errors from async/await functions and forwards them to error handler
- * 
- * @param {Function} fn - Async function to wrap
- * @returns {Function} Wrapped function that forwards errors to next
+ * Wrapper cho các hàm async.
+ * Bắt lỗi từ các hàm async và chuyển cho middleware xử lý lỗi.
+ *
+ * @param {Function} fn - Hàm async cần bọc.
+ * @returns {Function} Hàm được bọc, tự động chuyển lỗi qua next().
  */
 const asyncErrorHandler = (fn) => {
   return (req, res, next) => {
@@ -69,11 +73,11 @@ const asyncErrorHandler = (fn) => {
 };
 
 /**
- * Creates a custom error with status code
- * 
- * @param {string} message - Error message
- * @param {number} statusCode - HTTP status code
- * @returns {Error} Custom error with status code
+ * Tạo lỗi tùy chỉnh với thông điệp và mã trạng thái.
+ *
+ * @param {string} message - Thông điệp lỗi.
+ * @param {number} statusCode - Mã trạng thái HTTP (mặc định: 500).
+ * @returns {Error} Đối tượng lỗi đã được tạo.
  */
 const createError = (message, statusCode = 500) => {
   const error = new Error(message);
@@ -86,4 +90,4 @@ module.exports = {
   errorHandler,
   asyncErrorHandler,
   createError
-}; 
+};

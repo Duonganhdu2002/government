@@ -1,8 +1,11 @@
 /**
- * citizensRoutes.js
- * 
- * Routes for citizen management
- * Handles all HTTP endpoints related to citizen data
+ * routes/citizensRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý thông tin công dân.
+ * Các route này xử lý việc lấy danh sách (có phân trang), lấy chi tiết theo ID,
+ * tạo mới, cập nhật (toàn bộ hoặc từng phần) và xóa thông tin công dân.
+ * Sử dụng các middleware để xác thực, kiểm tra quyền (admin hoặc chính chủ)
+ * và validate dữ liệu đầu vào.
  */
 
 const express = require('express');
@@ -20,8 +23,8 @@ const { asyncErrorHandler } = require('../middleware/error.middleware');
 
 /**
  * @route GET /api/citizens
- * @desc Get all citizens with pagination
- * @access Private - Admin only
+ * @desc Lấy danh sách công dân có phân trang
+ * @access Private - Chỉ dành cho Admin
  */
 router.get(
   '/', 
@@ -33,8 +36,8 @@ router.get(
 
 /**
  * @route GET /api/citizens/:id
- * @desc Get citizen by ID
- * @access Private - Admin or same citizen only
+ * @desc Lấy thông tin công dân theo ID
+ * @access Private - Dành cho Admin hoặc chính công dân đó
  */
 router.get(
   '/:id', 
@@ -45,8 +48,8 @@ router.get(
 
 /**
  * @route POST /api/citizens
- * @desc Create a new citizen
- * @access Private - Admin only
+ * @desc Tạo mới một công dân
+ * @access Private - Chỉ dành cho Admin
  */
 router.post(
   '/', 
@@ -58,8 +61,8 @@ router.post(
 
 /**
  * @route PUT /api/citizens/:id
- * @desc Update an existing citizen
- * @access Private - Admin or same citizen only
+ * @desc Cập nhật thông tin của một công dân (toàn bộ)
+ * @access Private - Dành cho Admin hoặc chính công dân đó
  */
 router.put(
   '/:id', 
@@ -71,8 +74,8 @@ router.put(
 
 /**
  * @route PATCH /api/citizens/:id
- * @desc Partially update an existing citizen
- * @access Private - Admin or same citizen only
+ * @desc Cập nhật một phần thông tin của công dân
+ * @access Private - Dành cho Admin hoặc chính công dân đó
  */
 router.patch(
   '/:id', 
@@ -84,8 +87,8 @@ router.patch(
 
 /**
  * @route DELETE /api/citizens/:id
- * @desc Delete a citizen
- * @access Private - Admin only
+ * @desc Xóa thông tin của một công dân
+ * @access Private - Chỉ dành cho Admin
  */
 router.delete(
   '/:id', 

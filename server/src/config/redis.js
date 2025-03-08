@@ -1,43 +1,46 @@
 /**
  * redis.js
  * 
- * Redis client configuration for caching
- * Implements connection and error handling for Redis
+ * Cấu hình kết nối Redis dùng cho caching.
+ * Bao gồm cấu hình kết nối, xử lý lỗi và fallback sang mock client nếu không thể kết nối.
  */
 
 const { createClient } = require('redis');
 require('dotenv').config();
 
 /**
- * Format Redis URL from components if not provided as complete URL
- * 
- * @param {string} url - Redis URL from environment or components
- * @param {string} host - Redis host
- * @param {string} port - Redis port
- * @param {string} password - Redis password
- * @returns {string} Properly formatted Redis URL
+ * Hàm định dạng URL cho Redis.
+ * - Nếu đã có URL đầy đủ bắt đầu bằng "redis://" hoặc "rediss://", sử dụng trực tiếp.
+ * - Nếu chỉ cung cấp host:port, hoặc các thành phần riêng, xây dựng URL dựa theo đó.
+ * - Thêm thông tin xác thực nếu có mật khẩu.
+ *
+ * @param {string} url - URL Redis từ biến môi trường hoặc các thành phần riêng.
+ * @param {string} host - Địa chỉ host Redis.
+ * @param {string} port - Cổng Redis.
+ * @param {string} password - Mật khẩu Redis.
+ * @returns {string} URL Redis đã được định dạng đúng.
  */
 const formatRedisUrl = (url, host, port, password) => {
-  // If full URL is provided and valid, use it
+  // Nếu URL đầy đủ được cung cấp và hợp lệ, sử dụng luôn URL đó
   if (url && (url.startsWith('redis://') || url.startsWith('rediss://'))) {
     return url;
   }
   
-  // If host:port format is provided
+  // Nếu url ở dạng "host:port" được cung cấp
   if (url && url.includes(':')) {
     const [hostPart, portPart] = url.split(':');
     host = hostPart || host;
     port = portPart || port;
   }
   
-  // Default values
+  // Đặt giá trị mặc định nếu chưa có
   host = host || 'localhost';
   port = port || '6379';
   
-  // Build URL
+  // Xây dựng URL cơ bản
   let formattedUrl = `redis://${host}:${port}`;
   
-  // Add authentication if password is provided
+  // Nếu có mật khẩu, thêm phần xác thực vào URL
   if (password) {
     formattedUrl = `redis://:${encodeURIComponent(password)}@${host}:${port}`;
   }
@@ -45,7 +48,7 @@ const formatRedisUrl = (url, host, port, password) => {
   return formattedUrl;
 };
 
-// Format Redis URL from environment variables
+// Định dạng URL Redis dựa trên biến môi trường
 const redisUrl = formatRedisUrl(
   process.env.REDIS_URL,
   process.env.REDIS_HOST,
@@ -53,19 +56,20 @@ const redisUrl = formatRedisUrl(
   process.env.REDIS_PASSWORD
 );
 
-// Create a mock Redis client if unable to connect
+// Khai báo biến redisClient để lưu đối tượng client
 let redisClient;
 
 /**
- * Create a mock Redis client with same interface
- * Used when Redis is not available to prevent application failure
- * 
+ * Hàm tạo một mock Redis client.
+ * - Sử dụng khi không thể kết nối tới Redis thật để không làm gián đoạn ứng dụng.
+ * - Cung cấp giao diện tương tự như client thật nhưng dùng bộ nhớ trong.
+ *
  * @returns {Object} Mock Redis client
  */
 const createMockRedisClient = () => {
   console.warn('Using mock Redis client - caching disabled');
   
-  // In-memory storage for mock
+  // Sử dụng Map để lưu trữ dữ liệu in-memory
   const store = new Map();
   
   return {
@@ -73,7 +77,7 @@ const createMockRedisClient = () => {
     get: async (key) => store.get(key) || null,
     set: async (key, value, options = {}) => {
       store.set(key, value);
-      // Handle expiry if specified
+      // Nếu có tùy chọn hết hạn, xóa key sau khoảng thời gian quy định (giây)
       if (options.EX) {
         setTimeout(() => store.delete(key), options.EX * 1000);
       }
@@ -92,64 +96,66 @@ const createMockRedisClient = () => {
       return { cursor: '0', keys };
     },
     quit: async () => Promise.resolve('OK'),
-    on: (event, listener) => {}
+    on: (event, listener) => {} // Giả lập các sự kiện mà không thực hiện gì
   };
 };
 
 try {
   /**
-   * Configure Redis client with appropriate options
+   * Tạo và cấu hình Redis client với các tùy chọn thích hợp.
    */
   redisClient = createClient({
     url: redisUrl,
     socket: {
+      // Thiết lập chiến lược kết nối lại theo exponential backoff (tối đa 10 giây)
       reconnectStrategy: (retries) => {
-        // Exponential backoff with a maximum delay of 10 seconds
         const delay = Math.min(Math.pow(2, retries) * 100, 10000);
         return delay;
       },
-      connectTimeout: 5000, // 5 seconds
+      connectTimeout: 5000, // Thời gian chờ kết nối: 5 giây
     },
   });
 
-  // Error handling for Redis client
+  // Xử lý lỗi kết nối của Redis client
   redisClient.on('error', (err) => {
     console.error('Redis Client Error:', err);
   });
 
+  // Log thông báo khi kết nối thành công
   redisClient.on('connect', () => {
     console.log('Redis client connected');
   });
 
+  // Log thông báo khi đang kết nối lại
   redisClient.on('reconnecting', () => {
     console.log('Redis client reconnecting...');
   });
 
-  // Connect to Redis - this is async
+  // Thực hiện kết nối đến Redis (là hàm async)
   (async () => {
     try {
       await redisClient.connect();
     } catch (err) {
       console.error('Failed to connect to Redis:', err);
-      // Replace with mock client
+      // Nếu không kết nối được, thay thế bằng mock client
       redisClient = createMockRedisClient();
     }
   })();
 } catch (error) {
   console.error('Error creating Redis client:', error);
-  // Use mock client as fallback
+  // Nếu có lỗi khi tạo client, sử dụng mock client làm fallback
   redisClient = createMockRedisClient();
 }
 
 /**
- * Enhanced Redis Client with improved error handling
+ * Tạo đối tượng enhancedRedisClient với các hàm bọc xử lý lỗi cho các thao tác Redis.
  */
 const enhancedRedisClient = {
   /**
-   * Get value from Redis cache
-   * 
-   * @param {string} key - Cache key
-   * @returns {Promise<string|null>} The cached value or null
+   * Lấy giá trị từ cache dựa trên key.
+   *
+   * @param {string} key - Khóa cache.
+   * @returns {Promise<string|null>} Giá trị cache hoặc null nếu không tồn tại.
    */
   get: async (key) => {
     try {
@@ -161,12 +167,12 @@ const enhancedRedisClient = {
   },
 
   /**
-   * Set value in Redis cache
-   * 
-   * @param {string} key - Cache key
-   * @param {string} value - Value to cache
-   * @param {Object} options - Redis SET options
-   * @returns {Promise<string|null>} Redis response or null
+   * Đặt giá trị vào cache với key xác định.
+   *
+   * @param {string} key - Khóa cache.
+   * @param {string} value - Giá trị cần lưu.
+   * @param {Object} options - Các tùy chọn cho lệnh SET của Redis.
+   * @returns {Promise<string|null>} Phản hồi của Redis hoặc null nếu có lỗi.
    */
   set: async (key, value, options = {}) => {
     try {
@@ -178,10 +184,10 @@ const enhancedRedisClient = {
   },
 
   /**
-   * Delete cache key(s)
-   * 
-   * @param {string|string[]} keys - Key or array of keys to delete
-   * @returns {Promise<number|null>} Number of keys deleted or null
+   * Xóa key (hoặc mảng key) khỏi cache.
+   *
+   * @param {string|string[]} keys - Khóa hoặc mảng khóa cần xóa.
+   * @returns {Promise<number|null>} Số lượng key đã bị xóa hoặc null nếu có lỗi.
    */
   del: async (keys) => {
     try {
@@ -193,11 +199,11 @@ const enhancedRedisClient = {
   },
 
   /**
-   * Scan Redis for keys matching a pattern
-   * 
-   * @param {string} cursor - Redis cursor
-   * @param {Object} options - Scan options
-   * @returns {Promise<Object|null>} Scan results or null
+   * Duyệt (scan) các key trong Redis theo mẫu.
+   *
+   * @param {string} cursor - Con trỏ Redis.
+   * @param {Object} options - Các tùy chọn cho lệnh SCAN.
+   * @returns {Promise<Object|null>} Kết quả scan hoặc null nếu có lỗi.
    */
   scan: async (cursor, options = {}) => {
     try {
@@ -209,9 +215,9 @@ const enhancedRedisClient = {
   },
 
   /**
-   * Quit Redis connection
-   * 
-   * @returns {Promise<string|null>} Redis quit response or null
+   * Ngắt kết nối Redis.
+   *
+   * @returns {Promise<string|null>} Phản hồi của Redis hoặc null nếu có lỗi.
    */
   quit: async () => {
     try {
@@ -223,4 +229,5 @@ const enhancedRedisClient = {
   }
 };
 
+// Xuất đối tượng enhancedRedisClient để sử dụng trong toàn ứng dụng
 module.exports = enhancedRedisClient;

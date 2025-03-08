@@ -1,21 +1,27 @@
-// routes/applicationTypesRoutes.js
+/**
+ * routes/applicationTypesRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý loại hình đơn ứng dụng.
+ * Các endpoint bao gồm lấy danh sách, lấy theo ID, tạo mới, cập nhật và xóa.
+ */
+
 const express = require('express');
 const router = express.Router();
 const applicationTypesController = require('../controllers/applicationTypesController');
 
-// GET all application types
+// Lấy danh sách tất cả các loại đơn ứng dụng
 router.get('/', applicationTypesController.getAllApplicationTypes);
 
-// GET application type by ID
+// Lấy thông tin chi tiết của một loại đơn ứng dụng theo ID
 router.get('/:id', applicationTypesController.getApplicationTypeById);
 
-// CREATE a new application type
+// Tạo mới một loại đơn ứng dụng
 router.post('/', applicationTypesController.createApplicationType);
 
-// UPDATE an existing application type
+// Cập nhật thông tin của một loại đơn ứng dụng theo ID
 router.put('/:id', applicationTypesController.updateApplicationType);
 
-// DELETE an application type
+// Xóa một loại đơn ứng dụng theo ID
 router.delete('/:id', applicationTypesController.deleteApplicationType);
 
 module.exports = router;

@@ -1,24 +1,33 @@
+/**
+ * routes/specialApplicationTypesRoutes.js
+ *
+ * Định nghĩa các endpoint cho quản lý loại hình đơn ứng dụng đặc biệt.
+ * Bao gồm các route để lấy danh sách, lấy chi tiết, lấy theo loại đơn ứng dụng,
+ * tạo mới, cập nhật và xóa loại đơn ứng dụng đặc biệt.
+ * Các thao tác tạo, cập nhật và xóa chỉ dành cho Admin.
+ */
+
 const express = require('express');
 const router = express.Router();
 const specialApplicationTypesController = require('../controllers/specialApplicationTypesController');
 const { verifyToken, isAdmin } = require('../middleware/auth.middleware');
 
-// GET all special application types
+// Lấy danh sách tất cả loại đơn ứng dụng đặc biệt
 router.get('/', specialApplicationTypesController.getAllSpecialApplicationTypes);
 
-// GET special application type by ID
+// Lấy thông tin chi tiết của loại đơn ứng dụng đặc biệt theo ID
 router.get('/:id', specialApplicationTypesController.getSpecialApplicationTypeById);
 
-// GET special application types by application type ID
+// Lấy danh sách loại đơn ứng dụng đặc biệt theo ID của loại đơn ứng dụng
 router.get('/by-application-type/:applicationTypeId', specialApplicationTypesController.getSpecialApplicationTypesByAppTypeId);
 
-// CREATE a new special application type (admin only)
+// Tạo mới một loại đơn ứng dụng đặc biệt (chỉ dành cho Admin)
 router.post('/', verifyToken, isAdmin, specialApplicationTypesController.createSpecialApplicationType);
 
-// UPDATE an existing special application type (admin only)
+// Cập nhật loại đơn ứng dụng đặc biệt theo ID (chỉ dành cho Admin)
 router.put('/:id', verifyToken, isAdmin, specialApplicationTypesController.updateSpecialApplicationType);
 
-// DELETE a special application type (admin only)
+// Xóa loại đơn ứng dụng đặc biệt theo ID (chỉ dành cho Admin)
 router.delete('/:id', verifyToken, isAdmin, specialApplicationTypesController.deleteSpecialApplicationType);
 
-module.exports = router; 
+module.exports = router;
