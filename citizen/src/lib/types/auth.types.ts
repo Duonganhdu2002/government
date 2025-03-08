@@ -164,6 +164,7 @@ export interface LogoutResponse {
  * Change password request payload
  */
 export interface ChangePasswordRequest {
+  citizenid: number;
   oldPassword: string;
   newPassword: string;
 }

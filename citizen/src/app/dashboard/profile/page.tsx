@@ -495,7 +495,13 @@ export default function ProfilePage() {
       setSaving(true);
       setError('');
       
+      // Kiểm tra xem user có tồn tại không
+      if (!user || !user.id) {
+        throw new Error('Không xác định được người dùng');
+      }
+      
       const passwordData = {
+        citizenid: user.id, // Thêm citizenid từ user.id
         oldPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword
       };

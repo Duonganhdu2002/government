@@ -247,9 +247,15 @@ export const useAuth = () => {
       dispatch(setError(null));
 
       try {
+        // Đảm bảo có citizenid trong request
+        const passwordChangeData = {
+          ...passwordData,
+          citizenid: passwordData.citizenid || user.id 
+        };
+        
         await apiClient.post(
           '/api/auth/change-password',
-          passwordData
+          passwordChangeData
         );
         
         return true;
