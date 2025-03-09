@@ -15,7 +15,6 @@ import {
   Label,
   Checkbox,
   Alert,
-  Tabs
 } from "@medusajs/ui";
 
 // Icons
@@ -27,7 +26,6 @@ import { XMark, EyeSlash, Eye } from '@medusajs/icons';
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<UserType>(UserType.CITIZEN);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -50,8 +48,7 @@ export default function LoginPage() {
 
     // Log login attempt
     console.log('Attempting login with:', { 
-      username, 
-      userType, 
+      username,
       passwordLength: password.length 
     });
 
@@ -95,20 +92,7 @@ export default function LoginPage() {
 
         {/* Form Section (Gray Background) */}
         <div className="bg-gray-50 px-8 py-6 border-t">
-          {/* User type selection */}
-          <div className="mb-6">
-            <Tabs defaultValue={userType} onValueChange={(value) => setUserType(value as UserType)}>
-              <Tabs.List className="w-full">
-                <Tabs.Trigger value={UserType.CITIZEN} className="flex-1">
-                  Công dân
-                </Tabs.Trigger>
-                <Tabs.Trigger value={UserType.STAFF} className="flex-1">
-                  Cán bộ
-                </Tabs.Trigger>
-              </Tabs.List>
-            </Tabs>
-          </div>
-          
+        
           {/* Error alert */}
           {error && (
             <Alert variant="error" className="mb-4">
@@ -120,7 +104,7 @@ export default function LoginPage() {
             {/* Username field */}
             <div>
               <Label htmlFor="username" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
-                Tên đăng nhập
+                Tên đăng nhập <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="username"
@@ -132,13 +116,14 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full"
+                style={{ borderColor: '#e5e7eb' }}
               />
             </div>
 
             {/* Password field */}
             <div>
               <Label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
-                Mật khẩu
+                Mật khẩu <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
                 <Input
@@ -151,6 +136,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pr-10"
+                  style={{ borderColor: '#e5e7eb' }}
                 />
                 <button
                   type="button"
