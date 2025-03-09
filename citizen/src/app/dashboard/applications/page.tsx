@@ -1,7 +1,9 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { getAuthHeaders } from '@/lib/api';
+import LocationSelector, { LocationData } from '@/components/LocationSelector';
 import {
   Heading,
   Text,
@@ -13,9 +15,10 @@ import {
   Select,
   Container,
   IconButton,
-  FocusModal
+  FocusModal,
+  DatePicker
 } from '@medusajs/ui';
-import { ChevronRight, Check, Calendar, MagnifyingGlass, Plus, ChevronLeft, Minus } from '@medusajs/icons';
+import { ChevronRight, Check, Calendar, MagnifyingGlass, Plus, ChevronLeft, Minus, X } from '@medusajs/icons';
 
 // Interface for ApplicationType
 interface ApplicationType {
@@ -55,187 +58,307 @@ const assignCategoryToType = (type: ApplicationType): string => {
   if (type.category) return type.category;
 
   const typeName = type.typename.toLowerCase();
-  
+
   if (typeName.includes('khai sinh') || typeName.includes('kết hôn') || typeName.includes('căn cước') || typeName.includes('hộ khẩu') || typeName.includes('thường trú')) {
     return 'PERSONAL';
   }
-  
+
   if (typeName.includes('giấy phép') || typeName.includes('xây dựng') || typeName.includes('nhà đất') || typeName.includes('tài sản')) {
     return 'PROPERTY';
   }
-  
+
   if (typeName.includes('doanh nghiệp') || typeName.includes('kinh doanh') || typeName.includes('thuế')) {
     return 'BUSINESS';
   }
-  
+
   if (typeName.includes('pháp lý') || typeName.includes('tư pháp') || typeName.includes('luật')) {
     return 'LEGAL';
   }
-  
+
   if (typeName.includes('xã hội') || typeName.includes('cộng đồng') || typeName.includes('sự kiện')) {
     return 'SOCIAL';
   }
-  
+
   return 'OTHER';
 };
 
-// Application submission form
-const ApplicationForm = ({ 
-  selectedType, 
+// Application Submission Form
+const ApplicationSubmissionForm = ({
+  selectedType,
   selectedSpecialType,
-  onSubmit, 
-  isSubmitting 
-}: { 
+  onSubmit,
+  isSubmitting,
+  onCancel
+}: {
   selectedType: ApplicationType | null;
   selectedSpecialType: SpecialApplicationType | null;
   onSubmit: (formData: any) => void;
   isSubmitting: boolean;
+  onCancel: () => void;
 }) => {
-  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [hasAttachments, setHasAttachments] = useState(false);
+  const [eventDate, setEventDate] = useState('');
+  const [location, setLocation] = useState('');
+  const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [formError, setFormError] = useState('');
-  
-  // Reset form when selected type changes
-  useEffect(() => {
-    setTitle('');
-    setDescription('');
-    setHasAttachments(false);
+
+  // File upload states
+  const [images, setImages] = useState<{ file: File, preview: string }[]>([]);
+  const [hasAttachments, setHasAttachments] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const validateForm = () => {
+    if (!title.trim()) {
+      setFormError('Vui lòng nhập tiêu đề hồ sơ');
+      return false;
+    }
+
+    if (!eventDate) {
+      setFormError('Vui lòng chọn ngày diễn ra');
+      return false;
+    }
+
+    if (!locationData || !locationData.provinceCode || !locationData.districtCode || !locationData.wardCode) {
+      setFormError('Vui lòng chọn đầy đủ địa điểm');
+      return false;
+    }
+
     setFormError('');
-  }, [selectedType, selectedSpecialType]);
+    return true;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate form
-    if (!title.trim()) {
-      setFormError('Vui lòng nhập tiêu đề hồ sơ');
-      return;
-    }
 
-    // Submit the form
-    onSubmit({
-      citizenid: user?.id,
+    if (!validateForm()) return;
+
+    const formData = {
       applicationtypeid: selectedType?.applicationtypeid,
       specialapplicationtypeid: selectedSpecialType?.specialapplicationtypeid || null,
       title,
       description,
+      eventdate: eventDate,
+      location: locationData?.fullAddress || '',
+      hasattachments: hasAttachments || images.length > 0,
       submissiondate: new Date().toISOString(),
       status: 'Submitted',
-      hasmedia: hasAttachments
+      duedate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0],
+      provinceCode: locationData?.provinceCode,
+      districtCode: locationData?.districtCode,
+      wardCode: locationData?.wardCode,
+      images: images.length > 0 ? images.map(img => img.file) : []
+    };
+
+    onSubmit(formData);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    const newFiles = Array.from(e.target.files);
+    const newUploads = newFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setImages(prev => [...prev, ...newUploads]);
+
+    // Reset input
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      const newImages = [...prev];
+      URL.revokeObjectURL(newImages[index].preview);
+      newImages.splice(index, 1);
+      return newImages;
     });
   };
+
+  // Clean up previews on unmount
+  useEffect(() => {
+    return () => {
+      images.forEach(img => URL.revokeObjectURL(img.preview));
+    };
+  }, []);
 
   if (!selectedType) return null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="mb-6">
-        <div className="flex items-center space-x-2 mb-2">
-          <Heading level="h2">{selectedType.typename}</Heading>
-          <Badge className="bg-gray-100 text-gray-700">
-            {selectedType.processingtimelimit} ngày
-          </Badge>
-        </div>
-        <Text className="text-ui-fg-subtle">{selectedType.description}</Text>
-        
-        {selectedSpecialType && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
-            <div className="flex justify-between">
-              <Heading level="h3" className="text-sm font-medium text-blue-800">
-                Loại hồ sơ đặc biệt: {selectedSpecialType.typename}
-              </Heading>
-              <Badge className="bg-blue-100 text-blue-800">
-                {selectedSpecialType.processingtimelimit} ngày
-              </Badge>
-            </div>
+    <div className="bg-white p-6 rounded-lg shadow-lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {formError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            {formError}
           </div>
         )}
-      </div>
 
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="title" className="block text-ui-fg-subtle mb-1">
-            Tiêu đề hồ sơ <span className="text-red-500">*</span>
-          </label>
-          <Input 
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Nhập tiêu đề hồ sơ"
-            required
-          />
+        <div className="mb-6">
+          <div className="flex items-center space-x-2 mb-2">
+            <Heading level="h2">{selectedType.typename}</Heading>
+            <Badge className="bg-gray-100 text-gray-700">
+              {selectedType.processingtimelimit} ngày
+            </Badge>
+          </div>
+          <Text className="text-ui-fg-subtle">{selectedType.description}</Text>
+
+          {selectedSpecialType && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
+              <div className="flex justify-between">
+                <Heading level="h3" className="text-sm font-medium text-blue-800">
+                  Loại hồ sơ đặc biệt: {selectedSpecialType.typename}
+                </Heading>
+                <Badge className="bg-blue-100 text-blue-800">
+                  {selectedSpecialType.processingtimelimit} ngày
+                </Badge>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div>
-          <label htmlFor="description" className="block text-ui-fg-subtle mb-1">
-            Mô tả chi tiết
-          </label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Mô tả chi tiết về hồ sơ của bạn (không bắt buộc)"
-            rows={4}
-          />
+        <div className="space-y-4">
+          {/* Tiêu đề hồ sơ */}
+          <div>
+            <label htmlFor="title" className="block text-ui-fg-subtle mb-1">
+              Tiêu đề hồ sơ <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Nhập tiêu đề hồ sơ"
+              disabled={isSubmitting}
+              required
+              className="w-full"
+            />
+          </div>
+
+          {/* Mô tả chi tiết */}
+          <div>
+            <label htmlFor="description" className="block text-ui-fg-subtle mb-1">
+              Mô tả chi tiết
+            </label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Mô tả chi tiết về hồ sơ"
+              className="min-h-[120px] w-full"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* Ngày diễn ra */}
+          <div>
+            <label htmlFor="eventDate" className="block text-ui-fg-subtle mb-1">
+              Ngày diễn ra <span className="text-red-500">*</span>
+            </label>
+            <DatePicker
+              value={eventDate ? new Date(eventDate) : undefined}
+              onChange={(date) => date && setEventDate(date.toISOString().split('T')[0])}
+              isDisabled={isSubmitting}
+            />
+          </div>
+
+          {/* Địa điểm */}
+          <div>
+            <label htmlFor="location" className="block text-ui-fg-subtle mb-1">
+              Địa điểm <span className="text-red-500">*</span>
+            </label>
+            <LocationSelector
+              onChange={(newLocationData) => setLocationData(newLocationData)}
+              isDisabled={isSubmitting}
+              showValidation={!!formError}
+            />
+          </div>
+
+          {/* File upload */}
+          <div>
+            <label className="block text-ui-fg-subtle mb-2">
+              Tài liệu đính kèm
+            </label>
+
+            <div className="mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                {images.map((img, index) => (
+                  <div key={index} className="relative border border-gray-200 rounded-md overflow-hidden">
+                    <img
+                      src={img.preview}
+                      alt={`Uploaded ${index}`}
+                      className="w-full h-28 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="border border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center p-4 h-28 hover:bg-gray-50"
+                  disabled={isSubmitting}
+                >
+                  <Plus className="w-5 h-5 text-gray-400 mb-1" />
+                  <span className="text-sm text-gray-500">Thêm ảnh</span>
+                </button>
+              </div>
+
+              <input
+                type="file"
+                ref={imageInputRef}
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                multiple
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center mb-4">
-          <input
-            type="checkbox"
-            id="hasAttachments"
-            checked={hasAttachments}
-            onChange={(e) => setHasAttachments(e.target.checked)}
-            className="mr-2"
-          />
-          <label htmlFor="hasAttachments" className="text-ui-fg-subtle">
-            Tôi sẽ bổ sung tài liệu đính kèm sau khi nộp hồ sơ
-          </label>
-        </div>
-
-        {formError && (
-          <div className="text-red-500 text-sm mt-2">{formError}</div>
-        )}
-
-        <div className="flex justify-end space-x-3 mt-8">
+        <div className="flex justify-end gap-3 mt-8">
           <Button
             variant="secondary"
             type="button"
-            onClick={() => {
-              setTitle('');
-              setDescription('');
-              setHasAttachments(false);
-            }}
+            onClick={onCancel}
+            disabled={isSubmitting}
           >
-            Làm mới
+            Hủy
           </Button>
-          <Button 
+          <Button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center gap-1"
+            isLoading={isSubmitting}
           >
             {isSubmitting ? 'Đang nộp...' : 'Nộp hồ sơ'}
-            {!isSubmitting && <ChevronRight />}
           </Button>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 };
 
 // Application type card
-const ApplicationTypeCard = ({ 
-  type, 
-  onSelect, 
+const ApplicationTypeCard = ({
+  type,
+  onSelect,
   isSelected
-}: { 
+}: {
   type: ApplicationType;
   onSelect: () => void;
   isSelected: boolean;
 }) => {
   return (
-    <div 
+    <div
       className="p-4 cursor-pointer transition-all duration-200 border rounded-lg border-ui-border-base hover:border-gray-300 hover:shadow-sm hover:bg-gray-50"
       onClick={onSelect}
     >
@@ -267,7 +390,7 @@ const CategoryAccordion = ({
 }) => {
   return (
     <div className="border border-gray-200 rounded-lg mb-6 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div 
+      <div
         className="flex justify-between items-center p-4 cursor-pointer bg-gray-50 hover:bg-gray-100"
         onClick={onToggle}
       >
@@ -303,43 +426,42 @@ const Pagination = ({
   onPageChange: (page: number) => void;
 }) => {
   if (totalPages <= 1) return null;
-  
+
   return (
     <div className="flex items-center justify-center space-x-2 mt-6 pt-4 border-t border-gray-100">
-      <Button 
-        variant="secondary" 
-        size="small" 
+      <Button
+        variant="secondary"
+        size="small"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
         className="px-3 py-1"
       >
         <ChevronLeft className="w-4 h-4" />
       </Button>
-      
+
       <div className="flex items-center space-x-1">
         {[...Array(totalPages)].map((_, idx) => {
           const pageNumber = idx + 1;
           const isActive = pageNumber === currentPage;
-          
+
           return (
             <button
               key={idx}
               onClick={() => onPageChange(pageNumber)}
-              className={`w-8 h-8 rounded-md text-sm flex items-center justify-center ${
-                isActive 
-                  ? 'bg-blue-500 text-white font-medium' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`w-8 h-8 rounded-md text-sm flex items-center justify-center ${isActive
+                ? 'bg-blue-500 text-white font-medium'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               {pageNumber}
             </button>
           );
         })}
       </div>
-      
-      <Button 
-        variant="secondary" 
-        size="small" 
+
+      <Button
+        variant="secondary"
+        size="small"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
         className="px-3 py-1"
@@ -359,7 +481,7 @@ const SpecialApplicationTypeCard = ({
   onSelect: (specialType: SpecialApplicationType) => void;
 }) => {
   return (
-    <div 
+    <div
       className="p-4 border rounded-lg cursor-pointer hover:border-gray-300 hover:shadow-sm hover:bg-gray-50 transition-all duration-200"
       onClick={() => onSelect(specialType)}
     >
@@ -410,7 +532,7 @@ const SpecialTypesModal = ({
               </Text>
             </div>
           </div>
-          
+
           {loading ? (
             <div className="flex justify-center items-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-border-base mx-auto"></div>
@@ -437,7 +559,7 @@ const SpecialTypesModal = ({
               )}
             </>
           )}
-          
+
           <div className="border-t border-gray-200 pt-4 mt-4 flex justify-end">
             <Button variant="secondary" onClick={onClose}>
               Đóng
@@ -464,11 +586,11 @@ export default function ApplicationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [showSpecialTypesModal, setShowSpecialTypesModal] = useState(false);
-  
+
   // Pagination state for each category
-  const [paginationState, setPaginationState] = useState<{[key: string]: number}>({});
+  const [paginationState, setPaginationState] = useState<{ [key: string]: number }>({});
   const ITEMS_PER_PAGE = 4;
-  
+
   // Category filter state
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   // Track which category accordion is open
@@ -479,16 +601,16 @@ export default function ApplicationsPage() {
       try {
         setLoading(true);
         console.log('Gọi API lấy danh sách loại hồ sơ');
-        
+
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/application-types`);
-        
+
         if (!response.ok) {
           throw new Error(`Không thể tải loại hồ sơ: ${response.status} ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         console.log(`Đã tải ${data.length} loại hồ sơ`);
-        
+
         // Lấy thông tin processingTimeRange cho từng loại hồ sơ
         const typesWithTimeRanges = await Promise.all(
           data.map(async (type: ApplicationType) => {
@@ -497,39 +619,39 @@ export default function ApplicationsPage() {
               const specialResponse = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/special-application-types/by-application-type/${type.applicationtypeid}`
               );
-              
+
               if (!specialResponse.ok && specialResponse.status !== 404) {
                 throw new Error(`Failed to fetch special types: ${specialResponse.status}`);
               }
-              
+
               if (specialResponse.status === 404 || !specialResponse.ok) {
                 // Không có loại hồ sơ đặc biệt
                 return {
                   ...type,
-                  processingTimeRange: { 
-                    min: type.processingtimelimit, 
-                    max: type.processingtimelimit 
+                  processingTimeRange: {
+                    min: type.processingtimelimit,
+                    max: type.processingtimelimit
                   }
                 };
               }
-              
+
               const specialTypes = await specialResponse.json();
-              
+
               if (!specialTypes || specialTypes.length === 0) {
                 return {
                   ...type,
-                  processingTimeRange: { 
-                    min: type.processingtimelimit, 
-                    max: type.processingtimelimit 
+                  processingTimeRange: {
+                    min: type.processingtimelimit,
+                    max: type.processingtimelimit
                   }
                 };
               }
-              
+
               // Tính toán thời gian xử lý nhỏ nhất và lớn nhất
               const processingTimes = specialTypes.map((st: any) => st.processingtimelimit);
               const min = Math.min(...processingTimes, type.processingtimelimit);
               const max = Math.max(...processingTimes, type.processingtimelimit);
-              
+
               return {
                 ...type,
                 processingTimeRange: { min, max }
@@ -538,15 +660,15 @@ export default function ApplicationsPage() {
               console.error(`Error fetching special types for ${type.typename}:`, error);
               return {
                 ...type,
-                processingTimeRange: { 
-                  min: type.processingtimelimit, 
-                  max: type.processingtimelimit 
+                processingTimeRange: {
+                  min: type.processingtimelimit,
+                  max: type.processingtimelimit
                 }
               };
             }
           })
         );
-        
+
         setApplicationTypes(typesWithTimeRanges);
       } catch (err) {
         console.error('Lỗi khi tải loại hồ sơ:', err);
@@ -557,14 +679,14 @@ export default function ApplicationsPage() {
     };
 
     fetchApplicationTypes();
-    
+
     // Khởi tạo phân trang cho mỗi danh mục
     const initPagination = Object.keys(APPLICATION_CATEGORIES).reduce((acc, category) => {
       acc[category] = 1;
       return acc;
-    }, {} as {[key: string]: number});
+    }, {} as { [key: string]: number });
     initPagination['ALL'] = 1;
-    
+
     setPaginationState(initPagination);
   }, []);
 
@@ -573,9 +695,9 @@ export default function ApplicationsPage() {
     try {
       setLoadingSpecialTypes(true);
       console.log('Fetching special types for:', applicationTypeId);
-      
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/special-application-types/by-application-type/${applicationTypeId}`);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           // No special types found is normal
@@ -585,7 +707,7 @@ export default function ApplicationsPage() {
         }
         throw new Error(`Failed to fetch special application types: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('Special application types:', data);
       setSpecialTypes(data);
@@ -604,31 +726,31 @@ export default function ApplicationsPage() {
   const categorizedApplicationTypes = useMemo(() => {
     // Normalize search query to handle Vietnamese accents
     const normalizedQuery = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    
+
     // Lọc dữ liệu theo từ khóa tìm kiếm
     const filtered = applicationTypes.filter((type) => {
       const normalizedTypeName = type.typename?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
       const normalizedDescription = type.description?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
-      
-      return normalizedTypeName.includes(normalizedQuery) || 
-             normalizedDescription.includes(normalizedQuery) ||
-             // Also include original search for exact matches
-             (type.typename?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-             (type.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+
+      return normalizedTypeName.includes(normalizedQuery) ||
+        normalizedDescription.includes(normalizedQuery) ||
+        // Also include original search for exact matches
+        (type.typename?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (type.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
     });
-    
+
     // Nhóm theo danh mục
     const grouped = filtered.reduce((acc, type) => {
       // Sử dụng category đã có hoặc phân loại nếu không có
       const category = type.category || assignCategoryToType(type);
-      
+
       if (!acc[category]) {
         acc[category] = [];
       }
       acc[category].push(type);
       return acc;
-    }, {} as {[key: string]: ApplicationType[]});
-    
+    }, {} as { [key: string]: ApplicationType[] });
+
     return grouped;
   }, [applicationTypes, searchQuery]);
 
@@ -639,14 +761,14 @@ export default function ApplicationsPage() {
       setSelectedSpecialType(null);
       return;
     }
-    
+
     // Set the newly selected type (will unselect previous one)
     setSelectedType(type);
     setSelectedSpecialType(null);
-    
+
     // Fetch special application types for this application type
     const specialTypes = await fetchSpecialApplicationTypes(type.applicationtypeid);
-    
+
     if (specialTypes.length === 0) {
       // If no special types, go directly to the submission form
       setActiveTab("submit");
@@ -670,21 +792,62 @@ export default function ApplicationsPage() {
   const handleSubmitApplication = async (formData: any) => {
     try {
       setIsSubmitting(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/applications`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to submit application');
+      // Check if formData contains image files
+      const hasImages = formData.images && formData.images.length > 0;
+
+      if (hasImages) {
+        // Create a FormData object for uploading files
+        const submitFormData = new FormData();
+
+        // Add form fields
+        Object.keys(formData).forEach(key => {
+          // Skip images as we'll add them separately
+          if (key !== 'images') {
+            if (formData[key] !== null && formData[key] !== undefined) {
+              submitFormData.append(key, formData[key].toString());
+            }
+          }
+        });
+
+        // Add image files
+        formData.images.forEach((image: File) => {
+          submitFormData.append('files', image);
+        });
+
+        // Get auth headers but remove Content-Type as the browser will set it for FormData
+        const authHeaders = getAuthHeaders();
+        delete authHeaders['Content-Type'];
+
+        // Make the POST request with files
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/application-upload`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: submitFormData,
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to submit application with files');
+        }
+      } else {
+        // Standard JSON submission without files
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/applications`, {
+          method: 'POST',
+          headers: {
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to submit application');
+        }
       }
 
       // Show success dialog
       setShowSuccess(true);
-      
+
       // Reset form
       setSelectedType(null);
       setSelectedSpecialType(null);
@@ -720,7 +883,7 @@ export default function ApplicationsPage() {
     const currentPage = paginationState[category] || 1;
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    
+
     return {
       items: items.slice(startIndex, endIndex),
       totalPages: Math.ceil(items.length / ITEMS_PER_PAGE),
@@ -743,8 +906,8 @@ export default function ApplicationsPage() {
         </Text>
       </div>
 
-      <Tabs 
-        value={activeTab} 
+      <Tabs
+        value={activeTab}
         onValueChange={setActiveTab}
         className="mb-8"
       >
@@ -772,8 +935,8 @@ export default function ApplicationsPage() {
               className="max-w-md flex-grow"
             />
             <div className="min-w-[200px]">
-              <Select 
-                value={selectedCategory} 
+              <Select
+                value={selectedCategory}
                 onValueChange={(value) => {
                   setSelectedCategory(value);
                   // Reset pagination when category changes
@@ -828,19 +991,19 @@ export default function ApplicationsPage() {
                   </Button>
                 </div>
               )}
-            
+
               {selectedCategory === 'ALL' ? (
                 // Show all application types sorted by category
                 Object.entries(APPLICATION_CATEGORIES).map(([categoryKey, categoryName]) => {
                   const types = categorizedApplicationTypes[categoryKey] || [];
-                  
+
                   if (types.length === 0) return null;
-                  
+
                   const { items, totalPages, currentPage } = getPaginatedItems(types, categoryKey);
-                  
+
                   return (
-                    <CategoryAccordion 
-                      key={categoryKey} 
+                    <CategoryAccordion
+                      key={categoryKey}
                       title={categoryName}
                       isOpen={openCategory === categoryKey}
                       onToggle={() => {
@@ -864,7 +1027,7 @@ export default function ApplicationsPage() {
                           />
                         ))}
                       </div>
-                      
+
                       <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -878,18 +1041,18 @@ export default function ApplicationsPage() {
                 <div>
                   <div className="mb-4">
                     <Heading level="h2" className="text-xl">
-                      {APPLICATION_CATEGORIES[selectedCategory]} 
+                      {APPLICATION_CATEGORIES[selectedCategory]}
                       <Badge className="ml-2 bg-blue-50 text-blue-600">
                         {(categorizedApplicationTypes[selectedCategory] || []).length}
                       </Badge>
                     </Heading>
                   </div>
-                  
+
                   {categorizedApplicationTypes[selectedCategory]?.length > 0 ? (
                     <>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {getPaginatedItems(
-                          categorizedApplicationTypes[selectedCategory] || [], 
+                          categorizedApplicationTypes[selectedCategory] || [],
                           selectedCategory
                         ).items.map((type: ApplicationType) => (
                           <ApplicationTypeCard
@@ -900,7 +1063,7 @@ export default function ApplicationsPage() {
                           />
                         ))}
                       </div>
-                      
+
                       <Pagination
                         currentPage={paginationState[selectedCategory] || 1}
                         totalPages={Math.ceil((categorizedApplicationTypes[selectedCategory] || []).length / ITEMS_PER_PAGE)}
@@ -932,11 +1095,12 @@ export default function ApplicationsPage() {
       )}
 
       {activeTab === "submit" && (
-        <ApplicationForm
+        <ApplicationSubmissionForm
           selectedType={selectedType}
           selectedSpecialType={selectedSpecialType}
           onSubmit={handleSubmitApplication}
           isSubmitting={isSubmitting}
+          onCancel={handleCloseSpecialTypesModal}
         />
       )}
 

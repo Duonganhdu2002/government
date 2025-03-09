@@ -16,6 +16,7 @@ import {
 import { Check, ChevronRight, X, Calendar, MapPin, Plus } from '@medusajs/icons';
 import { NewApplicationModalProps } from '@/types/application';
 import { useApplicationForm } from '@/lib/hooks/useApplicationForm';
+import LocationSelector, { LocationData } from '@/components/LocationSelector';
 
 export default function NewApplicationModal({
   isOpen,
@@ -343,167 +344,21 @@ export default function NewApplicationModal({
                   Địa điểm <span className="text-red-500">*</span>
                 </label>
                 
-                <div className="space-y-3">
-                  {/* Tỉnh/Thành phố */}
-                  <div>
-                    <Select
-                      value={selectedProvinceCode || undefined}
-                      onValueChange={(value: string) => setSelectedProvinceCode(value)}
-                      disabled={isSubmitting || loadingProvinces}
-                    >
-                      <Select.Trigger>
-                        <Select.Value placeholder={loadingProvinces ? "Đang tải..." : "Chọn Tỉnh/Thành phố"} />
-                      </Select.Trigger>
-                      <Select.Content className="z-[100]">
-                        {loadingProvinces ? (
-                          <div className="p-4 text-center">
-                            <div className="animate-pulse flex justify-center mb-2">
-                              <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
-                            </div>
-                            <Text size="small">Đang tải danh sách tỉnh/thành phố...</Text>
-                          </div>
-                        ) : provinces.length === 0 ? (
-                          <div className="p-4 text-center text-ui-fg-subtle">
-                            <Text>Không tìm thấy dữ liệu</Text>
-                            <div className="mt-2">
-                              <Button
-                                size="small"
-                                variant="secondary"
-                                onClick={() => handleFetchProvinces()}
-                              >
-                                Thử lại
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          provinces.map(province => (
-                            <Select.Item key={province.code} value={province.code}>
-                              {province.name_with_type || province.name}
-                            </Select.Item>
-                          ))
-                        )}
-                      </Select.Content>
-                    </Select>
-                  </div>
-                  
-                  {/* Quận/Huyện */}
-                  {selectedProvinceCode && (
-                    <div>
-                      <Select
-                        value={selectedDistrictCode || undefined}
-                        onValueChange={(value: string) => setSelectedDistrictCode(value)}
-                        disabled={isSubmitting || loadingDistricts}
-                      >
-                        <Select.Trigger>
-                          <Select.Value placeholder={loadingDistricts ? "Đang tải..." : "Chọn Quận/Huyện"} />
-                        </Select.Trigger>
-                        <Select.Content className="z-[100]">
-                          {loadingDistricts ? (
-                            <div className="p-4 text-center">
-                              <div className="animate-pulse flex justify-center mb-2">
-                                <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
-                              </div>
-                              <Text size="small">Đang tải danh sách quận/huyện...</Text>
-                            </div>
-                          ) : districts.length === 0 ? (
-                            <div className="p-4 text-center text-ui-fg-subtle">
-                              <Text>Không tìm thấy dữ liệu</Text>
-                              <div className="mt-2">
-                                <Button
-                                  size="small"
-                                  variant="secondary"
-                                  onClick={() => handleFetchDistricts(selectedProvinceCode)}
-                                >
-                                  Thử lại
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            districts.map(district => (
-                              <Select.Item key={district.code} value={district.code}>
-                                {district.name_with_type || district.name}
-                              </Select.Item>
-                            ))
-                          )}
-                        </Select.Content>
-                      </Select>
-                    </div>
-                  )}
-                  
-                  {/* Phường/Xã */}
-                  {selectedDistrictCode && (
-                    <div>
-                      <Select
-                        value={selectedWardCode || undefined}
-                        onValueChange={(value: string) => setSelectedWardCode(value)}
-                        disabled={isSubmitting || loadingWards}
-                      >
-                        <Select.Trigger>
-                          <Select.Value placeholder={loadingWards ? "Đang tải..." : "Chọn Phường/Xã"} />
-                        </Select.Trigger>
-                        <Select.Content className="z-[100]">
-                          {loadingWards ? (
-                            <div className="p-4 text-center">
-                              <div className="animate-pulse flex justify-center mb-2">
-                                <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
-                              </div>
-                              <Text size="small">Đang tải danh sách phường/xã...</Text>
-                            </div>
-                          ) : wards.length === 0 ? (
-                            <div className="p-4 text-center text-ui-fg-subtle">
-                              <Text>Không tìm thấy dữ liệu</Text>
-                              <div className="mt-2">
-                                <Button
-                                  size="small"
-                                  variant="secondary"
-                                  onClick={() => handleFetchWards(selectedDistrictCode)}
-                                >
-                                  Thử lại
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            wards.map(ward => (
-                              <Select.Item key={ward.code} value={ward.code}>
-                                {ward.name_with_type || ward.name}
-                              </Select.Item>
-                            ))
-                          )}
-                        </Select.Content>
-                      </Select>
-                    </div>
-                  )}
-                  
-                  {/* Hiển thị địa chỉ đã chọn */}
-                  {location && (
-                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200 mt-3">
-                      <Text size="small" className="text-ui-fg-base">
-                        <strong>Địa chỉ đã chọn:</strong> {location}
-                      </Text>
-                    </div>
-                  )}
-
-                  {/* Hiển thị lỗi nếu có */}
-                  {error && error.includes('tỉnh/thành phố') && (
-                    <div className="p-3 bg-red-50 rounded-md border border-red-200 mt-3">
-                      <Text size="small" className="text-red-600">
-                        {error}
-                      </Text>
-                      <Button
-                        size="small"
-                        variant="secondary"
-                        className="mt-2"
-                        onClick={() => handleFetchProvinces()}
-                      >
-                        Thử lại
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                
-                <Text size="small" className="text-ui-fg-subtle mt-1">
-                  Địa điểm diễn ra sự kiện hoặc địa điểm liên quan đến hồ sơ
-                </Text>
+                <LocationSelector
+                  onChange={(locationData) => {
+                    setSelectedProvinceCode(locationData.provinceCode);
+                    setSelectedDistrictCode(locationData.districtCode);
+                    setSelectedWardCode(locationData.wardCode);
+                    setLocation(locationData.fullAddress);
+                  }}
+                  initialLocation={{
+                    provinceCode: selectedProvinceCode,
+                    districtCode: selectedDistrictCode,
+                    wardCode: selectedWardCode
+                  }}
+                  isDisabled={isSubmitting}
+                  showValidation={!location && activeStep === 'details'} 
+                />
               </div>
 
               {/* Buttons */}
