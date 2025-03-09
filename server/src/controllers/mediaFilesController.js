@@ -8,6 +8,7 @@ const mkdir = util.promisify(fs.mkdir);
 const { executeQuery } = require('../utils/db.util');
 const { sendSuccess, sendError } = require('../utils/response.util');
 const logger = require('../utils/logger.util');
+const multer = require('multer');
 
 const mediaFilesController = {
   // GET ALL MEDIA FILES (with Redis caching)
@@ -336,6 +337,76 @@ const mediaFilesController = {
       logger.error('Error uploading profile image:', error);
       return sendError(res, `Failed to upload profile image: ${error.message}`, 500);
     }
+  },
+
+  // Upload files handler - uses multer middleware
+  uploadFiles: (req, res) => {
+    upload(req, res, async (err) => {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: `Multer error: ${err.message}` });
+      } else if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+
+      const { applicationid } = req.body;
+      if (!applicationid || isNaN(applicationid)) {
+        // Xóa file đã upload nếu không có applicationId hợp lệ
+        if (req.files) {
+          req.files.forEach(file => {
+            fs.unlinkSync(file.path);
+          });
+        }
+        return res.status(400).json({ error: 'Application ID is required' });
+      }
+
+      try {
+        const uploadResults = [];
+        
+        // Xử lý từng file đã upload
+        for (const file of req.files) {
+          // Lấy extension từ tên file gốc
+          const fileExt = path.extname(file.originalname).substr(1);
+          const filePath = file.path.replace(process.cwd(), '').replace(/\\/g, '/');
+          
+          // Lưu thông tin vào database
+          const result = await pool.query(
+            `INSERT INTO mediafiles 
+            (applicationid, filetype, filepath, filesize, uploaddate, originalfilename, mimetype) 
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, $6) RETURNING *;`,
+            [
+              applicationid, 
+              fileExt, 
+              filePath, 
+              file.size, 
+              file.originalname,
+              file.mimetype
+            ]
+          );
+          
+          uploadResults.push(result.rows[0]);
+        }
+        
+        // Xóa các cache liên quan
+        await redisClient.del('all_mediafiles');
+        await redisClient.del(`mediafiles_by_app_${applicationid}`);
+        
+        res.status(201).json({
+          message: 'Files uploaded successfully',
+          files: uploadResults
+        });
+      } catch (error) {
+        console.error('Error uploading files:', error.message);
+        
+        // Xóa file nếu có lỗi khi lưu vào database
+        if (req.files) {
+          req.files.forEach(file => {
+            fs.unlinkSync(file.path);
+          });
+        }
+        
+        res.status(500).json({ error: 'Failed to upload files' });
+      }
+    });
   },
 };
 

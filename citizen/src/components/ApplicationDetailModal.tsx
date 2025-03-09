@@ -123,14 +123,39 @@ const getStatusBadge = (status: string) => {
 interface MediaAttachment {
   mediafileid: number;
   applicationid: number;
-  mimetype: string;
+  mimetype: string;     // MIME type của file (image/jpeg, application/pdf, etc.)
   originalfilename: string;
   filesize?: number;
   uploaddate?: string;
-  filetype?: string;
+  filetype?: string;   // Loại file từ database (image, document, etc.)
   filepath?: string;
   [key: string]: any;
 }
+
+// Helper function to get MIME type from filetype
+const getMimeTypeFromFileType = (attachment: MediaAttachment): string => {
+  if (attachment.mimetype) return attachment.mimetype;
+  
+  // Map từ filetype sang MIME type
+  const mimeTypeMap: Record<string, string> = {
+    'image': 'image/jpeg',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'txt': 'text/plain',
+    'zip': 'application/zip',
+    'rar': 'application/x-rar-compressed',
+    'video': 'video/mp4'
+  };
+  
+  if (attachment.filetype && mimeTypeMap[attachment.filetype.toLowerCase()]) {
+    return mimeTypeMap[attachment.filetype.toLowerCase()];
+  }
+  
+  return 'application/octet-stream'; // Default fallback
+};
 
 interface ApplicationDetailModalProps {
   isOpen: boolean;
@@ -180,6 +205,8 @@ function MediaImage({
     <Image
       src={getMediaUrl()}
       alt={alt}
+      width={300}
+      height={300}
       className={className || "w-full h-full object-contain"}
       onError={(e) => {
         console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${getMediaUrl()}`);
@@ -423,126 +450,67 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                     ) : null}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Hiển thị ảnh đính kèm */}
+                      {/* Hiển thị tất cả tệp đính kèm trong một grid duy nhất */}
                       {application.attachments && application.attachments.length > 0 ? (
-                        application.attachments
-                          .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('image/'))
-                          .map((attachment: MediaAttachment, index: number) => (
-                            <div key={`image-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a
-                                href={getMediaUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden relative">
-                                  <MediaImage
-                                    attachment={attachment}
-                                    alt={`Tệp đính kèm ${index + 1}`}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div className="flex flex-col">
-                                  <Text className="text-sm text-center truncate">
-                                    {attachment.originalfilename || `Ảnh ${index + 1}`}
-                                  </Text>
-                                  <Text className="text-xs text-gray-500 text-center">
-                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                  </Text>
-                                </div>
-                              </a>
-                            </div>
-                          ))
-                      ) : null}
-
-                      {/* Hiển thị video đính kèm */}
-                      {application.attachments && application.attachments.length > 0 ? (
-                        application.attachments
-                          .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('video/'))
-                          .map((attachment: MediaAttachment, index: number) => (
-                            <div key={`video-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a
-                                href={getMediaUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
-                                  <video
-                                    src={getMediaUrl(attachment)}
-                                    controls
-                                    className="w-full h-full object-contain"
-                                    onError={(e) => {
-                                      console.error(`Lỗi tải video: ${attachment.mediafileid}`);
-                                      handleMediaError(attachment.mediafileid);
-                                      const target = e.target as HTMLVideoElement;
-                                      const parent = target.parentElement;
-                                      if (parent) {
-                                        target.style.display = 'none';
-                                        const iconDiv = document.createElement('div');
-                                        iconDiv.className = 'flex justify-center items-center w-full h-full bg-gray-100';
-                                        iconDiv.innerHTML = `<span class="w-10 h-10 text-gray-400">
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" /><line x1="10" y1="8" x2="10" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></svg>
-                                        </span>`;
-                                        parent.appendChild(iconDiv);
-                                      }
-                                    }}
-                                  />
-                                </div>
-                                <div className="flex flex-col">
-                                  <Text className="text-sm text-center truncate">
-                                    {attachment.originalfilename || `Video ${index + 1}`}
-                                  </Text>
-                                  <Text className="text-xs text-gray-500 text-center">
-                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                  </Text>
-                                </div>
-                              </a>
-                            </div>
-                          ))
-                      ) : null}
-
-                      {/* Hiển thị tài liệu khác */}
-                      {application.attachments && application.attachments.length > 0 ? (
-                        application.attachments
-                          .filter((attachment: MediaAttachment) =>
-                            attachment.mimetype &&
-                            !attachment.mimetype.startsWith('image/') &&
-                            !attachment.mimetype.startsWith('video/')
-                          )
-                          .map((attachment: MediaAttachment, index: number) => (
-                            <div key={`doc-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a
-                                href={getMediaUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
-                                  <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <Text className="text-sm text-center truncate">
-                                    {attachment.originalfilename || `Tài liệu ${index + 1}`}
-                                  </Text>
-                                  <Text className="text-xs text-gray-500 text-center">
-                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                  </Text>
-                                </div>
-                              </a>
-                            </div>
-                          ))
-                      ) : null}
-
-                      {/* Hiển thị thông báo nếu không có tài liệu đính kèm */}
-                      {!application.attachments || application.attachments.length === 0 ? (
+                        application.attachments.map((attachment: MediaAttachment, index: number) => (
+                          <div key={`file-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                            <a
+                              href={getMediaUrl(attachment)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              {/* Hiển thị theo định dạng file */}
+                              {(() => {
+                                const mimeType = getMimeTypeFromFileType(attachment);
+                                
+                                if (mimeType.startsWith('image/')) {
+                                  return (
+                                    <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
+                                      <MediaImage 
+                                        attachment={attachment} 
+                                        alt={`Tệp ${index + 1}`} 
+                                        className="w-full h-full object-contain" 
+                                      />
+                                    </div>
+                                  );
+                                } else if (mimeType.startsWith('video/')) {
+                                  return (
+                                    <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
+                                      <video
+                                        src={getMediaUrl(attachment)}
+                                        controls
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => handleMediaError(attachment.mediafileid)}
+                                      />
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
+                                      <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
+                                    </div>
+                                  );
+                                }
+                              })()}
+                              
+                              <div className="flex flex-col">
+                                <Text className="text-sm text-center truncate">
+                                  {attachment.originalfilename || `Tệp ${index + 1}`}
+                                </Text>
+                                <Text className="text-xs text-gray-500 text-center">
+                                  {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                  {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                </Text>
+                              </div>
+                            </a>
+                          </div>
+                        ))
+                      ) : (
                         <div className="col-span-full text-center py-8">
                           <Text className="text-gray-500">Không có tài liệu đính kèm</Text>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </Card.Content>

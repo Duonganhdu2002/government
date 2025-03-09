@@ -459,13 +459,50 @@ export const fetchApplicationById = async (id: string): Promise<any> => {
         console.log(`Successfully fetched ${mediaFiles.length} media files for application ${id}`);
         
         // Thêm thông tin tệp đính kèm vào dữ liệu đơn
-        applicationData.attachments = mediaFiles.map((file: MediaFile) => ({
-          ...file,
-          // Đảm bảo các trường cần thiết tồn tại
-          mediafileid: file.mediafileid || file.id,
-          mimetype: file.mimetype || 'application/octet-stream',
-          originalfilename: file.originalfilename || file.filename || `File-${file.mediafileid || file.id}`
-        }));
+        applicationData.attachments = mediaFiles.map((file: MediaFile) => {
+          // Xác định MIME type dựa trên filetype hoặc đuôi file
+          let mimetype = file.mimetype;
+          if (!mimetype) {
+            const mimeTypeMap: Record<string, string> = {
+              'image': 'image/jpeg',
+              'pdf': 'application/pdf',
+              'doc': 'application/msword',
+              'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'xls': 'application/vnd.ms-excel',
+              'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              'txt': 'text/plain',
+              'zip': 'application/zip',
+              'rar': 'application/x-rar-compressed',
+              'video': 'video/mp4'
+            };
+            
+            if (file.filetype) {
+              mimetype = mimeTypeMap[file.filetype.toLowerCase()] || 'application/octet-stream';
+            } else if (file.filepath) {
+              // Lấy extension từ filepath
+              const extension = file.filepath.split('.').pop()?.toLowerCase();
+              if (extension) {
+                if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif') {
+                  mimetype = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+                } else if (extension === 'mp4' || extension === 'webm' || extension === 'ogg') {
+                  mimetype = `video/${extension}`;
+                } else if (mimeTypeMap[extension]) {
+                  mimetype = mimeTypeMap[extension];
+                } else {
+                  mimetype = 'application/octet-stream';
+                }
+              }
+            }
+          }
+          
+          return {
+            ...file,
+            // Đảm bảo các trường cần thiết tồn tại
+            mediafileid: file.mediafileid || file.id,
+            mimetype: mimetype || 'application/octet-stream',
+            originalfilename: file.originalfilename || file.filename || `File-${file.mediafileid || file.id}`
+          };
+        });
         
         // Kiểm tra nếu có tệp đính kèm thì đánh dấu đơn có media
         applicationData.hasmedia = applicationData.attachments.length > 0;

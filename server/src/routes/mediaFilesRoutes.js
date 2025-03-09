@@ -29,14 +29,25 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // Giới hạn 5MB
+    fileSize: 10 * 1024 * 1024, // Giới hạn 10MB
   },
   fileFilter: function(req, file, cb) {
-    // Chỉ chấp nhận file hình ảnh
-    if (file.mimetype.startsWith('image/')) {
+    // Chấp nhận tất cả các loại file phổ biến
+    const allowedMimeTypes = [
+      'image/', 'video/', 'application/pdf', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'application/zip', 'application/x-rar-compressed'
+    ];
+
+    // Kiểm tra xem MIME type có được chấp nhận không
+    const isAllowed = allowedMimeTypes.some(type => file.mimetype.startsWith(type) || file.mimetype === type);
+    
+    if (isAllowed) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file hình ảnh'), false);
+      cb(new Error('Loại file không được hỗ trợ'), false);
     }
   }
 });
@@ -64,5 +75,8 @@ router.put('/:id', mediaFilesController.updateMediaFile);
 
 // Xóa file media theo ID
 router.delete('/:id', mediaFilesController.deleteMediaFile);
+
+// Upload file media (yêu cầu xác thực)
+router.post('/', mediaFilesController.uploadFiles);
 
 module.exports = router;
