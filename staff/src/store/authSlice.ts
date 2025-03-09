@@ -1,108 +1,105 @@
 /**
- * src/store/authSlice.ts
- *
- * This slice manages authentication state including user data and tokens.
- * It uses async thunks to handle registration and login.
+ * authSlice.ts
+ * 
+ * Redux slice for authentication state management
  */
 
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { registerUserAPI, loginUserAPI, RegisterData, LoginCredentials, AuthResponse } from '@/services/authService';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { AuthState, CitizenUser, StaffUser, User } from '@/lib/types/auth.types';
+import Cookies from 'js-cookie';
 
-export interface User {
-  citizenid: number;
-  fullname: string;
-  identificationnumber: string;
-  address: string;
-  phonenumber: string;
-  email: string;
-  username: string;
-  areacode: number;
-}
-
-interface AuthState {
-  user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  error: string | null;
-}
-
+/**
+ * Initial authentication state
+ */
 const initialState: AuthState = {
+  isAuthenticated: false,
   user: null,
-  accessToken: null,
-  refreshToken: null,
-  status: 'idle',
-  error: null,
+  loading: false,
+  error: null
 };
 
-export const registerUser = createAsyncThunk<AuthResponse, RegisterData, { rejectValue: string }>(
-  'auth/registerUser',
-  async (userData, { rejectWithValue }) => {
-    try {
-      const data = await registerUserAPI(userData);
-      return data;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const loginUser = createAsyncThunk<AuthResponse, LoginCredentials, { rejectValue: string }>(
-  'auth/loginUser',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      const data = await loginUserAPI(credentials);
-      return data;
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
+/**
+ * Auth slice with reducers for login, logout, etc
+ */
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.user = null;
-      state.accessToken = null;
-      state.refreshToken = null;
-      state.status = 'idle';
+    /**
+     * Set loading state
+     */
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+    
+    /**
+     * Set error message
+     */
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+    },
+    
+    /**
+     * Set user data
+     */
+    setUser: (state, action: PayloadAction<User | null>) => {
+      state.user = action.payload;
+      state.isAuthenticated = !!action.payload;
+    },
+    
+    /**
+     * Set user and authentication state on login
+     */
+    login: (state, action: PayloadAction<User>) => {
+      state.isAuthenticated = true;
+      state.user = action.payload;
       state.error = null;
     },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(registerUser.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action: PayloadAction<AuthResponse>) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || action.error.message || 'Registration failed';
-      })
-      .addCase(loginUser.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action: PayloadAction<AuthResponse>) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || action.error.message || 'Login failed';
+    
+    /**
+     * Clear authentication state on logout
+     */
+    logout: (state) => {
+      state.isAuthenticated = false;
+      state.user = null;
+      state.error = null;
+      
+      // Ensure cookies are removed with proper options
+      Cookies.remove('accessToken', { 
+        path: '/',
+        sameSite: 'lax'
       });
-  },
+      Cookies.remove('refreshToken', { 
+        path: '/',
+        sameSite: 'lax'
+      });
+    },
+    
+    /**
+     * Update user profile data
+     */
+    updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        // Preserve the user type when updating properties
+        const updatedUser = {
+          ...state.user,
+          ...action.payload,
+          type: state.user.type // Ensure type remains the same
+        };
+        
+        state.user = updatedUser as CitizenUser | StaffUser;
+      }
+    }
+  }
 });
 
-export const { logout } = authSlice.actions;
+export const { 
+  setLoading, 
+  setError, 
+  setUser, 
+  login, 
+  logout, 
+  updateUserProfile 
+} = authSlice.actions;
+
 export default authSlice.reducer;

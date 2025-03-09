@@ -1,13 +1,11 @@
-// src/app/auth/layout.tsx
 "use client";
 
 import React from "react";
-import "../globals.css"; // Cập nhật lại đường dẫn nếu cần
-
+import "../globals.css";
 
 /**
  * Authentication Layout
- * Wraps login and register pages with a simple layout.
+ * Wraps login and register pages with a simple, centered layout
  */
 export default function AuthLayout({
   children,
@@ -15,8 +13,10 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className=" bg-gray-100">{children}</body>
-    </html>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
+        {children}
+      </div>
+    </div>
   );
-}
+} 

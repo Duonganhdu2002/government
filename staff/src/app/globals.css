@@ -22,3 +22,38 @@ body {
   background: var(--background);
   font-family: 'Roboto', Arial, Helvetica, sans-serif;
 }
+
+/* Custom thin scrollbar styles */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px; /* For horizontal scrollbars */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db; /* Light gray color */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af; /* Slightly darker on hover */
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+/* Scrollbar Hide Utility - Previously in separate file */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
