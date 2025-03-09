@@ -271,7 +271,8 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                   {getStatusBadge(application.status)}
                 </div>
               </div>
-              <Button
+              <Button 
+                className='py-2'
                 variant="secondary"
                 size="small"
                 onClick={() => setShowPrintPreview(true)}

@@ -228,59 +228,25 @@ const ApplicationForm = ({
 const ApplicationTypeCard = ({ 
   type, 
   onSelect, 
-  isSelected,
-  processingTimeRange
+  isSelected
 }: { 
   type: ApplicationType;
   onSelect: () => void;
   isSelected: boolean;
-  processingTimeRange?: { min: number, max: number } | null;
 }) => {
-  // Hiển thị khoảng thời gian xử lý
-  const renderProcessingTime = () => {
-    if (processingTimeRange && processingTimeRange.min !== processingTimeRange.max) {
-      return `${processingTimeRange.min} - ${processingTimeRange.max} ngày`;
-    }
-    return `${type.processingtimelimit} ngày`;
-  };
-
   return (
     <div 
-      className={`p-4 cursor-pointer transition-all duration-200 border rounded-lg ${
-        isSelected 
-          ? 'border-blue-500 bg-blue-50 shadow-md' 
-          : 'border-ui-border-base hover:border-gray-300 hover:shadow-sm hover:bg-gray-50'
-      }`}
+      className="p-4 cursor-pointer transition-all duration-200 border rounded-lg border-ui-border-base hover:border-gray-300 hover:shadow-sm hover:bg-gray-50"
       onClick={onSelect}
     >
       <div className="flex justify-between items-start mb-2">
         <Heading level="h3" className="text-base font-medium">
           {type.typename}
         </Heading>
-        <Badge className={`${isSelected ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'} text-xs`}>
-          {renderProcessingTime()}
-        </Badge>
       </div>
-      <Text className="text-ui-fg-subtle text-sm line-clamp-2 mb-3">
+      <Text className="text-ui-fg-subtle text-sm line-clamp-2">
         {type.description}
       </Text>
-      <div className="mt-4 flex justify-end">
-        <Button 
-          variant={isSelected ? "primary" : "secondary"} 
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect();
-          }}
-        >
-          {isSelected ? (
-            <>
-              <Check className="mr-1" />
-              Đã chọn
-            </>
-          ) : 'Chọn'}
-        </Button>
-      </div>
     </div>
   );
 };
@@ -289,21 +255,21 @@ const ApplicationTypeCard = ({
 const CategoryAccordion = ({
   title,
   children,
-  defaultOpen = false,
+  isOpen,
+  onToggle,
   count
 }: {
   title: string;
   children: React.ReactNode;
-  defaultOpen?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
   count?: number;
 }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
   return (
     <div className="border border-gray-200 rounded-lg mb-6 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div 
         className="flex justify-between items-center p-4 cursor-pointer bg-gray-50 hover:bg-gray-100"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={onToggle}
       >
         <div className="flex items-center">
           <Heading level="h3" className="text-lg font-medium">{title}</Heading>
@@ -394,29 +360,20 @@ const SpecialApplicationTypeCard = ({
 }) => {
   return (
     <div 
-      className="p-4 cursor-pointer transition-all duration-200 border rounded-lg hover:border-blue-500 hover:shadow-md"
+      className="p-4 border rounded-lg cursor-pointer hover:border-gray-300 hover:shadow-sm hover:bg-gray-50 transition-all duration-200"
       onClick={() => onSelect(specialType)}
     >
       <div className="flex justify-between items-start mb-2">
-        <Heading level="h3" className="text-base font-medium">
+        <Heading level="h3" className="text-base font-medium flex-1 pr-2">
           {specialType.typename}
         </Heading>
-        <Badge className="bg-blue-100 text-blue-700 text-xs">
+        <Badge className="bg-gray-100 text-gray-700 text-xs whitespace-nowrap">
           {specialType.processingtimelimit} ngày
         </Badge>
       </div>
-      <div className="mt-4 flex justify-end">
-        <Button 
-          variant="secondary" 
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(specialType);
-          }}
-        >
-          Chọn
-        </Button>
-      </div>
+      <Text className="text-ui-fg-subtle text-sm">
+        {specialType.applicationtypename}
+      </Text>
     </div>
   );
 };
@@ -428,7 +385,6 @@ const SpecialTypesModal = ({
   selectedType,
   specialTypes,
   onSelectSpecialType,
-  onDirectSubmit,
   loading
 }: {
   isOpen: boolean;
@@ -436,7 +392,6 @@ const SpecialTypesModal = ({
   selectedType: ApplicationType | null;
   specialTypes: SpecialApplicationType[];
   onSelectSpecialType: (specialType: SpecialApplicationType) => void;
-  onDirectSubmit: () => void;
   loading: boolean;
 }) => {
   if (!isOpen || !selectedType) return null;
@@ -446,18 +401,13 @@ const SpecialTypesModal = ({
       <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full overflow-hidden">
         <div className="p-6">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <Heading level="h2" className="text-xl mb-1">
-                  {selectedType.typename}
-                </Heading>
-                <Text className="text-ui-fg-subtle">
-                  Chọn loại hồ sơ đặc biệt hoặc sử dụng hồ sơ chung
-                </Text>
-              </div>
-              <Badge className="bg-gray-100 text-gray-700">
-                {selectedType.processingtimelimit} ngày
-              </Badge>
+            <div>
+              <Heading level="h2" className="text-xl mb-1">
+                {selectedType.typename}
+              </Heading>
+              <Text className="text-ui-fg-subtle">
+                Chọn loại hồ sơ đặc biệt hoặc sử dụng hồ sơ chung
+              </Text>
             </div>
           </div>
           
@@ -488,12 +438,9 @@ const SpecialTypesModal = ({
             </>
           )}
           
-          <div className="border-t border-gray-200 pt-4 mt-4 flex justify-between items-center">
+          <div className="border-t border-gray-200 pt-4 mt-4 flex justify-end">
             <Button variant="secondary" onClick={onClose}>
-              Hủy
-            </Button>
-            <Button onClick={onDirectSubmit}>
-              Tiếp tục với hồ sơ chung
+              Đóng
             </Button>
           </div>
         </div>
@@ -524,6 +471,8 @@ export default function ApplicationsPage() {
   
   // Category filter state
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  // Track which category accordion is open
+  const [openCategory, setOpenCategory] = useState<string | null>('PERSONAL');
 
   useEffect(() => {
     const fetchApplicationTypes = async () => {
@@ -653,11 +602,20 @@ export default function ApplicationsPage() {
   // Phân loại dữ liệu theo category - hàm này dùng trong trường hợp backend
   // không trả về category, hoặc cần phân loại lại theo logic frontend
   const categorizedApplicationTypes = useMemo(() => {
+    // Normalize search query to handle Vietnamese accents
+    const normalizedQuery = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
     // Lọc dữ liệu theo từ khóa tìm kiếm
-    const filtered = applicationTypes.filter((type) => 
-      type.typename.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      type.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filtered = applicationTypes.filter((type) => {
+      const normalizedTypeName = type.typename?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
+      const normalizedDescription = type.description?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
+      
+      return normalizedTypeName.includes(normalizedQuery) || 
+             normalizedDescription.includes(normalizedQuery) ||
+             // Also include original search for exact matches
+             (type.typename?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+             (type.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+    });
     
     // Nhóm theo danh mục
     const grouped = filtered.reduce((acc, type) => {
@@ -675,7 +633,16 @@ export default function ApplicationsPage() {
   }, [applicationTypes, searchQuery]);
 
   const handleSelectType = async (type: ApplicationType) => {
+    // If the same type is clicked again, deselect it
+    if (selectedType && selectedType.applicationtypeid === type.applicationtypeid) {
+      setSelectedType(null);
+      setSelectedSpecialType(null);
+      return;
+    }
+    
+    // Set the newly selected type (will unselect previous one)
     setSelectedType(type);
+    setSelectedSpecialType(null);
     
     // Fetch special application types for this application type
     const specialTypes = await fetchSpecialApplicationTypes(type.applicationtypeid);
@@ -732,6 +699,8 @@ export default function ApplicationsPage() {
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    // Reset pagination for all categories when searching
+    setPaginationState({});
   };
 
   const handlePageChange = (category: string, page: number) => {
@@ -805,7 +774,20 @@ export default function ApplicationsPage() {
             <div className="min-w-[200px]">
               <Select 
                 value={selectedCategory} 
-                onValueChange={(value) => setSelectedCategory(value)}
+                onValueChange={(value) => {
+                  setSelectedCategory(value);
+                  // Reset pagination when category changes
+                  setPaginationState({});
+                  // If selecting a specific category, open it
+                  if (value !== 'ALL') {
+                    setOpenCategory(value);
+                  } else {
+                    // If "All" is selected, open the first non-empty category
+                    const firstCategory = Object.entries(categorizedApplicationTypes)
+                      .find(([_, types]) => types.length > 0)?.[0] || null;
+                    setOpenCategory(firstCategory);
+                  }
+                }}
               >
                 <Select.Trigger className="w-full">
                   <Select.Value placeholder="Chọn loại hồ sơ" />
@@ -834,6 +816,19 @@ export default function ApplicationsPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Show message when no search results found */}
+              {searchQuery && Object.values(categorizedApplicationTypes).flat().length === 0 && (
+                <div className="text-center py-8">
+                  <Text className="text-xl font-medium mb-2">Không tìm thấy kết quả</Text>
+                  <Text className="text-ui-fg-subtle">
+                    Không tìm thấy hồ sơ nào phù hợp với từ khóa "{searchQuery}"
+                  </Text>
+                  <Button variant="secondary" className="mt-4" onClick={() => setSearchQuery('')}>
+                    Xóa tìm kiếm
+                  </Button>
+                </div>
+              )}
+            
               {selectedCategory === 'ALL' ? (
                 // Show all application types sorted by category
                 Object.entries(APPLICATION_CATEGORIES).map(([categoryKey, categoryName]) => {
@@ -847,7 +842,16 @@ export default function ApplicationsPage() {
                     <CategoryAccordion 
                       key={categoryKey} 
                       title={categoryName}
-                      defaultOpen={categoryKey === 'PERSONAL'}
+                      isOpen={openCategory === categoryKey}
+                      onToggle={() => {
+                        if (openCategory === categoryKey) {
+                          // If clicking on already open category, keep it open
+                          setOpenCategory(categoryKey);
+                        } else {
+                          // If clicking on closed category, open it and close others
+                          setOpenCategory(categoryKey);
+                        }
+                      }}
                       count={types.length}
                     >
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -857,7 +861,6 @@ export default function ApplicationsPage() {
                             type={type}
                             onSelect={() => handleSelectType(type)}
                             isSelected={selectedType?.applicationtypeid === type.applicationtypeid}
-                            processingTimeRange={type.processingTimeRange}
                           />
                         ))}
                       </div>
@@ -894,7 +897,6 @@ export default function ApplicationsPage() {
                             type={type}
                             onSelect={() => handleSelectType(type)}
                             isSelected={selectedType?.applicationtypeid === type.applicationtypeid}
-                            processingTimeRange={type.processingTimeRange}
                           />
                         ))}
                       </div>
@@ -907,15 +909,21 @@ export default function ApplicationsPage() {
                     </>
                   ) : (
                     <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-                      <Text className="text-gray-500">Không có loại hồ sơ nào trong danh mục này</Text>
+                      {searchQuery ? (
+                        <>
+                          <Text className="text-gray-700 font-medium mb-2">Không có kết quả tìm kiếm</Text>
+                          <Text className="text-gray-500">
+                            Không tìm thấy loại hồ sơ nào phù hợp với từ khóa "{searchQuery}" trong danh mục {APPLICATION_CATEGORIES[selectedCategory]}
+                          </Text>
+                          <Button variant="secondary" className="mt-4" onClick={() => setSearchQuery('')}>
+                            Xóa tìm kiếm
+                          </Button>
+                        </>
+                      ) : (
+                        <Text className="text-gray-500">Không có loại hồ sơ nào trong danh mục này</Text>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
-              
-              {allFilteredApplicationTypes.length === 0 && (
-                <div className="text-center py-8 text-ui-fg-subtle">
-                  Không tìm thấy loại hồ sơ phù hợp với từ khóa "{searchQuery}"
                 </div>
               )}
             </div>
@@ -967,11 +975,6 @@ export default function ApplicationsPage() {
           selectedType={selectedType}
           specialTypes={specialTypes}
           onSelectSpecialType={handleSelectSpecialType}
-          onDirectSubmit={() => {
-            setSelectedSpecialType(null);
-            setShowSpecialTypesModal(false);
-            setActiveTab("submit");
-          }}
           loading={loadingSpecialTypes}
         />
       )}
