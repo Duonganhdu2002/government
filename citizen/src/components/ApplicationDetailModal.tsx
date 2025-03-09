@@ -12,6 +12,7 @@ import { ChevronLeft, Calendar, MapPin } from '@medusajs/icons';
 import { fetchApplicationById } from '@/services/applicationService';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import Modal from './Modal';
+import PrintPreview from './PrintPreview';
 
 // Custom icons
 interface IconProps {
@@ -123,39 +124,14 @@ const getStatusBadge = (status: string) => {
 interface MediaAttachment {
   mediafileid: number;
   applicationid: number;
-  mimetype: string;     // MIME type của file (image/jpeg, application/pdf, etc.)
+  mimetype: string;
   originalfilename: string;
   filesize?: number;
   uploaddate?: string;
-  filetype?: string;   // Loại file từ database (image, document, etc.)
+  filetype?: string;
   filepath?: string;
   [key: string]: any;
 }
-
-// Helper function to get MIME type from filetype
-const getMimeTypeFromFileType = (attachment: MediaAttachment): string => {
-  if (attachment.mimetype) return attachment.mimetype;
-  
-  // Map từ filetype sang MIME type
-  const mimeTypeMap: Record<string, string> = {
-    'image': 'image/jpeg',
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-    'rar': 'application/x-rar-compressed',
-    'video': 'video/mp4'
-  };
-  
-  if (attachment.filetype && mimeTypeMap[attachment.filetype.toLowerCase()]) {
-    return mimeTypeMap[attachment.filetype.toLowerCase()];
-  }
-  
-  return 'application/octet-stream'; // Default fallback
-};
 
 interface ApplicationDetailModalProps {
   isOpen: boolean;
@@ -205,9 +181,9 @@ function MediaImage({
     <Image
       src={getMediaUrl()}
       alt={alt}
-      width={300}
+      width={500}
       height={300}
-      className={className || "w-full h-full object-contain"}
+      className={className || "w-full h-full object-fill"}
       onError={(e) => {
         console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${getMediaUrl()}`);
         if (loadAttempt < 3) {
@@ -224,6 +200,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaLoadErrors, setMediaLoadErrors] = useState<{ [key: string]: boolean }>({});
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
 
   const fetchApplicationDetail = async () => {
     if (!applicationId) return;
@@ -282,267 +259,339 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="w-full max-w-4xl mx-auto">
-      <Modal.Header className="px-6 py-5">
-        {application ? (
-          <div className="flex items-center justify-between">
-            <div>
-              <Heading level="h2">{application.title}</Heading>
-              <div className="flex items-center gap-2 mt-1">
-                <Text size="small" className="text-ui-fg-subtle">Mã đơn: {application.applicationid}</Text>
-                {getStatusBadge(application.status)}
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} className="w-full max-w-4xl mx-auto z-40">
+        <Modal.Header className="px-6 py-5">
+          {application ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <Heading level="h2">{application.title}</Heading>
+                <div className="flex items-center gap-2 mt-1">
+                  <Text size="small" className="text-ui-fg-subtle">Mã đơn: {application.applicationid}</Text>
+                  {getStatusBadge(application.status)}
+                </div>
               </div>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowPrintPreview(true)}
+              >
+                <span className="w-4 h-4 mr-1"><FileTextIcon /></span>
+                In đơn
+              </Button>
             </div>
-            <Button
-              variant="secondary"
-              size="small"
-              disabled={true}
-            >
-              <span className="w-4 h-4 mr-1"><FileTextIcon /></span>
-              In đơn
-            </Button>
-          </div>
-        ) : (
-          <Heading level="h2">Chi tiết đơn</Heading>
-        )}
-      </Modal.Header>
+          ) : (
+            <Heading level="h2">Chi tiết đơn</Heading>
+          )}
+        </Modal.Header>
 
-      <Modal.Body className="px-6 py-5">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <Spinner className="mr-2" />
-            <Text>Đang tải dữ liệu...</Text>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <Text className="text-red-600">{error}</Text>
-          </div>
-        ) : !application ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <Text className="text-yellow-700">Không tìm thấy thông tin đơn.</Text>
-          </div>
-        ) : (
-          <div className="space-y-6 overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 240px)' }}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <Card.Header>
-                  <Heading level="h3">Thông tin cơ bản</Heading>
-                </Card.Header>
-                <Card.Content>
-                  <div className="space-y-3">
-                    <div>
-                      <Text className="text-gray-500 text-sm">Loại đơn</Text>
-                      <Text className="font-medium">{application.applicationtypename}</Text>
-                    </div>
-
-                    {application.specialapplicationtypename && (
+        <Modal.Body className="px-6 py-5">
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Spinner className="mr-2" />
+              <Text>Đang tải dữ liệu...</Text>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <Text className="text-red-600">{error}</Text>
+            </div>
+          ) : !application ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+              <Text className="text-yellow-700">Không tìm thấy thông tin đơn.</Text>
+            </div>
+          ) : (
+            <div className="space-y-6 overflow-y-auto pr-2 py-6" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <Card.Header>
+                    <Heading level="h3">Thông tin cơ bản</Heading>
+                  </Card.Header>
+                  <Card.Content>
+                    <div className="space-y-3">
                       <div>
-                        <Text className="text-gray-500 text-sm">Loại đơn đặc biệt</Text>
-                        <Text className="font-medium">{application.specialapplicationtypename}</Text>
+                        <Text className="text-gray-500 text-sm">Loại đơn</Text>
+                        <Text className="font-medium">{application.applicationtypename}</Text>
                       </div>
-                    )}
 
-                    <div>
-                      <Text className="text-gray-500 text-sm">Ngày nộp</Text>
-                      <Text className="font-medium">{formatDateTime(application.submissiondate)}</Text>
-                    </div>
-
-                    <div>
-                      <Text className="text-gray-500 text-sm">Hạn xử lý</Text>
-                      <Text className="font-medium">{formatDate(application.duedate)}</Text>
-                    </div>
-                  </div>
-                </Card.Content>
-              </Card>
-
-              <Card className="md:col-span-2">
-                <Card.Header>
-                  <Heading level="h3">Nội dung</Heading>
-                </Card.Header>
-                <Card.Content>
-                  <div className="space-y-4">
-                    {application.description && (
-                      <div>
-                        <Text className="text-gray-500 text-sm mb-1">Mô tả</Text>
-                        <div className="p-4 bg-gray-50 rounded-md">
-                          <Text>{application.description}</Text>
+                      {application.specialapplicationtypename && (
+                        <div>
+                          <Text className="text-gray-500 text-sm">Loại đơn đặc biệt</Text>
+                          <Text className="font-medium">{application.specialapplicationtypename}</Text>
                         </div>
+                      )}
+
+                      <div>
+                        <Text className="text-gray-500 text-sm">Ngày nộp</Text>
+                        <Text className="font-medium">{formatDateTime(application.submissiondate)}</Text>
                       </div>
-                    )}
 
-                    {application.eventdate && (
-                      <div className="flex items-center gap-2 mt-3">
-                        <Calendar className="w-4 h-4 text-gray-500" />
-                        <Text>Ngày diễn ra: {formatDate(application.eventdate)}</Text>
+                      <div>
+                        <Text className="text-gray-500 text-sm">Hạn xử lý</Text>
+                        <Text className="font-medium">{formatDate(application.duedate)}</Text>
                       </div>
-                    )}
-
-                    {application.location && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        <Text>Địa điểm: {application.location}</Text>
-                      </div>
-                    )}
-                  </div>
-                </Card.Content>
-              </Card>
-            </div>
-
-            {application.hasmedia && (
-              <Card className="mt-6">
-                <Card.Header className="flex justify-between items-center">
-                  <Heading level="h3">Tài liệu đính kèm</Heading>
-
-                  {Object.keys(mediaLoadErrors).length > 0 && (
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      onClick={handleRetryLoadMedia}
-                    >
-                      Tải lại tệp
-                    </Button>
-                  )}
-                </Card.Header>
-                <Card.Content>
-                  {Object.keys(mediaLoadErrors).length > 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
-                      <Text className="text-yellow-700 text-sm">
-                        Có {Object.keys(mediaLoadErrors).length} tệp không tải được. Vui lòng kiểm tra kết nối mạng và thử lại.
-                      </Text>
                     </div>
-                  )}
+                  </Card.Content>
+                </Card>
 
-                  <div className="space-y-4">
-                    {/* Thống kê tệp đính kèm */}
-                    {application.attachments && application.attachments.length > 0 ? (
-                      <div className="mb-4 flex flex-wrap gap-3">
-                        <Badge color="blue">
-                          Tổng số: {application.attachments.length} tệp
-                        </Badge>
-
-                        {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length > 0 && (
-                          <Badge color="green">
-                            <span className="flex items-center gap-1">
-                              <ImageIcon className="w-3 h-3" />
-                              {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length} ảnh
-                            </span>
-                          </Badge>
-                        )}
-
-                        {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length > 0 && (
-                          <Badge color="purple">
-                            <span className="flex items-center gap-1">
-                              <VideoIcon className="w-3 h-3" />
-                              {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length} video
-                            </span>
-                          </Badge>
-                        )}
-
-                        {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length > 0 && (
-                          <Badge color="grey">
-                            <span className="flex items-center gap-1">
-                              <FileTextIcon className="w-3 h-3" />
-                              {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length} tài liệu khác
-                            </span>
-                          </Badge>
-                        )}
-                      </div>
-                    ) : null}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Hiển thị tất cả tệp đính kèm trong một grid duy nhất */}
-                      {application.attachments && application.attachments.length > 0 ? (
-                        application.attachments.map((attachment: MediaAttachment, index: number) => (
-                          <div key={`file-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                            <a
-                              href={getMediaUrl(attachment)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block"
-                            >
-                              {/* Hiển thị theo định dạng file */}
-                              {(() => {
-                                const mimeType = getMimeTypeFromFileType(attachment);
-                                
-                                if (mimeType.startsWith('image/')) {
-                                  return (
-                                    <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
-                                      <MediaImage 
-                                        attachment={attachment} 
-                                        alt={`Tệp ${index + 1}`} 
-                                        className="w-full h-full object-contain" 
-                                      />
-                                    </div>
-                                  );
-                                } else if (mimeType.startsWith('video/')) {
-                                  return (
-                                    <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
-                                      <video
-                                        src={getMediaUrl(attachment)}
-                                        controls
-                                        className="w-full h-full object-contain"
-                                        onError={(e) => handleMediaError(attachment.mediafileid)}
-                                      />
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
-                                      <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
-                                    </div>
-                                  );
-                                }
-                              })()}
-                              
-                              <div className="flex flex-col">
-                                <Text className="text-sm text-center truncate">
-                                  {attachment.originalfilename || `Tệp ${index + 1}`}
-                                </Text>
-                                <Text className="text-xs text-gray-500 text-center">
-                                  {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                  {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                </Text>
-                              </div>
-                            </a>
+                <Card className="md:col-span-2">
+                  <Card.Header>
+                    <Heading level="h3">Nội dung</Heading>
+                  </Card.Header>
+                  <Card.Content>
+                    <div className="space-y-4">
+                      {application.description && (
+                        <div>
+                          <Text className="text-gray-500 text-sm mb-1">Mô tả</Text>
+                          <div className="p-4 bg-gray-50 rounded-md">
+                            <Text>{application.description}</Text>
                           </div>
-                        ))
-                      ) : (
-                        <div className="col-span-full text-center py-8">
-                          <Text className="text-gray-500">Không có tài liệu đính kèm</Text>
+                        </div>
+                      )}
+
+                      {application.eventdate && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <Calendar className="w-4 h-4 text-gray-500" />
+                          <Text>Ngày diễn ra: {formatDate(application.eventdate)}</Text>
+                        </div>
+                      )}
+
+                      {application.location && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <MapPin className="w-4 h-4 text-gray-500" />
+                          <Text>Địa điểm: {application.location}</Text>
                         </div>
                       )}
                     </div>
+                  </Card.Content>
+                </Card>
+              </div>
+
+              {application.hasmedia && (
+                <Card className="mt-6">
+                  <Card.Header className="flex justify-between items-center">
+                    <Heading level="h3">Tài liệu đính kèm</Heading>
+
+                    {Object.keys(mediaLoadErrors).length > 0 && (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={handleRetryLoadMedia}
+                      >
+                        Tải lại tệp
+                      </Button>
+                    )}
+                  </Card.Header>
+                  <Card.Content>
+                    {Object.keys(mediaLoadErrors).length > 0 && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                        <Text className="text-yellow-700 text-sm">
+                          Có {Object.keys(mediaLoadErrors).length} tệp không tải được. Vui lòng kiểm tra kết nối mạng và thử lại.
+                        </Text>
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      {/* Thống kê tệp đính kèm */}
+                      {application.attachments && application.attachments.length > 0 ? (
+                        <div className="mb-4 flex flex-wrap gap-3">
+                          <Badge color="blue">
+                            Tổng số: {application.attachments.length} tệp
+                          </Badge>
+
+                          {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length > 0 && (
+                            <Badge color="green">
+                              <span className="flex items-center gap-1">
+                                <ImageIcon className="w-3 h-3" />
+                                {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length} ảnh
+                              </span>
+                            </Badge>
+                          )}
+
+                          {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length > 0 && (
+                            <Badge color="purple">
+                              <span className="flex items-center gap-1">
+                                <VideoIcon className="w-3 h-3" />
+                                {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length} video
+                              </span>
+                            </Badge>
+                          )}
+
+                          {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length > 0 && (
+                            <Badge color="grey">
+                              <span className="flex items-center gap-1">
+                                <FileTextIcon className="w-3 h-3" />
+                                {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length} tài liệu khác
+                              </span>
+                            </Badge>
+                          )}
+                        </div>
+                      ) : null}
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Hiển thị ảnh đính kèm */}
+                        {application.attachments && application.attachments.length > 0 ? (
+                          application.attachments
+                            .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('image/'))
+                            .map((attachment: MediaAttachment, index: number) => (
+                              <div key={`image-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                                <a
+                                  href={getMediaUrl(attachment)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <div className="flex flex-col justify-between h-full">
+                                    <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden relative">
+                                      <MediaImage
+                                        attachment={attachment}
+                                        alt={`Tệp đính kèm ${index + 1}`}
+                                        className="w-full h-full object-fill"
+                                      />
+                                    </div>
+                                    
+                                    <div className="flex flex-col">
+                                      <hr />
+                                      <Text className="text-sm text-center truncate mt-2">
+                                        {attachment.originalfilename || `Ảnh ${index + 1}`}
+                                      </Text>
+                                      <Text className="text-xs text-gray-500 text-center">
+                                        {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                        {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                      </Text>
+                                    </div>
+                                  </div>
+                                </a>
+                              </div>
+                            ))
+                        ) : null}
+
+                        {/* Hiển thị video đính kèm */}
+                        {application.attachments && application.attachments.length > 0 ? (
+                          application.attachments
+                            .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('video/'))
+                            .map((attachment: MediaAttachment, index: number) => (
+                              <div key={`video-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                                <a
+                                  href={getMediaUrl(attachment)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
+                                    <video
+                                      src={getMediaUrl(attachment)}
+                                      controls
+                                      className="w-full h-full object-contain"
+                                      onError={(e) => {
+                                        console.error(`Lỗi tải video: ${attachment.mediafileid}`);
+                                        handleMediaError(attachment.mediafileid);
+                                        const target = e.target as HTMLVideoElement;
+                                        const parent = target.parentElement;
+                                        if (parent) {
+                                          target.style.display = 'none';
+                                          const iconDiv = document.createElement('div');
+                                          iconDiv.className = 'flex justify-center items-center w-full h-full bg-gray-100';
+                                          iconDiv.innerHTML = `<span class="w-10 h-10 text-gray-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" /><line x1="10" y1="8" x2="10" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></svg>
+                                          </span>`;
+                                          parent.appendChild(iconDiv);
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <Text className="text-sm text-center truncate">
+                                      {attachment.originalfilename || `Video ${index + 1}`}
+                                    </Text>
+                                    <Text className="text-xs text-gray-500 text-center">
+                                      {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                      {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                    </Text>
+                                  </div>
+                                </a>
+                              </div>
+                            ))
+                        ) : null}
+
+                        {/* Hiển thị tài liệu khác */}
+                        {application.attachments && application.attachments.length > 0 ? (
+                          application.attachments
+                            .filter((attachment: MediaAttachment) =>
+                              attachment.mimetype &&
+                              !attachment.mimetype.startsWith('image/') &&
+                              !attachment.mimetype.startsWith('video/')
+                            )
+                            .map((attachment: MediaAttachment, index: number) => (
+                              <div key={`doc-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                                <a
+                                  href={getMediaUrl(attachment)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
+                                    <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <Text className="text-sm text-center truncate">
+                                      {attachment.originalfilename || `Tài liệu ${index + 1}`}
+                                    </Text>
+                                    <Text className="text-xs text-gray-500 text-center">
+                                      {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
+                                      {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
+                                    </Text>
+                                  </div>
+                                </a>
+                              </div>
+                            ))
+                        ) : null}
+
+                        {/* Hiển thị thông báo nếu không có tài liệu đính kèm */}
+                        {!application.attachments || application.attachments.length === 0 ? (
+                          <div className="col-span-full text-center py-8">
+                            <Text className="text-gray-500">Không có tài liệu đính kèm</Text>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </Card.Content>
+                </Card>
+              )}
+
+              <Card className="mt-6 mb-6">
+                <Card.Header>
+                  <Heading level="h3">Lịch sử xử lý</Heading>
+                </Card.Header>
+                <Card.Content>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 pb-4 border-b border-gray-200">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <span className="w-6 h-6 text-blue-700"><FileTextIcon /></span>
+                      </div>
+                      <div>
+                        <Text className="font-medium">Đơn đã được nộp</Text>
+                        <Text className="text-gray-500 text-sm">{formatDateTime(application.submissiondate)}</Text>
+                        <Text className="text-sm mt-1">Đơn của bạn đã được nộp thành công và đang chờ xử lý.</Text>
+                      </div>
+                    </div>
                   </div>
                 </Card.Content>
               </Card>
-            )}
+            </div>
+          )}
+        </Modal.Body>
 
-            <Card className="mt-6">
-              <Card.Header>
-                <Heading level="h3">Lịch sử xử lý</Heading>
-              </Card.Header>
-              <Card.Content>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3 pb-4 border-b border-gray-200">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <span className="w-6 h-6 text-blue-700"><FileTextIcon /></span>
-                    </div>
-                    <div>
-                      <Text className="font-medium">Đơn đã được nộp</Text>
-                      <Text className="text-gray-500 text-sm">{formatDateTime(application.submissiondate)}</Text>
-                      <Text className="text-sm mt-1">Đơn của bạn đã được nộp thành công và đang chờ xử lý.</Text>
-                    </div>
-                  </div>
-                </div>
-              </Card.Content>
-            </Card>
-          </div>
-        )}
-      </Modal.Body>
+        <Modal.Footer className="px-6 py-4 flex justify-end">
+          <Button variant="secondary" onClick={onClose}>Đóng</Button>
+        </Modal.Footer>
+      </Modal>
 
-      <Modal.Footer className="px-6 py-4 flex justify-end">
-        <Button variant="secondary" onClick={onClose}>Đóng</Button>
-      </Modal.Footer>
-    </Modal>
+      {/* Print Preview Modal */}
+      {showPrintPreview && application && (
+        <PrintPreview 
+          application={application} 
+          onClose={() => setShowPrintPreview(false)} 
+        />
+      )}
+    </>
   );
 } 

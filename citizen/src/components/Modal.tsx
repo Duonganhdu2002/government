@@ -41,13 +41,17 @@ const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6 md:p-8"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 scrollbar-hide"
       onClick={onClose}
     >
       <div 
-        className={`bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] flex flex-col ${className}`}
+        className={`bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col scrollbar-hide ${className}`}
         onClick={handleModalContentClick}
-        style={{ maxWidth: 'calc(100vw - 32px)' }}
+        style={{ 
+          maxWidth: 'calc(100vw - 48px)',
+          height: 'calc(100vh - 96px)',
+          maxHeight: 'calc(100vh - 96px)'
+        }}
       >
         {children}
       </div>
@@ -57,19 +61,19 @@ const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
 
 // Modal parts
 Modal.Header = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 ${className}`}>
+  <div className={`px-6 py-4 border-b border-gray-200 rounded-t-xl ${className}`}>
     {children}
   </div>
 );
 
 Modal.Body = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`px-6 py-4 overflow-auto ${className}`}>
+  <div className={`flex-grow overflow-auto scrollbar-hide ${className}`}>
     {children}
   </div>
 );
 
 Modal.Footer = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`px-6 py-4 border-t border-gray-200 ${className}`}>
+  <div className={`px-6 py-4 border-t border-gray-200 rounded-b-xl ${className}`}>
     {children}
   </div>
 );

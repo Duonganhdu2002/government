@@ -1,6 +1,9 @@
 /* Import Google Fonts Roboto */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+/* Import custom scrollbar-hide styles */
+@import '../styles/scrollbar-hide.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
