@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { 
-  Heading, 
-  Text, 
-  Button, 
+import {
+  Heading,
+  Text,
+  Button,
   Badge
 } from '@medusajs/ui';
 import { ChevronLeft, Calendar, MapPin } from '@medusajs/icons';
@@ -19,14 +19,14 @@ interface IconProps {
 }
 
 const FileTextIcon = ({ className = "" }: IconProps) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={`w-5 h-5 ${className}`}
   >
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -38,14 +38,14 @@ const FileTextIcon = ({ className = "" }: IconProps) => (
 );
 
 const ImageIcon = ({ className = "" }: IconProps) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={`w-5 h-5 ${className}`}
   >
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -55,14 +55,14 @@ const ImageIcon = ({ className = "" }: IconProps) => (
 );
 
 const VideoIcon = ({ className = "" }: IconProps) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={`w-5 h-5 ${className}`}
   >
     <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
@@ -105,7 +105,7 @@ const Spinner = ({ className = "" }: SpinnerProps) => (
 
 // Hàm để lấy status badge dựa trên trạng thái của đơn
 const getStatusBadge = (status: string) => {
-  switch(status?.toLowerCase()) {
+  switch (status?.toLowerCase()) {
     case 'submitted':
       return <Badge color="blue">Đã nộp</Badge>;
     case 'processing':
@@ -138,116 +138,8 @@ interface ApplicationDetailModalProps {
   applicationId: number | null;
 }
 
-// Custom ImageWithFallback component
-function ImageWithFallback({
-  src,
-  fallbackSrc = '/placeholder-image.svg',
-  alt,
-  onError,
-  ...rest
-}: {
-  src: string;
-  fallbackSrc?: string;
-  alt: string;
-  onError?: (error: Error) => void;
-  [x: string]: any;
-}) {
-  const [imgSrc, setImgSrc] = useState(src);
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    setImgSrc(src);
-    setHasError(false);
-  }, [src]);
-
-  return (
-    <Image
-      {...rest}
-      src={hasError ? fallbackSrc : imgSrc}
-      alt={alt}
-      onError={(e) => {
-        if (!hasError) {
-          setHasError(true);
-          setImgSrc(fallbackSrc);
-          if (onError) {
-            onError(new Error(`Failed to load image: ${src}`));
-          }
-        }
-      }}
-    />
-  );
-}
-
-// Component FallbackImage sử dụng thẻ img thông thường thay vì Next/Image
-function FallbackImage({ 
-  src, 
-  alt, 
-  attachment,
-  className,
-  onError
-}: { 
-  src: string; 
-  alt: string; 
-  attachment: MediaAttachment;
-  className?: string;
-  onError?: () => void;
-}) {
-  // State để theo dõi xem đã thử tải bao nhiêu lần
-  const [loadAttempt, setLoadAttempt] = useState(0);
-  
-  // Tạo URL dựa vào số lần thử
-  const getUrlForAttempt = () => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    
-    // 1. Thử dùng filepath chuẩn
-    if (loadAttempt === 0 && attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/') 
-        ? attachment.filepath 
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}`;
-    }
-    
-    // 2. Thử dùng direct URL với timestamp để bypass cache
-    if (loadAttempt === 1 && attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/') 
-        ? attachment.filepath 
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}?v=${Date.now()}`;
-    }
-    
-    // 3. Thử dùng API serve
-    if (loadAttempt === 2) {
-      return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
-    }
-    
-    // 4. Fallback to placeholder
-    return '/placeholder-image.svg';
-  };
-
-  const currentUrl = loadAttempt <= 2 ? getUrlForAttempt() : '/placeholder-image.svg';
-  
-  return (
-    <Image 
-      src={currentUrl} 
-      alt={alt} 
-      className={className || "w-full h-full object-contain"} 
-      onError={(e) => {
-        console.error(`Lỗi tải ảnh (lần ${loadAttempt + 1}): ${currentUrl}`);
-        
-        if (loadAttempt < 3) {
-          // Thử tải lại với chiến lược khác
-          setLoadAttempt(prev => prev + 1);
-        } else {
-          // Đã thử đủ cách, sử dụng placeholder
-          if (onError) onError();
-        }
-      }} 
-    />
-  );
-}
-
-// Component Image cải tiến
-function OptionalImage({
+// Component MediaImage cải tiến (gộp 3 component thành 1)
+function MediaImage({
   attachment,
   alt,
   className
@@ -256,44 +148,46 @@ function OptionalImage({
   alt: string;
   className?: string;
 }) {
-  const [error, setError] = useState(false);
-  
-  // Tạo URL từ attachment
-  const imageUrl = (() => {
-    // Dùng NEXT_PUBLIC_API_URL từ môi trường hoặc mặc định là localhost
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    
-    // Đường dẫn đầy đủ từ filepath
-    if (attachment.filepath) {
-      // Đảm bảo filepath bắt đầu với /
-      const cleanPath = attachment.filepath.startsWith('/') 
-        ? attachment.filepath 
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+  // Tạo URL cho media dựa vào số lần thử
+  const getMediaUrl = (): string => {
+    // Nếu đã thử 3 lần không thành công, dùng placeholder
+    if (loadAttempt >= 3) return '/placeholder-image.svg';
+
+    // 1. Thử dùng filepath chuẩn
+    if (loadAttempt === 0 && attachment.filepath) {
+      const cleanPath = attachment.filepath.startsWith('/')
+        ? attachment.filepath
         : `/${attachment.filepath}`;
-        
       return `${API_URL}${cleanPath}`;
     }
-    
-    // Fallback: Dùng mediafileid nếu không có filepath
+
+    // 2. Thử dùng filepath với timestamp để bypass cache
+    if (loadAttempt === 1 && attachment.filepath) {
+      const cleanPath = attachment.filepath.startsWith('/')
+        ? attachment.filepath
+        : `/${attachment.filepath}`;
+      return `${API_URL}${cleanPath}?v=${Date.now()}`;
+    }
+
+    // 3. Thử dùng API serve
     return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
-  })();
-  
-  if (error) {
-    return (
-      <Image 
-        src="/placeholder-image.svg" 
-        alt={alt} 
-        className={className || "w-full h-full object-contain"} 
-      />
-    );
-  }
+  };
 
   return (
-    <FallbackImage 
-      src={imageUrl}
+    <Image
+      src={getMediaUrl()}
       alt={alt}
-      attachment={attachment}
-      className={className}
-      onError={() => setError(true)}
+      className={className || "w-full h-full object-contain"}
+      onError={(e) => {
+        console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${getMediaUrl()}`);
+        if (loadAttempt < 3) {
+          // Thử tải lại với chiến lược khác
+          setLoadAttempt(prev => prev + 1);
+        }
+      }}
     />
   );
 }
@@ -302,11 +196,11 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mediaLoadErrors, setMediaLoadErrors] = useState<{[key: string]: boolean}>({});
-  
+  const [mediaLoadErrors, setMediaLoadErrors] = useState<{ [key: string]: boolean }>({});
+
   const fetchApplicationDetail = async () => {
     if (!applicationId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
@@ -321,41 +215,25 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     if (!isOpen || !applicationId) return;
     fetchApplicationDetail();
   }, [isOpen, applicationId]);
-  
-  // Debug: Log thông tin chi tiết về attachments khi có
-  useEffect(() => {
-    if (application?.attachments && application.attachments.length > 0) {
-      console.log(`Có ${application.attachments.length} tệp đính kèm:`);
-      application.attachments.forEach((att: MediaAttachment, index: number) => {
-        console.log(`Tệp ${index + 1}:`, { 
-          id: att.mediafileid,
-          type: att.mimetype || att.filetype,
-          name: att.originalfilename,
-          filepath: att.filepath
-        });
-        console.log(`URL cho tệp ${index + 1}:`, getMediaUrl(att));
-      });
-    }
-  }, [application?.attachments]);
-  
+
   // Xử lý lỗi tải media
-  const handleMediaError = (mediaId: number, mediaType: 'image' | 'video') => {
-    console.error(`Lỗi tải ${mediaType} với ID: ${mediaId}`);
+  const handleMediaError = (mediaId: number) => {
+    console.error(`Lỗi tải media với ID: ${mediaId}`);
     setMediaLoadErrors(prev => ({
       ...prev,
       [mediaId]: true
     }));
   };
-  
+
   // Hàm tải lại tệp đính kèm
   const handleRetryLoadMedia = () => {
     if (!applicationId) return;
-    
+
     // Nếu có lỗi tải media, thử tải lại toàn bộ chi tiết đơn
     if (Object.keys(mediaLoadErrors).length > 0) {
       fetchApplicationDetail();
@@ -364,25 +242,16 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
 
   // Xây dựng URL cho media file
   const getMediaUrl = (attachment: MediaAttachment): string => {
-    // Dùng NEXT_PUBLIC_API_URL từ môi trường hoặc mặc định là localhost
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    
-    // Đường dẫn đầy đủ từ filepath
+
     if (attachment.filepath) {
-      // Đảm bảo filepath bắt đầu với /
-      const cleanPath = attachment.filepath.startsWith('/') 
-        ? attachment.filepath 
+      const cleanPath = attachment.filepath.startsWith('/')
+        ? attachment.filepath
         : `/${attachment.filepath}`;
-        
-      const fullUrl = `${API_URL}${cleanPath}`;
-      console.log(`Image URL via filepath: ${fullUrl}`);
-      return fullUrl;
+      return `${API_URL}${cleanPath}`;
     }
-    
-    // Fallback: Dùng mediafileid nếu không có filepath
-    const fallbackUrl = `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
-    console.log(`Image URL via mediafileid: ${fallbackUrl}`);
-    return fallbackUrl;
+
+    return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
   };
 
   return (
@@ -397,8 +266,8 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                 {getStatusBadge(application.status)}
               </div>
             </div>
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               size="small"
               disabled={true}
             >
@@ -410,7 +279,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
           <Heading level="h2">Chi tiết đơn</Heading>
         )}
       </Modal.Header>
-      
+
       <Modal.Body className="px-6 py-5">
         {loading ? (
           <div className="flex justify-center items-center py-20">
@@ -438,19 +307,19 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                       <Text className="text-gray-500 text-sm">Loại đơn</Text>
                       <Text className="font-medium">{application.applicationtypename}</Text>
                     </div>
-                    
+
                     {application.specialapplicationtypename && (
                       <div>
                         <Text className="text-gray-500 text-sm">Loại đơn đặc biệt</Text>
                         <Text className="font-medium">{application.specialapplicationtypename}</Text>
                       </div>
                     )}
-                    
+
                     <div>
                       <Text className="text-gray-500 text-sm">Ngày nộp</Text>
                       <Text className="font-medium">{formatDateTime(application.submissiondate)}</Text>
                     </div>
-                    
+
                     <div>
                       <Text className="text-gray-500 text-sm">Hạn xử lý</Text>
                       <Text className="font-medium">{formatDate(application.duedate)}</Text>
@@ -458,7 +327,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                   </div>
                 </Card.Content>
               </Card>
-              
+
               <Card className="md:col-span-2">
                 <Card.Header>
                   <Heading level="h3">Nội dung</Heading>
@@ -473,14 +342,14 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                         </div>
                       </div>
                     )}
-                    
+
                     {application.eventdate && (
                       <div className="flex items-center gap-2 mt-3">
                         <Calendar className="w-4 h-4 text-gray-500" />
                         <Text>Ngày diễn ra: {formatDate(application.eventdate)}</Text>
                       </div>
                     )}
-                    
+
                     {application.location && (
                       <div className="flex items-center gap-2 mt-2">
                         <MapPin className="w-4 h-4 text-gray-500" />
@@ -491,13 +360,12 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                 </Card.Content>
               </Card>
             </div>
-            
+
             {application.hasmedia && (
               <Card className="mt-6">
                 <Card.Header className="flex justify-between items-center">
                   <Heading level="h3">Tài liệu đính kèm</Heading>
-                  
-                  {/* Nút tải lại nếu có lỗi tải media */}
+
                   {Object.keys(mediaLoadErrors).length > 0 && (
                     <Button
                       variant="secondary"
@@ -509,7 +377,6 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                   )}
                 </Card.Header>
                 <Card.Content>
-                  {/* Hiển thị thông báo nếu có lỗi tải media */}
                   {Object.keys(mediaLoadErrors).length > 0 && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
                       <Text className="text-yellow-700 text-sm">
@@ -517,7 +384,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                       </Text>
                     </div>
                   )}
-                  
+
                   <div className="space-y-4">
                     {/* Thống kê tệp đính kèm */}
                     {application.attachments && application.attachments.length > 0 ? (
@@ -525,7 +392,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                         <Badge color="blue">
                           Tổng số: {application.attachments.length} tệp
                         </Badge>
-                        
+
                         {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length > 0 && (
                           <Badge color="green">
                             <span className="flex items-center gap-1">
@@ -534,7 +401,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                             </span>
                           </Badge>
                         )}
-                        
+
                         {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length > 0 && (
                           <Badge color="purple">
                             <span className="flex items-center gap-1">
@@ -543,7 +410,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                             </span>
                           </Badge>
                         )}
-                        
+
                         {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length > 0 && (
                           <Badge color="grey">
                             <span className="flex items-center gap-1">
@@ -554,7 +421,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                         )}
                       </div>
                     ) : null}
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Hiển thị ảnh đính kèm */}
                       {application.attachments && application.attachments.length > 0 ? (
@@ -562,16 +429,16 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                           .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('image/'))
                           .map((attachment: MediaAttachment, index: number) => (
                             <div key={`image-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a 
-                                href={getMediaUrl(attachment)} 
-                                target="_blank" 
+                              <a
+                                href={getMediaUrl(attachment)}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="block"
                               >
                                 <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden relative">
-                                  <OptionalImage 
+                                  <MediaImage
                                     attachment={attachment}
-                                    alt={`Tệp đính kèm ${index + 1}`} 
+                                    alt={`Tệp đính kèm ${index + 1}`}
                                     className="w-full h-full object-contain"
                                   />
                                 </div>
@@ -588,16 +455,16 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                             </div>
                           ))
                       ) : null}
-                      
+
                       {/* Hiển thị video đính kèm */}
                       {application.attachments && application.attachments.length > 0 ? (
                         application.attachments
                           .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('video/'))
                           .map((attachment: MediaAttachment, index: number) => (
                             <div key={`video-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a 
-                                href={getMediaUrl(attachment)} 
-                                target="_blank" 
+                              <a
+                                href={getMediaUrl(attachment)}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="block"
                               >
@@ -607,10 +474,8 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                                     controls
                                     className="w-full h-full object-contain"
                                     onError={(e) => {
-                                      console.error(`Lỗi tải video: ${attachment.mediafileid}, đường dẫn: ${attachment.filepath}`);
-                                      // Đánh dấu lỗi tải
-                                      handleMediaError(attachment.mediafileid, 'video');
-                                      // Hiển thị icon thay thế
+                                      console.error(`Lỗi tải video: ${attachment.mediafileid}`);
+                                      handleMediaError(attachment.mediafileid);
                                       const target = e.target as HTMLVideoElement;
                                       const parent = target.parentElement;
                                       if (parent) {
@@ -638,20 +503,20 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                             </div>
                           ))
                       ) : null}
-                      
+
                       {/* Hiển thị tài liệu khác */}
                       {application.attachments && application.attachments.length > 0 ? (
                         application.attachments
-                          .filter((attachment: MediaAttachment) => 
-                            attachment.mimetype && 
-                            !attachment.mimetype.startsWith('image/') && 
+                          .filter((attachment: MediaAttachment) =>
+                            attachment.mimetype &&
+                            !attachment.mimetype.startsWith('image/') &&
                             !attachment.mimetype.startsWith('video/')
                           )
                           .map((attachment: MediaAttachment, index: number) => (
                             <div key={`doc-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a 
-                                href={getMediaUrl(attachment)} 
-                                target="_blank" 
+                              <a
+                                href={getMediaUrl(attachment)}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="block"
                               >
@@ -666,13 +531,12 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                                     {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
                                     {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
                                   </Text>
-                                  <Text className="text-xs text-gray-500 text-center">{getMediaUrl(attachment)}</Text>
                                 </div>
                               </a>
                             </div>
                           ))
                       ) : null}
-                      
+
                       {/* Hiển thị thông báo nếu không có tài liệu đính kèm */}
                       {!application.attachments || application.attachments.length === 0 ? (
                         <div className="col-span-full text-center py-8">
@@ -684,7 +548,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
                 </Card.Content>
               </Card>
             )}
-            
+
             <Card className="mt-6">
               <Card.Header>
                 <Heading level="h3">Lịch sử xử lý</Heading>
@@ -707,7 +571,7 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
           </div>
         )}
       </Modal.Body>
-      
+
       <Modal.Footer className="px-6 py-4 flex justify-end">
         <Button variant="secondary" onClick={onClose}>Đóng</Button>
       </Modal.Footer>

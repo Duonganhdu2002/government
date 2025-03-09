@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   Container, 
   Text, 
@@ -15,16 +14,7 @@ import { fetchUserApplications } from '@/services/applicationService';
 import { formatDate } from '@/utils/dateUtils';
 import ApplicationDetailModal from '@/components/ApplicationDetailModal';
 
-// Custom Spinner component
-interface SpinnerProps {
-  className?: string;
-}
-
-const Spinner = ({ className = "" }: SpinnerProps) => (
-  <div className={`animate-spin rounded-full h-5 w-5 border-b-2 border-gray-700 ${className}`}></div>
-);
-
-// Custom FileText icon
+// Các icon cần thiết
 const FileTextIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -35,7 +25,6 @@ const FileTextIcon = () => (
   </svg>
 );
 
-// Custom Arrow Right icon
 const ArrowRightIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -45,18 +34,12 @@ const ArrowRightIcon = () => (
 
 // Định nghĩa kiểu dữ liệu cho một đơn hồ sơ
 interface Application {
-  id: number;
-  name: string;
-  type: string;
+  applicationid: number;
+  title: string;
+  applicationtypename: string;
   status: string;
-  createdAt: string;
-  updatedAt: string;
-  description?: string;
-  serviceType?: string;
+  submissiondate: string;
 }
-
-// Định nghĩa kiểu dữ liệu cho bộ lọc trạng thái
-type ApplicationStatus = 'all' | 'pending' | 'processing' | 'approved' | 'rejected';
 
 // Hàm để lấy status badge dựa trên trạng thái của đơn
 const getStatusBadge = (status: string) => {
@@ -74,16 +57,11 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-/**
- * Trang lịch sử hồ sơ
- */
 export default function ApplicationHistoryPage() {
   const router = useRouter();
-  const [applications, setApplications] = useState<any[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // State cho modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
   
@@ -106,24 +84,13 @@ export default function ApplicationHistoryPage() {
     fetchApplications();
   }, []);
   
-  // Mở modal chi tiết đơn
-  const handleViewApplication = (applicationId: number) => {
-    setSelectedApplicationId(applicationId);
-    setIsModalOpen(true);
-  };
-  
-  // Đóng modal
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-  
   return (
     <Container className="py-6">
       <Heading level="h1" className="mb-6">Lịch sử hồ sơ đã nộp</Heading>
       
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <Spinner className="mr-2" />
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-700 mr-2"></div>
           <Text>Đang tải dữ liệu...</Text>
         </div>
       ) : error ? (
@@ -167,7 +134,10 @@ export default function ApplicationHistoryPage() {
                     <Button 
                       variant="secondary" 
                       size="small"
-                      onClick={() => handleViewApplication(application.applicationid)}
+                      onClick={() => {
+                        setSelectedApplicationId(application.applicationid);
+                        setIsModalOpen(true);
+                      }}
                     >
                       Xem chi tiết
                       <span className="w-4 h-4 ml-1"><ArrowRightIcon /></span>
@@ -183,7 +153,7 @@ export default function ApplicationHistoryPage() {
       {/* Modal chi tiết đơn */}
       <ApplicationDetailModal 
         isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        onClose={() => setIsModalOpen(false)}
         applicationId={selectedApplicationId}
       />
     </Container>
