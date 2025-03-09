@@ -225,7 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} bg-white min-h-screen flex flex-col`}>
       {/* Mobile Header */}
-      <div className="md:hidden border-b border-ui-border-base">
+      <div className="md:hidden border-b border-ui-border-base fixed top-0 left-0 right-0 bg-white z-10">
         <div className="py-3 flex items-center justify-between px-4">
           <IconButton
             variant="transparent"
@@ -241,7 +241,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 md:pt-0 pt-14"> {/* Added padding top for mobile view to account for fixed header */}
         {/* Mobile Sidebar Drawer */}
         <Drawer open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <Drawer.Content className="w-72 max-w-[80vw]">
@@ -318,8 +318,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Drawer>
 
         {/* Desktop Sidebar */}
-        <div className="hidden md:block w-64 border-r border-ui-border-base bg-white px-4">
-          <div className="h-full flex flex-col">
+        <div className="hidden md:flex md:fixed md:h-screen md:w-64 border-r border-ui-border-base bg-white px-4 top-0 left-0 overflow-y-auto flex-col">
+          <div className="flex flex-col flex-grow">
             <div className="h-16 flex items-center px-4 border-b border-ui-border-base">
               <Heading level="h3" className="text-ui-fg-base">Dịch vụ Công</Heading>
             </div>
@@ -388,7 +388,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden" onClick={handleCloseSidebar}>
+        <div className="flex-1 flex flex-col overflow-hidden md:ml-64" onClick={handleCloseSidebar}>
           <div className="py-6 flex-1">
             <div className="px-4 pb-4 mb-4">
               <div className="flex justify-between items-center">
