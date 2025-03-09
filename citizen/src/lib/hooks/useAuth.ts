@@ -23,7 +23,9 @@ import {
   RegisterCitizenRequest, 
   ChangePasswordRequest,
   User,
-  UserType
+  UserType,
+  CitizenUser,
+  StaffUser
 } from '@/lib/types/auth.types';
 
 /**
@@ -48,20 +50,11 @@ export const useAuth = () => {
       dispatch(setError(null));
 
       try {
-        console.log('Attempting login with:', { 
-          username: credentials.username, 
-          userType: credentials.userType 
-        });
-        
         const response = await apiClient.post('/api/auth/login', credentials);
-        console.log('Login response:', response);
         
-        // Try to handle different response structures
         if (response?.user && response?.tokens) {
-          // Direct user and tokens in response
           const { accessToken, refreshToken } = response.tokens;
           
-          // Store tokens in cookies with proper settings
           Cookies.set('accessToken', accessToken, { 
             expires: 1,  // 1 day
             path: '/',
@@ -73,14 +66,41 @@ export const useAuth = () => {
             sameSite: 'lax'
           });
           
-          // Store user in Redux
-          dispatch(loginAction(response.user));
+          const userData: User = credentials.userType === UserType.CITIZEN
+            ? {
+                id: response.user.id,
+                username: response.user.username,
+                type: UserType.CITIZEN,
+                name: response.user.name || '',
+                identificationNumber: response.user.identificationNumber || '',
+                address: response.user.address || '',
+                phoneNumber: response.user.phoneNumber || '',
+                email: response.user.email || '',
+                areaCode: response.user.areaCode || 0,
+                imageLink: response.user.imageLink || ''
+              } as CitizenUser
+            : {
+                id: response.user.id,
+                username: response.user.username,
+                type: UserType.STAFF,
+                role: response.user.role || '',
+                agencyId: response.user.agencyId || 0,
+                name: response.user.name || ''
+              } as StaffUser;
+          
+          dispatch(loginAction(userData));
+          
+          try {
+            localStorage.setItem('profile_fetched', 'true');
+          } catch (e) {
+            console.error('Error setting profile fetched status:', e);
+          }
+          
           return true;
         } else if (response?.data?.user && response?.data?.tokens) {
-          // User and tokens nested inside data property
           const { accessToken, refreshToken } = response.data.tokens;
+          const userData = response.data.user;
           
-          // Store tokens in cookies with proper settings
           Cookies.set('accessToken', accessToken, { 
             expires: 1,  // 1 day
             path: '/',
@@ -92,23 +112,48 @@ export const useAuth = () => {
             sameSite: 'lax'
           });
           
-          // Store user in Redux
-          dispatch(loginAction(response.data.user));
+          const userObject: User = credentials.userType === UserType.CITIZEN
+            ? {
+                id: userData.id,
+                username: userData.username,
+                type: UserType.CITIZEN,
+                name: userData.name || '',
+                identificationNumber: userData.identificationNumber || '',
+                address: userData.address || '',
+                phoneNumber: userData.phoneNumber || '',
+                email: userData.email || '',
+                areaCode: userData.areaCode || 0,
+                imageLink: userData.imageLink || ''
+              } as CitizenUser
+            : {
+                id: userData.id,
+                username: userData.username,
+                type: UserType.STAFF,
+                role: userData.role || '',
+                agencyId: userData.agencyId || 0,
+                name: userData.name || ''
+              } as StaffUser;
+          
+          dispatch(loginAction(userObject));
+          
+          try {
+            localStorage.setItem('profile_fetched', 'true');
+          } catch (e) {
+            console.error('Error setting profile fetched status:', e);
+          }
+          
           return true;
         }
         
-        // Handle case where we get a response but missing expected data
         if (response?.status === 'success' && response?.data) {
-          // Try to extract user and tokens from a different response structure
-          const user = response.data.user || response.data;
+          const userData = response.data.user || response.data;
           const tokens = response.data.tokens || {
             accessToken: response.data.accessToken,
             refreshToken: response.data.refreshToken,
             expiresIn: response.data.expiresIn || '1h'
           };
           
-          if (user && tokens.accessToken && tokens.refreshToken) {
-            // Store tokens in cookies with proper settings
+          if (userData && tokens.accessToken && tokens.refreshToken) {
             Cookies.set('accessToken', tokens.accessToken, { 
               expires: 1,
               path: '/',
@@ -120,8 +165,36 @@ export const useAuth = () => {
               sameSite: 'lax'
             });
             
-            // Store user in Redux
-            dispatch(loginAction(user));
+            const userObject: User = credentials.userType === UserType.CITIZEN
+              ? {
+                  id: userData.id || userData.citizenid,
+                  username: userData.username,
+                  type: UserType.CITIZEN,
+                  name: userData.name || userData.fullname || '',
+                  identificationNumber: userData.identificationNumber || userData.identificationnumber || '',
+                  address: userData.address || '',
+                  phoneNumber: userData.phoneNumber || userData.phonenumber || '',
+                  email: userData.email || '',
+                  areaCode: userData.areaCode || userData.areacode || 0,
+                  imageLink: userData.imageLink || userData.imagelink || ''
+                } as CitizenUser
+              : {
+                  id: userData.id || userData.staffid,
+                  username: userData.username,
+                  type: UserType.STAFF,
+                  role: userData.role || '',
+                  agencyId: userData.agencyId || userData.agencyid || 0,
+                  name: userData.name || userData.fullname || ''
+                } as StaffUser;
+            
+            dispatch(loginAction(userObject));
+            
+            try {
+              localStorage.setItem('profile_fetched', 'true');
+            } catch (e) {
+              console.error('Error setting profile fetched status:', e);
+            }
+            
             return true;
           }
         }
@@ -132,7 +205,6 @@ export const useAuth = () => {
         console.error('Login error:', error);
         let errorMessage = 'Login failed';
         
-        // Try to extract more detailed error message if available
         if (error.data && typeof error.data === 'object') {
           errorMessage = error.data.message || error.data.error || errorMessage;
         } else if (error.message) {
@@ -160,17 +232,44 @@ export const useAuth = () => {
       dispatch(setError(null));
 
       try {
+        console.log('Sending registration data:', { ...userData, password: '***' });
         const response = await apiClient.post('/api/auth/register', userData);
+        console.log('Registration response:', response);
         
-        if (response?.tokens) {
-          // Không lưu token và đăng nhập ngay, mà để người dùng đăng nhập thủ công
-          console.log('Registration successful');
+        // Kiểm tra các định dạng response khác nhau
+        if (response?.message === "User registered successfully." || 
+            response?.status === 'success' || 
+            response?.tokens) {
+          console.log('Registration successful, response structure:', response);
           return true;
         }
         
-        throw new Error('Registration failed - invalid response');
+        // Log response nếu không thành công
+        console.error('Unexpected registration response format:', response);
+        throw new Error('Registration failed - invalid server response format');
       } catch (error) {
-        dispatch(setError(error.message || 'Registration failed'));
+        console.error('Registration error details:', error);
+        
+        // Xử lý các loại lỗi khác nhau
+        let errorMessage = 'Đăng ký thất bại';
+        
+        if (error.data) {
+          // Trích xuất thông báo lỗi chi tiết từ phản hồi API
+          errorMessage = error.data.error || error.data.message || errorMessage;
+        } else if (error.message) {
+          errorMessage = error.message;
+          
+          // Định dạng lại thông báo lỗi thân thiện với người dùng
+          if (errorMessage.includes('duplicate')) {
+            errorMessage = 'Thông tin đã tồn tại trong hệ thống. Vui lòng kiểm tra lại số CMND/CCCD, email, số điện thoại hoặc tên đăng nhập.';
+          } else if (errorMessage.includes('timeout')) {
+            errorMessage = 'Yêu cầu đăng ký hết thời gian chờ. Vui lòng thử lại sau.';
+          } else if (errorMessage.includes('network')) {
+            errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối của bạn và thử lại.';
+          }
+        }
+        
+        dispatch(setError(errorMessage));
         return false;
       } finally {
         dispatch(setLoading(false));
@@ -193,15 +292,12 @@ export const useAuth = () => {
         const refreshToken = Cookies.get('refreshToken');
         
         if (refreshToken) {
-          // Try to invalidate token on server
           await apiClient.post('/api/auth/logout', { refreshToken })
             .catch(() => {
-              // Ignore errors when logging out
               console.log('Logout API call failed, continuing with local logout');
             });
         }
         
-        // Remove cookies with the same options they were set with
         Cookies.remove('accessToken', { 
           path: '/',
           sameSite: 'lax'
@@ -211,10 +307,8 @@ export const useAuth = () => {
           sameSite: 'lax'
         });
         
-        // Clear user from Redux
         dispatch(logoutAction());
         
-        // Redirect if needed
         if (redirectUrl) {
           router.push(redirectUrl);
         }
@@ -247,7 +341,6 @@ export const useAuth = () => {
       dispatch(setError(null));
 
       try {
-        // Đảm bảo có citizenid trong request
         const passwordChangeData = {
           ...passwordData,
           citizenid: passwordData.citizenid || user.id 
@@ -293,7 +386,6 @@ export const useAuth = () => {
         const response = await apiClient.patch(endpoint, userData);
         
         if (response?.data) {
-          // Update user in Redux
           dispatch(setUser({
             ...user,
             ...response.data
@@ -317,7 +409,6 @@ export const useAuth = () => {
    * Gọi hàm này khi ứng dụng khởi động để kiểm tra trạng thái token
    */
   const checkAuthState = useCallback(async () => {
-    // Nếu đã xác thực trong redux, không cần làm gì
     if (isAuthenticated && user) {
       console.log('User already authenticated in Redux store');
       return true;
@@ -326,7 +417,6 @@ export const useAuth = () => {
     const accessToken = Cookies.get('accessToken');
     const refreshToken = Cookies.get('refreshToken');
 
-    // Ghi log để debug
     console.log('Checking auth state. Access token exists:', !!accessToken);
     console.log('Checking auth state. Refresh token exists:', !!refreshToken);
 
@@ -338,13 +428,11 @@ export const useAuth = () => {
 
     try {
       if (!accessToken && refreshToken) {
-        // Nếu chỉ có refresh token, thử làm mới token
         console.log('Access token expired, attempting to refresh');
         
         const response = await apiClient.post('/api/auth/refresh', { refreshToken });
         
         if (response?.accessToken) {
-          // Lưu token mới
           Cookies.set('accessToken', response.accessToken, { 
             expires: 1,
             path: '/',
@@ -367,7 +455,6 @@ export const useAuth = () => {
         }
       }
       
-      // Nếu có access token (hoặc vừa được làm mới), thử lấy thông tin người dùng
       const userInfo = await apiClient.get('/api/auth/me');
       
       if (userInfo && userInfo.user) {

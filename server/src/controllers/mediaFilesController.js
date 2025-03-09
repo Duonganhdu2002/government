@@ -1,6 +1,13 @@
 // controllers/mediaFilesController.js
 const pool = require('../config/database');
 const redisClient = require('../config/redis');
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
+const mkdir = util.promisify(fs.mkdir);
+const { executeQuery } = require('../utils/db.util');
+const { sendSuccess, sendError } = require('../utils/response.util');
+const logger = require('../utils/logger.util');
 
 const mediaFilesController = {
   // GET ALL MEDIA FILES (with Redis caching)
@@ -235,6 +242,99 @@ const mediaFilesController = {
     } catch (error) {
       console.error('Error deleting media file:', error.message);
       res.status(500).json({ error: 'Failed to delete media file' });
+    }
+  },
+
+  // UPLOAD PROFILE IMAGE
+  uploadProfileImage: async (req, res) => {
+    try {
+      // Check if file exists
+      if (!req.file) {
+        return sendError(res, 'No file uploaded', 400);
+      }
+
+      // Check if user ID is provided
+      const { userid, usertype = 'citizen' } = req.body;
+      if (!userid || isNaN(userid)) {
+        return sendError(res, 'Invalid user ID', 400);
+      }
+
+      // Get file information
+      const file = req.file;
+      const originalFileName = file.originalname;
+      const fileSize = file.size;
+      const mimeType = file.mimetype;
+
+      // Validate file type (only allow image files)
+      if (!mimeType.startsWith('image/')) {
+        return sendError(res, 'Only image files are allowed', 400);
+      }
+
+      // Create date-based directory structure for organized storage
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      
+      const uploadDir = path.join('public', 'uploads', 'profiles', `${year}-${month}-${day}`);
+      const fullUploadPath = path.join(process.cwd(), uploadDir);
+      
+      // Create directory if it doesn't exist
+      try {
+        await mkdir(fullUploadPath, { recursive: true });
+      } catch (err) {
+        logger.error('Error creating upload directory:', err);
+        // If directory already exists, continue
+        if (err.code !== 'EEXIST') {
+          return sendError(res, 'Failed to create upload directory', 500);
+        }
+      }
+
+      // Generate relative file path for database storage (using forward slashes for URLs)
+      const relativePath = `/uploads/profiles/${year}-${month}-${day}/${file.filename}`;
+      
+      // Determine table based on user type
+      const table = usertype === 'staff' ? 'staff' : 'citizens';
+      const idField = usertype === 'staff' ? 'staffid' : 'citizenid';
+      
+      // Update user's profile image link in database
+      const updateQuery = `UPDATE ${table} SET imagelink = $1 WHERE ${idField} = $2 RETURNING *`;
+      const result = await executeQuery(updateQuery, [relativePath, userid]);
+      
+      if (result.rows.length === 0) {
+        return sendError(res, 'User not found', 404);
+      }
+      
+      // Record file in mediafiles table for tracking
+      const mediaQuery = `
+        INSERT INTO mediafiles 
+          (userid, usertype, originalfilename, filesize, mimetype, filepath)
+        VALUES 
+          ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `;
+      
+      const mediaResult = await executeQuery(mediaQuery, [
+        userid,
+        usertype,
+        originalFileName,
+        fileSize,
+        mimeType,
+        relativePath
+      ]);
+      
+      // Clear any cached user data to ensure fresh data is retrieved
+      await redisClient.del(`user_${usertype}_${userid}`);
+      
+      // Return success with updated user info
+      return sendSuccess(res, {
+        message: 'Profile image updated successfully',
+        imageUrl: relativePath,
+        mediaFile: mediaResult.rows[0]
+      });
+    } catch (error) {
+      logger.error('Error uploading profile image:', error);
+      return sendError(res, `Failed to upload profile image: ${error.message}`, 500);
     }
   },
 };

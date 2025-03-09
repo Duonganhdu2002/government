@@ -89,10 +89,7 @@ const authController = {
         !password ||
         !areaCodeNum
       ) {
-        return res.status(400).json({
-          error:
-            "All fields (Full Name, Identification Number, Address, Phone Number, Email, Username, Password, and Area Code) are required.",
-        });
+        return sendError(res, "All fields (Full Name, Identification Number, Address, Phone Number, Email, Username, Password, and Area Code) are required.", 400);
       }
 
       // Log which fields are missing for debugging
@@ -107,12 +104,12 @@ const authController = {
       if (!areaCodeNum) missingFields.push('areacode');
       
       if (missingFields.length > 0) {
-        console.log('Missing fields:', missingFields);
+        logger.warn('Missing registration fields:', missingFields);
       }
 
       // Check if a user already exists with the same username, identification number, email, or phone number
       const userCheck = await pool.query(
-        "SELECT * FROM Citizens WHERE Username = $1 OR IdentificationNumber = $2 OR Email = $3 OR PhoneNumber = $4",
+        "SELECT * FROM citizens WHERE username = $1 OR identificationnumber = $2 OR email = $3 OR phonenumber = $4",
         [username, identificationnumber, email, phonenumber]
       );
       if (userCheck.rows.length > 0) {
@@ -120,25 +117,28 @@ const authController = {
         const duplicateRecord = userCheck.rows[0];
         let duplicateField = [];
         
-        if (duplicateRecord.Username === username) duplicateField.push('username');
-        if (duplicateRecord.IdentificationNumber === identificationnumber) duplicateField.push('identification number');
-        if (duplicateRecord.Email === email) duplicateField.push('email');
-        if (duplicateRecord.PhoneNumber === phonenumber) duplicateField.push('phone number');
+        if (duplicateRecord.username === username) duplicateField.push('username');
+        if (duplicateRecord.identificationnumber === identificationnumber) duplicateField.push('identification number');
+        if (duplicateRecord.email === email) duplicateField.push('email');
+        if (duplicateRecord.phonenumber === phonenumber) duplicateField.push('phone number');
         
         const errorMessage = `The following field(s) already exist: ${duplicateField.join(', ')}`;
-        return res.status(400).json({ error: errorMessage });
+        return sendError(res, errorMessage, 400);
       }
 
       // Hash the user's password using bcrypt
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
+      // Set default profile image path
+      const defaultImagePath = '/default-avatar.png';
+
       // Insert the new user into the database
       const result = await pool.query(
-        `INSERT INTO Citizens 
-          (FullName, IdentificationNumber, Address, PhoneNumber, Email, Username, PasswordHash, AreaCode)
+        `INSERT INTO citizens 
+          (fullname, identificationnumber, address, phonenumber, email, username, passwordhash, areacode, imagelink)
          VALUES 
-          ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`,
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
         [
           fullname,
           identificationnumber,
@@ -148,6 +148,7 @@ const authController = {
           username,
           passwordHash,
           areaCodeNum,
+          defaultImagePath
         ]
       );
       const user = result.rows[0];
@@ -162,66 +163,53 @@ const authController = {
       });
 
       // Respond with the created user details and tokens
-      res.status(201).json({
+      return sendSuccess(res, {
         message: "User registered successfully.",
         user: {
           id: user.citizenid,
-          fullname: user.FullName,
-          identificationnumber: user.IdentificationNumber,
-          address: user.Address,
-          phonenumber: user.PhoneNumber,
-          email: user.Email,
-          username: user.Username,
-          areacode: user.AreaCode,
+          fullname: user.fullname,
+          identificationnumber: user.identificationnumber,
+          address: user.address,
+          phonenumber: user.phonenumber,
+          email: user.email,
+          username: user.username,
+          areacode: user.areacode,
+          imagelink: user.imagelink
         },
         tokens: {
           accessToken,
           refreshToken
         }
-      });
+      }, 201);
     } catch (error) {
-      console.error("Error during registration:", error);
+      logger.error("Error during registration:", error);
       
       // Provide more detailed error information for debugging
       if (error.code) {
-        console.error(`Database error code: ${error.code}`);
+        logger.error(`Database error code: ${error.code}`);
       }
       
       if (error.detail) {
-        console.error(`Error detail: ${error.detail}`);
-      }
-      
-      if (error.constraint) {
-        console.error(`Constraint violation: ${error.constraint}`);
-      }
-      
-      if (error.stack) {
-        console.error(`Stack trace: ${error.stack}`);
+        logger.error(`Error detail: ${error.detail}`);
       }
       
       // Handle specific error cases
       if (error.code === '23505') {
         // Unique violation
-        return res.status(400).json({ 
-          error: "Duplicate information detected. Please check your identification number, email, phone number, or username."
-        });
+        return sendError(res, "Duplicate information detected. Please check your identification number, email, phone number, or username.", 400);
       }
       
       if (error.code === '23502') {
         // Not null violation
-        return res.status(400).json({ 
-          error: "Missing required information. Please complete all required fields."
-        });
+        return sendError(res, "Missing required information. Please complete all required fields.", 400);
       }
       
       if (error.code === '23503') {
         // Foreign key violation
-        return res.status(400).json({ 
-          error: "Invalid area code. Please select a valid area."
-        });
+        return sendError(res, "Invalid area code. Please select a valid area.", 400);
       }
       
-      res.status(500).json({ error: "Failed to register user. Please try again or contact support." });
+      return sendError(res, "Failed to register user. Please try again or contact support.", 500);
     }
   },
 
@@ -255,13 +243,27 @@ const authController = {
       const table = userType === 'staff' ? 'staff' : 'citizens';
       const idField = userType === 'staff' ? 'staffid' : 'citizenid';
       
-      // Query user
-      const query = `
-        SELECT ${idField}, username, passwordhash, 
-        ${userType === 'staff' ? 'role, agencyid' : 'fullname, areacode'} 
-        FROM ${table} 
-        WHERE username = $1;
-      `;
+      // Query user - Lấy đầy đủ thông tin nhưng không lấy passwordhash
+      let query;
+      
+      if (userType === 'staff') {
+        query = `
+          SELECT 
+            staffid, username, passwordhash, role, agencyid, 
+            fullname, email, phonenumber 
+          FROM staff 
+          WHERE username = $1;
+        `;
+      } else {
+        query = `
+          SELECT 
+            citizenid, username, passwordhash, fullname, 
+            identificationnumber, address, phonenumber, 
+            email, areacode, imagelink
+          FROM citizens 
+          WHERE username = $1;
+        `;
+      }
       
       const result = await executeQuery(query, [username]);
       
@@ -304,14 +306,33 @@ const authController = {
       await authUtil.storeTokenInDatabase(user[idField], refreshToken, userType);
       
       // User data to return (excluding password)
-      const userData = {
-        id: user[idField],
-        username: user.username,
-        type: userType,
-        ...(userType === 'staff' 
-          ? { role: user.role, agencyId: user.agencyid } 
-          : { name: user.fullname, areaCode: user.areacode })
-      };
+      let userData;
+      
+      if (userType === 'staff') {
+        userData = {
+          id: user.staffid,
+          username: user.username,
+          type: userType,
+          role: user.role,
+          agencyId: user.agencyid,
+          name: user.fullname,
+          email: user.email,
+          phoneNumber: user.phonenumber
+        };
+      } else {
+        userData = {
+          id: user.citizenid,
+          username: user.username,
+          type: userType,
+          name: user.fullname,
+          identificationNumber: user.identificationnumber,
+          address: user.address,
+          phoneNumber: user.phonenumber,
+          email: user.email,
+          areaCode: user.areacode,
+          imageLink: user.imagelink
+        };
+      }
       
       logger.info('User logged in successfully', { userId: user[idField], userType });
       

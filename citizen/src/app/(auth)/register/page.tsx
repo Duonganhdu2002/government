@@ -4,16 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { UserType } from '@/lib/types/auth.types';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 // Import Medusa UI components
 import {
   Button,
-  Heading,
   Text,
   Input,
-  Container,
   Label,
   Alert,
   Select,
@@ -21,7 +18,7 @@ import {
 } from "@medusajs/ui";
 
 // Icons
-import { XMark, EyeSlash, Eye } from '@medusajs/icons';
+import { EyeSlash, Eye } from '@medusajs/icons';
 
 /**
  * Register page component
@@ -77,11 +74,23 @@ export default function RegisterPage() {
       return;
     }
 
+    // Phone number format check
+    if (phoneNumber && !/^0\d{9,10}$/.test(phoneNumber)) {
+      setFormError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại bắt đầu bằng 0 và có 10-11 chữ số');
+      return;
+    }
+
+    // Email format check
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormError('Địa chỉ email không hợp lệ');
+      return;
+    }
+
     // Set loading state
     setLoading(true);
 
     try {
-      const success = await registerCitizen({
+      const registrationData = {
         fullname,
         identificationnumber: identificationNumber,
         address,
@@ -90,18 +99,27 @@ export default function RegisterPage() {
         username,
         password,
         areacode: Number(areaCode)
-      });
+      };
+
+      console.log('Submitting registration form with data:', { ...registrationData, password: '***' });
+      
+      const success = await registerCitizen(registrationData);
 
       if (success) {
         console.log('Registration successful, redirecting to login');
+        
+        // Clear any form error and redirect
+        setFormError('');
         router.push('/login');
       } else {
-        console.log('Registration failed but no error was thrown');
+        console.log('Registration failed with error:', error);
         setLoading(false);
+        setFormError(error || 'Đăng ký không thành công. Vui lòng thử lại sau.');
       }
     } catch (registerError) {
       console.error('Registration error:', registerError);
       setLoading(false);
+      setFormError('Có lỗi xảy ra khi đăng ký. Vui lòng thử lại sau.');
     }
   };
 
@@ -334,4 +352,4 @@ export default function RegisterPage() {
       </div>
     </div>
   );
-} 
+}

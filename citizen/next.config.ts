@@ -2,27 +2,18 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    domains: ['localhost'],
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "images.pexels.com",
-      },
-      {
         protocol: "http",
-        hostname: "images.pexels.com",
+        hostname: "**", // Cho phép tất cả các domain
       },
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "8080",
-      },
-      // Nếu cần dùng https cho localhost:
       {
         protocol: "https",
-        hostname: "localhost",
-        port: "8080",
+        hostname: "**", // Cho phép tất cả các domain
       },
     ],
+    unoptimized: true // Tắt tối ưu hóa để tránh vấn đề với các domain
   },
 };
 
