@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
+import { apiClient } from "@/lib/api";
 
 // Import Medusa UI components
 import {
@@ -25,7 +26,8 @@ import {
   House,
   Plus,
   Clock,
-  User
+  User,
+  Book
 } from "@medusajs/icons";
 
 /**
@@ -108,24 +110,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, loading: authLoading, user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // Thêm trạng thái cho ảnh đại diện
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarBgColor, setAvatarBgColor] = useState<string>(''); 
-  
+  const [avatarBgColor, setAvatarBgColor] = useState<string>('');
+
+  // Thêm trạng thái cho số lượng hồ sơ
+  const [applicationCount, setApplicationCount] = useState(0);
+
   // Chọn một ảnh đại diện và màu nền ngẫu nhiên khi component được mount
   useEffect(() => {
     if (user) {
       // Giả lập chọn avatar dựa trên id user (nếu có) hoặc một số ngẫu nhiên
       const userId = user.id || Math.floor(Math.random() * 100);
-      
+
       // Sử dụng userId để tạo seed cố định cho mỗi user
       const avatarIndex = userId % sampleAvatars.length;
       const colorIndex = userId % avatarBgColors.length;
-      
+
       // Chọn avatar và màu nền
       setAvatarUrl(sampleAvatars[avatarIndex]);
       setAvatarBgColor(avatarBgColors[colorIndex]);
+    }
+  }, [user]);
+
+  // Fetch application count
+  useEffect(() => {
+    if (user) {
+      // Fetch the application count
+      const fetchApplicationCount = async () => {
+        try {
+          const response = await apiClient.get('/api/applications/current-user');
+          const applications = response.data || [];
+          setApplicationCount(applications.length);
+        } catch (error) {
+          console.error('Error fetching application count:', error);
+          setApplicationCount(0);
+        }
+      };
+      
+      fetchApplicationCount();
     }
   }, [user]);
 
@@ -166,13 +190,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (path === '/dashboard' && pathname === '/dashboard') {
       return true;
     }
-    
+
     // For other routes, check if the pathname starts with the path
     // This ensures that subroutes are also highlighted
     if (path !== '/dashboard') {
       return pathname.startsWith(path);
     }
-    
+
     return false;
   };
 
@@ -181,15 +205,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (avatarUrl) {
       return (
         <div className="w-9 h-9 rounded-full overflow-hidden">
-          <img 
-            src={avatarUrl} 
-            alt={user?.name || user?.username || 'User Avatar'} 
+          <img
+            src={avatarUrl}
+            alt={user?.name || user?.username || 'User Avatar'}
             className="w-full h-full object-cover"
           />
         </div>
       );
     }
-    
+
     // Fallback với chữ cái đầu và màu nền ngẫu nhiên
     return (
       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white ${avatarBgColor}`}>
@@ -245,17 +269,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <SidebarNavItem
                   href="/dashboard/history"
                   icon={<Clock />}
-                  badge={3}
+                  badge={applicationCount}
                   active={isActive('/dashboard/history')}
                 >
                   Lịch sử
+                </SidebarNavItem>
+                <SidebarNavItem
+                  href="/dashboard/guides"
+                  icon={<Book />}
+                  active={isActive('/dashboard/guides')}
+                >
+                  Hướng dẫn
                 </SidebarNavItem>
                 <SidebarNavItem
                   href="/dashboard/profile"
                   icon={<User />}
                   active={isActive('/dashboard/profile')}
                 >
-                  Thông tin cá nhân
+                  <Link href="/dashboard/profile">
+                    Thông tin cá nhân
+                  </Link>
                 </SidebarNavItem>
               </SidebarNav>
 
@@ -309,10 +342,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <SidebarNavItem
                 href="/dashboard/history"
                 icon={<Clock />}
-                badge={3}
+                badge={applicationCount}
                 active={isActive('/dashboard/history')}
               >
                 Lịch sử
+              </SidebarNavItem>
+              <SidebarNavItem
+                href="/dashboard/guides"
+                icon={<Book />}
+                active={isActive('/dashboard/guides')}
+              >
+                Hướng dẫn
               </SidebarNavItem>
               <SidebarNavItem
                 href="/dashboard/profile"

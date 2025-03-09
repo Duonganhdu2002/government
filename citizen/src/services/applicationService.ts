@@ -530,4 +530,55 @@ export const fetchApplicationById = async (id: string): Promise<any> => {
     console.error(`Error fetching application with ID ${id}:`, error);
     throw error;
   }
+};
+
+/**
+ * Lấy dữ liệu cho dashboard
+ */
+export const fetchDashboardData = async (): Promise<{
+  applications: any[];
+  stats: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+}> => {
+  try {
+    // Sử dụng hàm fetchUserApplications để lấy danh sách đơn của người dùng
+    const applications = await fetchUserApplications();
+    
+    // Tính toán số liệu thống kê
+    const stats = {
+      total: applications.length,
+      pending: applications.filter((app: any) => 
+        (app.status || '').toLowerCase() === 'pending' || 
+        (app.status || '').toLowerCase() === 'processing'
+      ).length,
+      approved: applications.filter((app: any) => 
+        (app.status || '').toLowerCase() === 'approved'
+      ).length,
+      rejected: applications.filter((app: any) => 
+        (app.status || '').toLowerCase() === 'rejected'
+      ).length,
+    };
+    
+    // Sắp xếp đơn hàng theo thời gian nộp mới nhất
+    const sortedApplications = [...applications].sort((a: any, b: any) => {
+      const dateA = new Date(a.submissiondate || 0).getTime();
+      const dateB = new Date(b.submissiondate || 0).getTime();
+      return dateB - dateA; // Sắp xếp giảm dần (mới nhất lên đầu)
+    });
+    
+    // Chỉ trả về 5 đơn gần nhất
+    const recentApplications = sortedApplications.slice(0, 5);
+    
+    return {
+      applications: recentApplications,
+      stats,
+    };
+  } catch (error) {
+    console.error('Error in fetchDashboardData:', error);
+    throw error;
+  }
 }; 
