@@ -1,5 +1,5 @@
 /**
- * auth.types.ts
+ * auth.types.ts - Simplified for staff app
  * 
  * Type definitions for authentication and user data
  */
@@ -8,74 +8,37 @@
  * User role enum
  */
 export enum UserRole {
-  CITIZEN = 'citizen',
   STAFF = 'staff',
   ADMIN = 'admin'
 }
 
 /**
- * User type enum
- */
-export enum UserType {
-  CITIZEN = 'citizen',
-  STAFF = 'staff'
-}
-
-/**
- * Base user interface
- */
-export interface BaseUser {
-  id: number;
-  username: string;
-  type: UserType;
-}
-
-/**
- * Citizen user interface
- */
-export interface CitizenUser extends BaseUser {
-  type: UserType.CITIZEN;
-  name: string;
-  identificationNumber?: string;
-  address?: string;
-  phoneNumber?: string;
-  email?: string;
-  areaCode: number;
-  imageLink?: string;
-}
-
-/**
  * Staff user interface
  */
-export interface StaffUser extends BaseUser {
-  type: UserType.STAFF;
+export interface StaffUser {
+  id: number;
+  type: 'staff';
   role: string;
   agencyId: number;
   name?: string;
 }
 
 /**
- * Combined user type
- */
-export type User = CitizenUser | StaffUser;
-
-/**
  * Authentication state interface
  */
 export interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: StaffUser | null;
   loading: boolean;
   error: string | null;
 }
 
 /**
- * Login request payload
+ * Staff login request payload
  */
-export interface LoginRequest {
-  username: string;
+export interface StaffLoginRequest {
+  staffId: number;
   password: string;
-  userType: UserType;
 }
 
 /**
@@ -85,37 +48,7 @@ export interface LoginResponse {
   status: string;
   message: string;
   data: {
-    user: User;
-    tokens: {
-      accessToken: string;
-      refreshToken: string;
-      expiresIn: string;
-    }
-  }
-}
-
-/**
- * Register citizen request payload
- */
-export interface RegisterCitizenRequest {
-  fullname: string;
-  identificationnumber: string;
-  address?: string;
-  phonenumber?: string;
-  email?: string;
-  username: string;
-  password: string;
-  areacode: number;
-}
-
-/**
- * Register response payload
- */
-export interface RegisterResponse {
-  status: string;
-  message: string;
-  data: {
-    user: CitizenUser;
+    user: StaffUser;
     tokens: {
       accessToken: string;
       refreshToken: string;
@@ -156,23 +89,6 @@ export interface LogoutRequest {
  * Logout response payload
  */
 export interface LogoutResponse {
-  status: string;
-  message: string;
-}
-
-/**
- * Change password request payload
- */
-export interface ChangePasswordRequest {
-  citizenid: number;
-  oldPassword: string;
-  newPassword: string;
-}
-
-/**
- * Change password response payload
- */
-export interface ChangePasswordResponse {
   status: string;
   message: string;
 } 

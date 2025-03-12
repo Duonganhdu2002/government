@@ -18,16 +18,10 @@ const Staff = sequelize.define('Staff', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  employeecode: {
-    type: DataTypes.STRING,
-  },
   role: {
     type: DataTypes.STRING,
   },
-  username: {
-    type: DataTypes.STRING,
-  },
-  passwordhash: {
+    passwordhash: {
     type: DataTypes.STRING,
   }
 }, {

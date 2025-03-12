@@ -435,7 +435,7 @@ export default function DashboardPage() {
                   </Link>
                 </li>
               </ul>
-              <Link href="/guides" className="flex justify-center mt-4">
+              <Link href="/dashboard/guides" className="flex justify-center mt-4">
                 <Button variant="secondary" size="small">
                   Xem tất cả hướng dẫn
                   <ChevronRight className="ml-1" />

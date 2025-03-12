@@ -207,7 +207,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="w-9 h-9 rounded-full overflow-hidden">
           <img
             src={avatarUrl}
-            alt={user?.name || user?.username || 'User Avatar'}
+            alt={user?.name || 'Staff User'}
             className="w-full h-full object-cover"
           />
         </div>
@@ -217,7 +217,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Fallback với chữ cái đầu và màu nền ngẫu nhiên
     return (
       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white ${avatarBgColor}`}>
-        {user?.username?.charAt(0).toUpperCase() || 'U'}
+        {user?.name?.charAt(0).toUpperCase() || 'S'}
       </div>
     );
   };
@@ -297,10 +297,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {renderAvatar()}
                   <div>
                     <Text size="small" weight="plus" className="text-ui-fg-base">
-                      {user?.name || user?.username}
+                      {user?.name || 'Cán bộ'}
                     </Text>
                     <Text size="xsmall" className="text-ui-fg-subtle">
-                      {user?.type === 'citizen' ? 'Công dân' : 'Cán bộ'}
+                      {user?.role === 'admin' ? 'Quản trị viên' : 'Cán bộ'}
                     </Text>
                   </div>
                 </div>
@@ -368,10 +368,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {renderAvatar()}
                 <div>
                   <Text size="small" weight="plus" className="text-ui-fg-base">
-                    {user?.name || user?.username}
+                    {user?.name || 'Cán bộ'}
                   </Text>
                   <Text size="xsmall" className="text-ui-fg-subtle">
-                    {user?.type === 'citizen' ? 'Công dân' : 'Cán bộ'}
+                    {user?.role === 'admin' ? 'Quản trị viên' : 'Cán bộ'}
                   </Text>
                 </div>
               </div>

@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { UserType } from '@/lib/types/auth.types';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 // Import Medusa UI components
@@ -24,12 +23,12 @@ import { XMark, EyeSlash, Eye } from '@medusajs/icons';
  * Login page component
  */
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [staffId, setStaffId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { login, error } = useAuth();
+  const { loginStaff, error } = useAuth();
 
   /**
    * Handle form submission
@@ -38,32 +37,34 @@ export default function LoginPage() {
     e.preventDefault();
     
     // Validate form inputs
-    if (!username || !password) {
-      alert('Vui lòng nhập tên đăng nhập và mật khẩu');
+    if (!staffId) {
+      alert('Vui lòng nhập ID nhân viên');
+      return;
+    }
+    
+    if (!password) {
+      alert('Vui lòng nhập mật khẩu');
       return;
     }
 
     // Set loading state
     setLoading(true);
 
-    // Log login attempt
-    console.log('Attempting login with:', { 
-      username,
-      passwordLength: password.length 
-    });
-
     try {
-      const success = await login({
-        username,
-        password,
-        userType: UserType.CITIZEN, // Use the enum for citizen portal
+      // Ensure staffId is a number
+      const staffIdNum = parseInt(staffId, 10);
+      
+      if (isNaN(staffIdNum)) {
+        throw new Error('ID nhân viên phải là số');
+      }
+      
+      const success = await loginStaff({
+        staffId: staffIdNum,
+        password: password.trim(),
       });
 
       if (success) {
-        console.log('Login successful, redirecting to dashboard');
         router.push('/dashboard');
-      } else {
-        console.log('Login failed but no error was thrown');
       }
     } catch (loginError) {
       console.error('Login error:', loginError);
@@ -80,20 +81,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center items-center min-h-screen">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Title Section (White Background) */}
+        {/* Title Section */}
         <div className="bg-white px-8 py-6">
-          <h2 className="text-xl font-medium text-center">Đăng nhập</h2>
+          <h2 className="text-xl font-medium text-center">Đăng nhập - Cán bộ</h2>
           <p className="text-center text-gray-500 text-sm mt-3">
-            Nhập tên đăng nhập và mật khẩu để truy cập hệ thống
+            Nhập ID nhân viên và mật khẩu để truy cập hệ thống quản lý
           </p>
         </div>
 
-        {/* Form Section (Gray Background) */}
+        {/* Form Section */}
         <div className="bg-gray-50 px-8 py-6 border-t">
-        
-          {/* Error alert */}
           {error && (
             <Alert variant="error" className="mb-4">
               <Text>{error}</Text>
@@ -101,20 +100,20 @@ export default function LoginPage() {
           )}
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username field */}
+            {/* Staff ID field */}
             <div>
-              <Label htmlFor="username" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
-                Tên đăng nhập <span className="text-red-500">*</span>
+              <Label htmlFor="staffId" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
+                ID NHÂN VIÊN <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
+                id="staffId"
+                name="staffId"
+                type="number"
+                autoComplete="off"
                 required
-                placeholder="tên đăng nhập của bạn"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Nhập ID nhân viên của bạn"
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
                 className="w-full"
                 style={{ borderColor: '#e5e7eb' }}
               />
@@ -123,7 +122,7 @@ export default function LoginPage() {
             {/* Password field */}
             <div>
               <Label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-2 uppercase">
-                Mật khẩu <span className="text-red-500">*</span>
+                MẬT KHẨU <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
                 <Input
@@ -176,17 +175,18 @@ export default function LoginPage() {
               className="w-full py-2"
               isLoading={loading}
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              Đăng nhập
             </Button>
+            
+            <div className="text-center mt-4">
+              <p className="text-sm text-gray-600">
+                Bạn chưa có tài khoản?{' '}
+                <Link href="/register" className="text-blue-600 hover:underline">
+                  Đăng ký
+                </Link>
+              </p>
+            </div>
           </form>
-
-          {/* Signup Link */}
-          <div className="text-center mt-4 text-sm text-gray-600">
-            Chưa có tài khoản?{" "}
-            <Link href="/register" className="text-ui-fg-interactive font-medium hover:underline">
-              Đăng ký miễn phí.
-            </Link>
-          </div>
         </div>
       </div>
     </div>

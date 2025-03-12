@@ -214,6 +214,147 @@ const authController = {
   },
 
   /**
+   * Registers a new staff member.
+   * Expects request body to include:
+   *   - agencyid (number): Agency ID
+   *   - fullname (string): Full Name
+   *   - role (string): Staff role (default: 'staff')
+   *   - password (string): Plain text password
+   *
+   * All fields are mandatory. If any field is missing, registration fails.
+   */
+  registerStaff: async (req, res) => {
+    try {
+      let { agencyid, fullname, role = 'staff', password } = req.body;
+      
+      // Validate role is either 'staff' or 'admin'
+      if (role !== 'staff' && role !== 'admin') {
+        role = 'staff'; // Default to staff if invalid role
+      }
+      
+      // Convert agencyid to a number if it's a string
+      if (typeof agencyid === 'string') {
+        agencyid = parseInt(agencyid, 10);
+      }
+      
+      // Validate that all required fields are provided
+      if (!agencyid) {
+        return sendError(res, "Vui lòng nhập mã cơ quan.", 400);
+      }
+      
+      if (!fullname) {
+        return sendError(res, "Vui lòng nhập họ và tên.", 400);
+      }
+      
+      if (!password) {
+        return sendError(res, "Vui lòng nhập mật khẩu.", 400);
+      }
+      
+      // Validate password length
+      if (password.length < 6) {
+        return sendError(res, "Mật khẩu phải có ít nhất 6 ký tự.", 400);
+      }
+      
+      // Try to check if agency exists - skip if the query fails
+      try {
+        const agencyCheck = await executeQuery(
+          'SELECT agencyid FROM agency WHERE agencyid = $1',
+          [agencyid]
+        );
+        
+        if (agencyCheck.rows.length === 0) {
+          return sendError(res, "Mã cơ quan không tồn tại.", 400);
+        }
+      } catch (agencyErr) {
+        // Log the error but continue with registration
+        logger.warn('Error checking agency existence:', agencyErr);
+        // We'll continue and let the foreign key constraint handle this if necessary
+      }
+      
+      // Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const passwordhash = await bcrypt.hash(password, salt);
+      
+      // Insert new staff into database
+      try {
+        const result = await executeQuery(
+          `INSERT INTO staff (agencyid, fullname, role, passwordhash) 
+           VALUES ($1, $2, $3, $4) 
+           RETURNING staffid, agencyid, fullname, role`,
+          [agencyid, fullname, role, passwordhash]
+        );
+        
+        if (result.rows.length === 0) {
+          throw new Error("Failed to create staff account.");
+        }
+        
+        // Generate tokens for the new staff member
+        const staffUser = result.rows[0];
+        
+        const accessToken = authUtil.generateToken(
+          {
+            id: staffUser.staffid,
+            role: staffUser.role,
+            type: 'staff'
+          },
+          ACCESS_TOKEN_SECRET,
+          ACCESS_TOKEN_EXPIRY
+        );
+        
+        const refreshToken = authUtil.generateToken(
+          {
+            id: staffUser.staffid,
+            type: 'staff'
+          },
+          REFRESH_TOKEN_SECRET,
+          REFRESH_TOKEN_EXPIRY
+        );
+        
+        // Store refresh token
+        await authUtil.storeTokenInDatabase(staffUser.staffid, refreshToken, 'staff');
+        
+        // Return success with user and tokens
+        logger.info('Staff registered successfully', { userId: staffUser.staffid });
+        
+        return sendSuccess(res, {
+          user: {
+            id: staffUser.staffid,
+            type: 'staff',
+            role: staffUser.role,
+            agencyId: staffUser.agencyid,
+            name: staffUser.fullname
+          },
+          tokens: {
+            accessToken,
+            refreshToken,
+            expiresIn: ACCESS_TOKEN_EXPIRY
+          }
+        }, 201);
+      } catch (dbError) {
+        // Handle database error
+        logger.error('Database error during staff insertion:', dbError);
+        
+        if (dbError.code === '23505') {
+          // Unique violation
+          return sendError(res, "Tài khoản đã tồn tại.", 409);
+        } else if (dbError.code === '23502') {
+          // Not null violation
+          return sendError(res, "Vui lòng điền đầy đủ thông tin.", 400);
+        } else if (dbError.code === '23503') {
+          // Foreign key violation
+          return sendError(res, "Mã cơ quan không hợp lệ.", 400);
+        } else {
+          // Other database error
+          return sendError(res, "Lỗi cơ sở dữ liệu: " + (dbError.message || "Không xác định"), 500);
+        }
+      }
+    } catch (error) {
+      logger.error('Staff registration error:', error);
+      return sendError(res, "Đăng ký thất bại. Vui lòng thử lại sau hoặc liên hệ bộ phận hỗ trợ.", 500);
+    }
+  },
+
+  /**
    * Logs in an existing user.
    * Expects request body to include:
    *   - username (string): Username
@@ -347,6 +488,130 @@ const authController = {
       });
     } catch (error) {
       logger.error('Login error:', { error: error.message, username, userType });
+      return sendError(res, 'Authentication failed: ' + (error.message || 'Unknown error'), 500);
+    }
+  },
+
+  /**
+   * Logs in a staff member using username or employee code
+   * Expects request body to include:
+   *   - username (string): Username OR
+   *   - employeeCode (string): Employee Code
+   *   - password (string): Plain text password
+   *
+   * If the credentials are valid, returns new access and refresh tokens.
+   */
+  loginStaff: async (req, res, next) => {
+    let { username, employeeCode, password } = req.body;
+    
+    // Validate request
+    if ((!username && !employeeCode) || !password) {
+      return sendError(res, 'Username/Employee Code and password are required', 400);
+    }
+    
+    try {
+      // Query user based on username or employee code
+      let query;
+      let queryParams = [];
+      
+      if (employeeCode) {
+        query = `
+          SELECT 
+            staffid, username, passwordhash, role, agencyid, 
+            fullname, email, phonenumber, employeecode
+          FROM staff 
+          WHERE employeecode = $1;
+        `;
+        queryParams = [employeeCode];
+      } else {
+        query = `
+          SELECT 
+            staffid, username, passwordhash, role, agencyid, 
+            fullname, email, phonenumber, employeecode
+          FROM staff 
+          WHERE username = $1;
+        `;
+        queryParams = [username];
+      }
+      
+      const result = await executeQuery(query, queryParams);
+      
+      if (result.rows.length === 0) {
+        const errorDetail = employeeCode 
+          ? 'Login attempt with invalid employee code' 
+          : 'Login attempt with invalid username';
+        
+        logger.warn(errorDetail, { 
+          username, 
+          employeeCode
+        });
+        
+        return sendError(res, 'Invalid credentials', 401);
+      }
+      
+      const user = result.rows[0];
+      
+      // Verify password
+      const isPasswordValid = await authUtil.comparePassword(password, user.passwordhash);
+      
+      if (!isPasswordValid) {
+        logger.warn('Login attempt with invalid password', { 
+          username: user.username,
+          employeeCode: user.employeecode
+        });
+        
+        return sendError(res, 'Invalid credentials', 401);
+      }
+      
+      // Generate tokens
+      const accessToken = authUtil.generateToken(
+        {
+          id: user.staffid,
+          role: user.role,
+          type: 'staff'
+        }, 
+        ACCESS_TOKEN_SECRET, 
+        ACCESS_TOKEN_EXPIRY
+      );
+      
+      const refreshToken = authUtil.generateToken(
+        {
+          id: user.staffid,
+          type: 'staff'
+        }, 
+        REFRESH_TOKEN_SECRET, 
+        REFRESH_TOKEN_EXPIRY
+      );
+      
+      // Save refresh token to database
+      await authUtil.storeTokenInDatabase(user.staffid, refreshToken, 'staff');
+      
+      // User data to return (excluding password)
+      const userData = {
+        id: user.staffid,
+        username: user.username,
+        type: 'staff',
+        role: user.role,
+        agencyId: user.agencyid,
+        name: user.fullname,
+        email: user.email,
+        phoneNumber: user.phonenumber,
+        employeeCode: user.employeecode
+      };
+      
+      logger.info('Staff logged in successfully', { userId: user.staffid });
+      
+      // Send response
+      return sendSuccess(res, {
+        user: userData,
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: ACCESS_TOKEN_EXPIRY
+        }
+      });
+    } catch (error) {
+      logger.error('Staff login error:', { error: error.message, username, employeeCode });
       return sendError(res, 'Authentication failed: ' + (error.message || 'Unknown error'), 500);
     }
   },
@@ -574,6 +839,71 @@ const authController = {
   },
 
   /**
+   * Thay đổi mật khẩu cho tài khoản staff.
+   * Yêu cầu cung cấp staffId, mật khẩu cũ và mật khẩu mới.
+   * Sau khi đổi mật khẩu thành công, sẽ xóa refresh token hiện tại,
+   * buộc người dùng đăng nhập lại.
+   */
+  staffChangePassword: async (req, res) => {
+    try {
+      const { staffId, oldPassword, newPassword } = req.body;
+
+      // Validate input: staffId, oldPassword, and newPassword must be provided
+      if (!staffId || !oldPassword || !newPassword) {
+        return res.status(400).json({
+          error: "Staff ID, old password, and new password are required.",
+        });
+      }
+
+      // Fetch the staff user from the database using the staffId
+      const result = await pool.query(
+        "SELECT * FROM staff WHERE staffid = $1",
+        [staffId]
+      );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Staff user not found." });
+      }
+      const staff = result.rows[0];
+
+      // Verify that the provided old password matches the stored password hash
+      const passwordMatch = await bcrypt.compare(
+        oldPassword,
+        staff.passwordhash
+      );
+      if (!passwordMatch) {
+        return res.status(400).json({ error: "Old password is incorrect." });
+      }
+
+      // Optionally check the strength of the new password (e.g., minimum 6 characters)
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          error: "New password must be at least 6 characters long.",
+        });
+      }
+
+      // Hash the new password
+      const saltRounds = 10;
+      const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update the password in the database
+      await pool.query(
+        "UPDATE staff SET passwordhash = $1 WHERE staffid = $2",
+        [newPasswordHash, staffId]
+      );
+
+      // Remove the current refresh token to force re-login
+      await redisClient.del(`staffRefreshToken_${staffId}`);
+
+      res.status(200).json({
+        message: "Password changed successfully. Please log in again.",
+      });
+    } catch (error) {
+      console.error("Error changing staff password:", error);
+      res.status(500).json({ error: "Failed to change password." });
+    }
+  },
+
+  /**
    * Lấy thông tin người dùng hiện tại dựa trên token
    * 
    * @param {Object} req - Express request object
@@ -691,7 +1021,100 @@ const authController = {
         message: error.message
       });
     }
-  }
+  },
+
+  /**
+   * Logs in a staff member using staff ID
+   * Expects request body to include:
+   *   - staffId (number): Staff ID
+   *   - password (string): Plain text password
+   *
+   * If the credentials are valid, returns new access and refresh tokens.
+   */
+  loginStaffById: async (req, res, next) => {
+    let { staffId, password } = req.body;
+    
+    // Validate request
+    if (!staffId || !password) {
+      return sendError(res, 'Vui lòng nhập ID nhân viên và mật khẩu', 400);
+    }
+    
+    try {
+      // Query user based on staffId
+      const query = `
+        SELECT 
+          staffid, passwordhash, role, agencyid, fullname
+        FROM staff 
+        WHERE staffid = $1;
+      `;
+      const queryParams = [staffId];
+      
+      const result = await executeQuery(query, queryParams);
+      
+      if (result.rows.length === 0) {
+        logger.warn('Login attempt with invalid staff ID', { staffId });
+        return sendError(res, 'ID nhân viên hoặc mật khẩu không đúng', 401);
+      }
+      
+      const user = result.rows[0];
+      
+      // Verify password
+      const isPasswordValid = await authUtil.comparePassword(password, user.passwordhash);
+      
+      if (!isPasswordValid) {
+        logger.warn('Login attempt with invalid password', { staffId: user.staffid });
+        return sendError(res, 'ID nhân viên hoặc mật khẩu không đúng', 401);
+      }
+      
+      // Generate tokens
+      const accessToken = authUtil.generateToken(
+        {
+          id: user.staffid,
+          role: user.role,
+          type: 'staff'
+        }, 
+        ACCESS_TOKEN_SECRET, 
+        ACCESS_TOKEN_EXPIRY
+      );
+      
+      const refreshToken = authUtil.generateToken(
+        {
+          id: user.staffid,
+          type: 'staff'
+        }, 
+        REFRESH_TOKEN_SECRET, 
+        REFRESH_TOKEN_EXPIRY
+      );
+      
+      // Save refresh token to database
+      await authUtil.storeTokenInDatabase(user.staffid, refreshToken, 'staff');
+      
+      // User data to return (excluding password)
+      const userData = {
+        id: user.staffid,
+        type: 'staff',
+        role: user.role,
+        agencyId: user.agencyid,
+        name: user.fullname
+      };
+      
+      logger.info('Staff logged in successfully', { userId: user.staffid });
+      
+      // Send response
+      return sendSuccess(res, {
+        user: userData,
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: ACCESS_TOKEN_EXPIRY
+        }
+      });
+    } catch (error) {
+      logger.error('Staff login error:', { error: error.message, staffId });
+      return sendError(res, 'Đăng nhập thất bại: ' + (error.message || 'Lỗi không xác định'), 500);
+    }
+  },
+
 };
 
 /**

@@ -142,6 +142,14 @@ const processResponse = async (response: Response) => {
   if (!response.ok) {
     // Handle 401 Unauthorized - attempt to refresh token
     if (response.status === 401) {
+      // Additional debug info for authentication issues
+      console.warn('Authentication error details:', {
+        hasRefreshToken: !!Cookies.get('refreshToken'),
+        hasAccessToken: !!Cookies.get('accessToken'),
+        endpoint: response.url,
+        status: response.status
+      });
+      
       const newToken = await refreshAccessToken();
       
       if (newToken) {
@@ -167,6 +175,13 @@ const processResponse = async (response: Response) => {
         // For other "not found" resources, return appropriate empty structures
         return { data: [] };
       }
+      
+      // For staff-login errors, return the error response itself
+      // so the useAuth hook can process it
+      if (response.url.includes('/auth/staff-login')) {
+        console.log('Returning full error response for staff login:', data);
+        throw new ApiError(errorMessage, response.status, data);
+      }
     } else if (typeof data === 'string' && data.length > 0) {
       errorMessage = data;
     }
@@ -178,30 +193,6 @@ const processResponse = async (response: Response) => {
     );
   }
   
-  // For successful responses, ensure we're returning a structure the app components expect
-  // If the data structure already contains the expected fields, return it as is
-  if (typeof data === 'object' && data !== null) {
-    // Handle our standardized server response format
-    if (data.status === 'success' && data.data) {
-      // Return the data field as the main response
-      return {
-        status: 'success',
-        data: data.data,
-        message: data.message
-      };
-    }
-    
-    // If data doesn't match our standard structure, wrap it
-    if (!data.data && !data.status) {
-      return {
-        status: 'success',
-        data,
-        message: 'Operation successful'
-      };
-    }
-  }
-  
-  // Return the data as is if it doesn't match any of our transformation cases
   return data;
 };
 

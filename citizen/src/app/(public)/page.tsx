@@ -6,7 +6,6 @@ import {
   Heading, 
   Text, 
   Button, 
-  Container, 
   IconBadge
 } from "@medusajs/ui";
 

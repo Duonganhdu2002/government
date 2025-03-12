@@ -81,7 +81,7 @@ export default function IdentityDocumentsGuidePage() {
           Trang chủ
         </Link>
         <ChevronRight className="mx-2 w-4 h-4" />
-        <Link href="/guides" className="hover:text-ui-fg-base">
+        <Link href="/dashboard/guides" className="hover:text-ui-fg-base">
           Tài liệu hướng dẫn
         </Link>
         <ChevronRight className="mx-2 w-4 h-4" />

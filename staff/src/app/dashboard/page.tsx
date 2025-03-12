@@ -288,7 +288,7 @@ export default function DashboardPage() {
           <div>
             <Heading level="h1" className="text-2xl text-ui-fg-base mb-2">Bảng điều khiển</Heading>
             <Text className="text-ui-fg-subtle">
-              Chào mừng {user?.name || user?.username || 'bạn'} đến với Cổng dịch vụ công
+              Chào mừng {user?.name || 'bạn'} đến với Cổng dịch vụ công
             </Text>
           </div>
           <div className="flex items-center">
