@@ -124,7 +124,7 @@ const mediaFilesController = {
     try {
       // Tìm file trong database
       const result = await pool.query(
-        'SELECT filepath FROM mediafiles WHERE mediafileid = $1;',
+        'SELECT filepath, mimetype FROM mediafiles WHERE mediafileid = $1;',
         [id]
       );
       
@@ -132,7 +132,7 @@ const mediaFilesController = {
         return res.status(404).json({ message: 'Media file not found' });
       }
       
-      const { filepath } = result.rows[0];
+      const { filepath, mimetype } = result.rows[0];
       
       // Xây dựng đường dẫn thực tế đến file
       const path = require('path');
@@ -147,6 +147,17 @@ const mediaFilesController = {
       if (!fs.existsSync(realFilePath)) {
         console.error(`File không tồn tại tại đường dẫn: ${realFilePath}`);
         return res.status(404).json({ message: 'File not found on disk' });
+      }
+      
+      // Set CORS headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      
+      // Set Content-Type for image if available
+      if (mimetype) {
+        res.setHeader('Content-Type', mimetype);
       }
       
       // Gửi file trực tiếp đến client
@@ -407,6 +418,83 @@ const mediaFilesController = {
         res.status(500).json({ error: 'Failed to upload files' });
       }
     });
+  },
+
+  // Helper function to check if a file exists
+  checkFileExists: async (filepath) => {
+    if (!filepath) return false;
+    
+    try {
+      const path = require('path');
+      const fs = require('fs');
+      const util = require('util');
+      const access = util.promisify(fs.access);
+      
+      // If it's a full path with filename
+      if (filepath.includes('/')) {
+        const filename = filepath.split('/').pop();
+        const realFilePath = path.join(__dirname, '../../public/uploads', filename);
+        await access(realFilePath, fs.constants.F_OK);
+        return true;
+      }
+      
+      // If it's just a filename
+      const realFilePath = path.join(__dirname, '../../public/uploads', filepath);
+      await access(realFilePath, fs.constants.F_OK);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // CHECK MEDIA FILE EXISTS
+  checkMediaFileExists: async (req, res) => {
+    const { filepath } = req.query;
+    
+    if (!filepath) {
+      return res.status(400).json({ error: 'filepath query parameter is required' });
+    }
+    
+    try {
+      // Set CORS headers first
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      
+      const path = require('path');
+      const fs = require('fs');
+      
+      // For full paths like "/uploads/filename.png"
+      let filename = filepath;
+      if (filepath.includes('/')) {
+        filename = filepath.split('/').pop();
+      }
+      
+      const realFilePath = path.join(__dirname, '../../public/uploads', filename);
+      
+      // Check if file exists
+      const exists = fs.existsSync(realFilePath);
+      
+      if (exists) {
+        return res.status(200).json({ 
+          exists: true, 
+          message: 'File exists',
+          filepath: filepath,
+          realpath: realFilePath
+        });
+      } else {
+        return res.status(404).json({ 
+          exists: false, 
+          message: 'File does not exist',
+          filepath: filepath,
+          realpath: realFilePath
+        });
+      }
+    } catch (error) {
+      console.error('Error checking if file exists:', error.message);
+      res.status(500).json({ error: 'Failed to check if file exists' });
+    }
   },
 };
 

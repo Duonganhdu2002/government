@@ -184,57 +184,248 @@ interface ApplicationDetailModalProps {
 function MediaImage({
   attachment,
   alt,
-  className
+  className,
+  onError
 }: {
   attachment: MediaAttachment;
   alt: string;
   className?: string;
+  onError?: (mediaId: number) => void;
 }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
-  // Generate URL for media based on load attempt
-  const getMediaUrl = (): string => {
-    // If all 3 attempts failed, use placeholder
-    if (loadAttempt >= 3) return '/placeholder-image.svg';
-
-    // 1. First try standard filepath
-    if (loadAttempt === 0 && attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/')
-        ? attachment.filepath
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}`;
+  // Effect to handle port mismatch issues with the API URL
+  useEffect(() => {
+    // If we've already successfully loaded the image, we don't need to
+    // try another loading attempt, even if an error is triggered
+    if (isImageLoaded) {
+      setIsLoading(false);
+      setErrorMessage(null);
     }
-
-    // 2. Second try filepath with timestamp to bypass cache
-    if (loadAttempt === 1 && attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/')
-        ? attachment.filepath
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}?v=${Date.now()}`;
-    }
-
-    // 3. Third try using API serve endpoint
-    return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
-  };
+  }, [isImageLoaded]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full flex items-center justify-center">
+      {isLoading && !isImageLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 bg-opacity-75 z-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-500"></div>
+        </div>
+      )}
+      
+      {errorMessage && !isImageLoaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 bg-opacity-80 z-20 p-2">
+          <FileTextIcon className="w-8 h-8 text-gray-400 mb-2" />
+          <Text className="text-xs text-center text-gray-500">{errorMessage}</Text>
+        </div>
+      )}
+      
       <img
-        src={getMediaUrl()}
+        src={getMediaUrl(attachment, loadAttempt)}
         alt={alt}
-        className={className || "w-full h-full object-fill"}
-        onError={() => {
-          console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${getMediaUrl()}`);
-          if (loadAttempt < 3) {
+        crossOrigin="anonymous"
+        className={className || "w-full h-full object-contain max-h-[200px]"}
+        onLoad={() => {
+          setIsLoading(false);
+          setErrorMessage(null);
+          setIsImageLoaded(true);
+        }}
+        onError={(e) => {
+          // Skip error handling if image is already loaded successfully
+          if (isImageLoaded) return;
+          
+          const currentUrl = getMediaUrl(attachment, loadAttempt);
+          console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${currentUrl}`);
+          
+          if (loadAttempt < 2) {
             // Try next loading strategy
             setLoadAttempt(prev => prev + 1);
+          } else {
+            setIsLoading(false);
+            setErrorMessage("Không thể tải ảnh");
+            // Call the parent error handler if provided
+            if (onError) {
+              onError(attachment.mediafileid);
+            }
           }
         }}
       />
     </div>
   );
 }
+
+// Component for video display with error handling
+function VideoPlayer({
+  attachment,
+  className,
+  onError
+}: {
+  attachment: MediaAttachment;
+  className?: string;
+  onError?: (mediaId: number) => void;
+}) {
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  
+  // Effect to prevent errors if video is already loaded
+  useEffect(() => {
+    if (isVideoLoaded) {
+      setIsLoading(false);
+      setHasError(false);
+    }
+  }, [isVideoLoaded]);
+  
+  return (
+    <div className="w-full h-full flex items-center justify-center relative">
+      {isLoading && !isVideoLoaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 bg-opacity-75 z-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-500"></div>
+        </div>
+      )}
+      
+      {hasError ? (
+        <div className="flex flex-col items-center justify-center h-full w-full">
+          <VideoIcon className="w-10 h-10 text-gray-400 mb-2" />
+          <Text className="text-xs text-gray-500">Không thể tải video</Text>
+        </div>
+      ) : (
+        <video
+          src={getMediaUrl(attachment, loadAttempt)}
+          controls
+          crossOrigin="anonymous"
+          className={className || "w-full h-full object-contain"}
+          onLoadedData={() => {
+            setIsLoading(false);
+            setIsVideoLoaded(true);
+          }}
+          onError={(e) => {
+            // Skip error handling if video is already successfully loaded
+            if (isVideoLoaded) return;
+            
+            console.error(`Lỗi tải video (lần ${loadAttempt + 1}): ${getMediaUrl(attachment, loadAttempt)}`);
+            if (loadAttempt < 2) {
+              // Try next loading strategy
+              setLoadAttempt(prev => prev + 1);
+            } else {
+              setIsLoading(false);
+              setHasError(true);
+              // Call the parent error handler if provided
+              if (onError) {
+                onError(attachment.mediafileid);
+              }
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Helper function to detect file type based on mimetype and extension
+const getFileType = (attachment: MediaAttachment): 'image' | 'video' | 'document' => {
+  // First check the filetype property from database if available
+  if (attachment.filetype) {
+    const fileType = attachment.filetype.toLowerCase();
+    if (fileType === 'image') {
+      return 'image';
+    }
+    if (fileType === 'video') {
+      return 'video';
+    }
+    if (fileType === 'document') {
+      return 'document';
+    }
+  }
+  
+  // Then check by MIME type
+  if (attachment.mimetype) {
+    const mimeType = attachment.mimetype.toLowerCase();
+    if (mimeType.startsWith('image/')) {
+      return 'image';
+    }
+    if (mimeType.startsWith('video/')) {
+      return 'video';
+    }
+  }
+  
+  // Then check by file extension if MIME type check fails
+  if (attachment.originalfilename) {
+    const extension = attachment.originalfilename.split('.').pop()?.toLowerCase() || '';
+    
+    // Common image extensions
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(extension)) {
+      return 'image';
+    }
+    
+    // Common video extensions
+    if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'flv', 'mkv'].includes(extension)) {
+      return 'video';
+    }
+  }
+  
+  // Check filepath extension as a last resort
+  if (attachment.filepath) {
+    const extension = attachment.filepath.split('.').pop()?.toLowerCase() || '';
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(extension)) {
+      return 'image';
+    }
+    if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'flv', 'mkv'].includes(extension)) {
+      return 'video';
+    }
+  }
+  
+  // Based on the database query results (where all entries have filetype 'image'),
+  // it's better to default to 'image' than 'document'
+  return 'image';
+};
+
+// Build URL for media file - centralized helper function
+const getMediaUrl = (attachment: MediaAttachment, attempt: number = 0): string => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  
+  // If all attempts failed, use placeholder
+  if (attempt >= 3) return '/placeholder-image.svg';
+
+  // First attempt - Try to load from the server's uploads directory directly
+  if (attempt === 0 && attachment.filepath) {
+    // If filepath is a full URL, use it directly
+    if (attachment.filepath.startsWith('http://') || attachment.filepath.startsWith('https://')) {
+      return attachment.filepath;
+    }
+    
+    // Ensure the path starts with a slash
+    const cleanPath = attachment.filepath.startsWith('/')
+      ? attachment.filepath
+      : `/${attachment.filepath}`;
+    
+    // First try with the standard API URL
+    return `${API_URL}${cleanPath}`;
+  }
+
+  // Second attempt - Try with port 8088 (since it appears in errors)
+  if (attempt === 1 && attachment.filepath) {
+    // Extract the filename from the path
+    const filename = attachment.filepath.split('/').pop();
+    
+    // Try the alternative port for localhost specifically
+    if (API_URL.includes('localhost:8080')) {
+      return `http://localhost:8088/uploads/${filename}`;
+    }
+    
+    // For other environments, add a cache buster
+    const cleanPath = attachment.filepath.startsWith('/')
+      ? attachment.filepath
+      : `/${attachment.filepath}`;
+    return `${API_URL}${cleanPath}?v=${Date.now()}`;
+  }
+
+  // Third attempt - Use the API serve endpoint
+  return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
+};
 
 export default function ApplicationDetailModal({ isOpen, onClose, applicationId, onUpdateStatus }: ApplicationDetailModalProps) {
   const [application, setApplication] = useState<any>(null);
@@ -332,22 +523,6 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId,
     if (Object.keys(mediaLoadErrors).length > 0) {
       fetchApplicationDetail();
     }
-  };
-
-  // Build URL for media file
-  const getMediaUrl = (attachment: MediaAttachment): string => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    // If filepath exists, use it (most efficient and direct access)
-    if (attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/')
-        ? attachment.filepath
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}`;
-    }
-
-    // Fallback to API serve endpoint using mediafileid
-    return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
   };
 
   return (
@@ -528,29 +703,29 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId,
                           Tổng số: {application.attachments.length} tệp
                         </Badge>
 
-                        {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length > 0 && (
+                        {application.attachments.filter((att: MediaAttachment) => getFileType(att) === 'image').length > 0 && (
                           <Badge className="bg-gray-100 text-gray-800">
                             <span className="flex items-center gap-1">
                               <ImageIcon className="w-3 h-3" />
-                              {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('image/')).length} ảnh
+                              {application.attachments.filter((att: MediaAttachment) => getFileType(att) === 'image').length} ảnh
                             </span>
                           </Badge>
                         )}
 
-                        {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length > 0 && (
+                        {application.attachments.filter((att: MediaAttachment) => getFileType(att) === 'video').length > 0 && (
                           <Badge className="bg-gray-100 text-gray-800">
                             <span className="flex items-center gap-1">
                               <VideoIcon className="w-3 h-3" />
-                              {application.attachments.filter((att: MediaAttachment) => att.mimetype?.startsWith('video/')).length} video
+                              {application.attachments.filter((att: MediaAttachment) => getFileType(att) === 'video').length} video
                             </span>
                           </Badge>
                         )}
 
-                        {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length > 0 && (
+                        {application.attachments.filter((att: MediaAttachment) => getFileType(att) === 'document').length > 0 && (
                           <Badge className="bg-gray-100 text-gray-800">
                             <span className="flex items-center gap-1">
                               <FileTextIcon className="w-3 h-3" />
-                              {application.attachments.filter((att: MediaAttachment) => !att.mimetype?.startsWith('image/') && !att.mimetype?.startsWith('video/')).length} tài liệu khác
+                              {application.attachments.filter((att: MediaAttachment) => getFileType(att) === 'document').length} tài liệu khác
                             </span>
                           </Badge>
                         )}
@@ -558,118 +733,78 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId,
 
                       {/* Attachments grid */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Images */}
                         {application.attachments
-                          .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('image/'))
-                          .map((attachment: MediaAttachment, index: number) => (
-                            <div key={`image-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a
-                                href={getMediaUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <div className="flex flex-col justify-between h-full">
-                                  <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden relative">
-                                    <MediaImage
-                                      attachment={attachment}
-                                      alt={`Tệp đính kèm ${index + 1}`}
-                                      className="w-full h-full object-contain"
-                                    />
+                          .map((attachment: MediaAttachment, index: number) => {
+                            const fileType = getFileType(attachment);
+                            
+                            // For debugging - log media info for the first few attachments
+                            if (index < 5 && process.env.NODE_ENV === 'development') {
+                              console.log(`Media #${index+1} (ID: ${attachment.mediafileid}):`, {
+                                fileType, 
+                                mimetype: attachment.mimetype,
+                                filetype: attachment.filetype,
+                                filepath: attachment.filepath,
+                                filename: attachment.originalfilename
+                              });
+                            }
+                            
+                            return (
+                              <div key={`file-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
+                                <a
+                                  href={getMediaUrl(attachment)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <div className="flex flex-col justify-between h-full">
+                                    <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden relative min-h-[180px] flex items-center justify-center">
+                                      {fileType === 'image' && (
+                                        <MediaImage
+                                          attachment={attachment}
+                                          alt={`Tệp đính kèm ${index + 1}`}
+                                          className="max-w-full max-h-full object-contain"
+                                          onError={handleMediaError}
+                                        />
+                                      )}
+                                      
+                                      {fileType === 'video' && (
+                                        <VideoPlayer
+                                          attachment={attachment}
+                                          className="w-full h-full object-contain"
+                                          onError={handleMediaError}
+                                        />
+                                      )}
+                                      
+                                      {fileType === 'document' && (
+                                        <div className="flex justify-center items-center h-full">
+                                          <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex flex-col">
+                                      <hr />
+                                      <Text className="text-sm text-center truncate mt-2">
+                                        {attachment.originalfilename || `Tài liệu ${index + 1}`}
+                                      </Text>
+                                      <div className="flex items-center justify-center gap-1 mt-1">
+                                        <Badge className="bg-gray-50 text-gray-700 text-xs">
+                                          {fileType === 'image' && <span className="flex items-center gap-0.5"><ImageIcon className="w-3 h-3" /> Ảnh</span>}
+                                          {fileType === 'video' && <span className="flex items-center gap-0.5"><VideoIcon className="w-3 h-3" /> Video</span>}
+                                          {fileType === 'document' && <span className="flex items-center gap-0.5"><FileTextIcon className="w-3 h-3" /> Tài liệu</span>}
+                                        </Badge>
+                                        {attachment.filesize && (
+                                          <Text className="text-xs text-gray-500">
+                                            {Math.round(attachment.filesize / 1024)} KB
+                                          </Text>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                  
-                                  <div className="flex flex-col">
-                                    <hr />
-                                    <Text className="text-sm text-center truncate mt-2">
-                                      {attachment.originalfilename || `Ảnh ${index + 1}`}
-                                    </Text>
-                                    <Text className="text-xs text-gray-500 text-center">
-                                      {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                      {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                    </Text>
-                                  </div>
-                                </div>
-                              </a>
-                            </div>
-                          ))}
-
-                        {/* Videos */}
-                        {application.attachments
-                          .filter((attachment: MediaAttachment) => attachment.mimetype && attachment.mimetype.startsWith('video/'))
-                          .map((attachment: MediaAttachment, index: number) => (
-                            <div key={`video-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a
-                                href={getMediaUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <div className="aspect-video bg-gray-100 rounded mb-2 overflow-hidden">
-                                  <video
-                                    src={getMediaUrl(attachment)}
-                                    controls
-                                    className="w-full h-full object-contain"
-                                    onError={(e) => {
-                                      console.error(`Lỗi tải video: ${attachment.mediafileid}`);
-                                      handleMediaError(attachment.mediafileid);
-                                      const target = e.target as HTMLVideoElement;
-                                      const parent = target.parentElement;
-                                      if (parent) {
-                                        target.style.display = 'none';
-                                        const iconDiv = document.createElement('div');
-                                        iconDiv.className = 'flex justify-center items-center w-full h-full bg-gray-100';
-                                        iconDiv.innerHTML = `<span class="w-10 h-10 text-gray-400">
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" /><line x1="10" y1="8" x2="10" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></svg>
-                                        </span>`;
-                                        parent.appendChild(iconDiv);
-                                      }
-                                    }}
-                                  />
-                                </div>
-                                <div className="flex flex-col">
-                                  <Text className="text-sm text-center truncate">
-                                    {attachment.originalfilename || `Video ${index + 1}`}
-                                  </Text>
-                                  <Text className="text-xs text-gray-500 text-center">
-                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                  </Text>
-                                </div>
-                              </a>
-                            </div>
-                          ))}
-
-                        {/* Other documents */}
-                        {application.attachments
-                          .filter((attachment: MediaAttachment) =>
-                            attachment.mimetype &&
-                            !attachment.mimetype.startsWith('image/') &&
-                            !attachment.mimetype.startsWith('video/')
-                          )
-                          .map((attachment: MediaAttachment, index: number) => (
-                            <div key={`doc-${index}`} className="border border-gray-200 rounded-md p-2 hover:shadow-md transition-shadow">
-                              <a
-                                href={getMediaUrl(attachment)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <div className="flex justify-center items-center h-36 bg-gray-100 rounded mb-2">
-                                  <span className="w-10 h-10 text-gray-400"><FileTextIcon /></span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <Text className="text-sm text-center truncate">
-                                    {attachment.originalfilename || `Tài liệu ${index + 1}`}
-                                  </Text>
-                                  <Text className="text-xs text-gray-500 text-center">
-                                    {attachment.filesize ? `${Math.round(attachment.filesize / 1024)} KB` : ''}
-                                    {attachment.uploaddate ? ` • ${new Date(attachment.uploaddate).toLocaleDateString()}` : ''}
-                                  </Text>
-                                </div>
-                              </a>
-                            </div>
-                          ))}
+                                </a>
+                              </div>
+                            );
+                          })}
                           
-                        {/* No attachments message */}
                         {!application.attachments || application.attachments.length === 0 ? (
                           <div className="col-span-full text-center py-8">
                             <Text className="text-gray-500">Không có tài liệu đính kèm</Text>

@@ -54,14 +54,37 @@ const app = express();
  * Cấu hình Express và thiết lập middleware
  */
 
+// Debug middleware for CORS issues
+app.use((req, res, next) => {
+  // Log requests to media files to help debug CORS issues
+  if (req.url.includes('/uploads/') || req.url.includes('/api/media-files/')) {
+    console.log('Media request:', {
+      url: req.url,
+      method: req.method,
+      origin: req.headers.origin || 'Unknown origin',
+      referer: req.headers.referer || 'No referer'
+    });
+  }
+  next();
+});
+
 // Ghi log thông tin các yêu cầu HTTP
 app.use(logger.requestLogger());
 
 // Phục vụ file tĩnh từ thư mục public
 app.use('/public', express.static(path.join(__dirname, '..', 'public')));
 
-// Phục vụ file tĩnh từ thư mục uploads trực tiếp
-app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+// Phục vụ file tĩnh từ thư mục uploads với CORS headers
+app.use('/uploads', (req, res, next) => {
+  // Set CORS headers specifically for media files
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  
+  // Proceed to static file serving
+  next();
+}, express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 // Kiểm tra và tạo thư mục uploads nếu chưa tồn tại
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
@@ -99,8 +122,28 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Cấu hình CORS (Cross-Origin Resource Sharing)
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+const corsOptions = {
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    // Define allowed origins
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+    
+    // For development, allow localhost origins with any port
+    if (process.env.NODE_ENV === 'development') {
+      if (origin.match(/^https?:\/\/localhost:[0-9]+$/)) {
+        return callback(null, true);
+      }
+    }
+    
+    if (allowedOrigins.indexOf('*') !== -1 || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked request from: ${origin}`);
+      callback(null, true); // Temporarily allow all origins while debugging
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Accept', 'X-Requested-With'],
   exposedHeaders: ['Content-Length', 'Content-Range'],
@@ -108,7 +151,9 @@ app.use(cors({
   maxAge: 86400, // 24 giờ
   preflightContinue: false,
   optionsSuccessStatus: 204
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Phân tích dữ liệu JSON gửi lên trong body của yêu cầu
 app.use(express.json({ limit: '10mb' }));

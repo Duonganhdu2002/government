@@ -58,6 +58,9 @@ router.get('/', mediaFilesController.getAllMediaFiles);
 // Lấy danh sách file media theo application ID
 router.get('/by-application/:applicationId', mediaFilesController.getMediaFilesByApplicationId);
 
+// Check if a file exists
+router.get('/check', mediaFilesController.checkMediaFileExists);
+
 // Truy cập trực tiếp nội dung file media theo ID
 router.get('/serve/:id', mediaFilesController.serveMediaFile);
 
