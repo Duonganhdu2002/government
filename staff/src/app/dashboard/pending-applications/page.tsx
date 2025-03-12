@@ -11,7 +11,6 @@ import {
   Button, 
   Badge, 
   Table, 
-  FocusModal,
   Textarea,
   Label,
   Select
@@ -34,6 +33,7 @@ import { fetchPendingApplications, updateApplicationStatus, fetchApplicationDeta
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import { getAuthHeaders } from '@/lib/api';
 import ApplicationDetailModal from '@/components/ApplicationDetailModal';
+import Modal from '@/components/Modal';
 
 // Application status component
 const ApplicationStatus = ({ status }: { status: string }) => {
@@ -123,68 +123,66 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
   };
 
   return (
-    <FocusModal open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <FocusModal.Content>
-        <FocusModal.Header>
-          <div className="flex w-full justify-between items-center">
-            <Text size="large" weight="plus" className="font-bold">
-              Cập nhật trạng thái đơn
-            </Text>
-            <Button variant="secondary" size="small" onClick={onClose}>
-              <XMark />
-            </Button>
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal.Header>
+        <div className="flex w-full justify-between items-center">
+          <Text size="large" weight="plus" className="font-bold">
+            Cập nhật trạng thái đơn
+          </Text>
+          <Button variant="secondary" size="small" onClick={onClose}>
+            <XMark />
+          </Button>
+        </div>
+      </Modal.Header>
+      <Modal.Body className="flex flex-col py-6 px-8 gap-y-8">
+        {error && (
+          <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded">
+            {error}
           </div>
-        </FocusModal.Header>
-        <FocusModal.Body className="flex flex-col py-6 px-8 gap-y-8">
-          {error && (
-            <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded">
-              {error}
-            </div>
-          )}
-          
-          <div>
-            <Label className="mb-2">Trạng thái mới</Label>
-            <Select 
-              value={status}
-              onValueChange={setStatus}
-              size="base"
-            >
-              <Select.Trigger>
-                <Select.Value placeholder="Chọn trạng thái" />
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value="in_review">Đang xem xét</Select.Item>
-                <Select.Item value="approved">Duyệt đơn</Select.Item>
-                <Select.Item value="rejected">Từ chối</Select.Item>
-                <Select.Item value="pending_additional_info">Yêu cầu bổ sung thông tin</Select.Item>
-                <Select.Item value="forwarded">Chuyển tiếp</Select.Item>
-              </Select.Content>
-            </Select>
-          </div>
-          
-          <div>
-            <Label className="mb-2">Ghi chú/Ý kiến</Label>
-            <Textarea
-              value={comments}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComments(e.target.value)}
-              placeholder="Nhập ghi chú hoặc ý kiến về đơn này..."
-              rows={4}
-              className="w-full"
-            />
-          </div>
-        </FocusModal.Body>
-        <FocusModal.Footer>
-          <div className="flex w-full justify-end gap-x-2">
-            <Button variant="secondary" onClick={onClose} disabled={loading}>
-              Hủy
-            </Button>
-            <Button variant="primary" onClick={handleSubmit} isLoading={loading}>
-              Cập nhật
-            </Button>
-          </div>
-        </FocusModal.Footer>
-      </FocusModal.Content>
-    </FocusModal>
+        )}
+        
+        <div>
+          <Label className="mb-2">Trạng thái mới</Label>
+          <Select 
+            value={status}
+            onValueChange={setStatus}
+            size="base"
+          >
+            <Select.Trigger>
+              <Select.Value placeholder="Chọn trạng thái" />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="in_review">Đang xem xét</Select.Item>
+              <Select.Item value="approved">Duyệt đơn</Select.Item>
+              <Select.Item value="rejected">Từ chối</Select.Item>
+              <Select.Item value="pending_additional_info">Yêu cầu bổ sung thông tin</Select.Item>
+              <Select.Item value="forwarded">Chuyển tiếp</Select.Item>
+            </Select.Content>
+          </Select>
+        </div>
+        
+        <div>
+          <Label className="mb-2">Ghi chú/Ý kiến</Label>
+          <Textarea
+            value={comments}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComments(e.target.value)}
+            placeholder="Nhập ghi chú hoặc ý kiến về đơn này..."
+            rows={4}
+            className="w-full"
+          />
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <div className="flex w-full justify-end gap-x-2">
+          <Button variant="secondary" onClick={onClose} disabled={loading}>
+            Hủy
+          </Button>
+          <Button variant="primary" onClick={handleSubmit} isLoading={loading}>
+            Cập nhật
+          </Button>
+        </div>
+      </Modal.Footer>
+    </Modal>
   );
 };
 

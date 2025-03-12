@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Text, Heading, Button, Container } from '@medusajs/ui';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
-import { useSelector } from 'react-redux';
+import { useAppSelector } from '@/store/hooks';
 import Modal from './Modal';
 
 // Interface for media attachments
@@ -45,8 +45,8 @@ interface PrintPreviewProps {
 
 const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => {
   const contentRef = useRef<HTMLDivElement>(null);
-  // Get user information from Redux store
-  const { user } = useSelector((state: any) => state.auth);
+  // Get user information from Redux store using the typed hook
+  const { user } = useAppSelector((state) => state.auth);
   const [scale, setScale] = useState<number>(0.85);
 
   // Effect to handle window resize
