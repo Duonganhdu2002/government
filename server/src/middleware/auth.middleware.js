@@ -30,10 +30,32 @@ const verifyToken = (req, res, next) => {
     console.log('Auth header:', authHeader ? `${authHeader.substring(0, 20)}...` : 'Not provided');
 
     if (!authHeader) {
-      return res.status(401).json({ 
-        status: 'error',
-        message: 'No authorization header provided'
+      // Also check for cookies as an alternative authentication method
+      const accessToken = req.cookies?.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({ 
+          status: 'error',
+          message: 'Không có token xác thực. Vui lòng đăng nhập lại.'
+        });
+      }
+      
+      // Verify the token from cookie
+      jwt.verify(accessToken, ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          console.error('Cookie token verification error:', err.message);
+          return res.status(403).json({ 
+            status: 'error',
+            message: 'Token xác thực không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.'
+          });
+        }
+        
+        console.log('Token decoded successfully from cookie:', JSON.stringify(decoded));
+        req.userId = decoded.id;
+        next();
       });
+      
+      return;
     }
 
     // Trích xuất token từ header (định dạng "Bearer <token>")
@@ -43,7 +65,7 @@ const verifyToken = (req, res, next) => {
     if (!token) {
       return res.status(401).json({ 
         status: 'error',
-        message: 'No token provided'
+        message: 'Token xác thực không được cung cấp. Vui lòng đăng nhập lại.'
       });
     }
 
@@ -53,13 +75,41 @@ const verifyToken = (req, res, next) => {
         console.error('Token verification error:', err.message);
         return res.status(403).json({ 
           status: 'error',
-          message: 'Invalid or expired token'
+          message: 'Token xác thực không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.'
         });
       }
 
-      console.log('Token decoded successfully, user ID:', decoded.id);
+      console.log('Token decoded successfully:', JSON.stringify(decoded));
+      
+      // Store full token data in request for debugging
+      req.tokenData = decoded;
+      
+      // Check if id is present in the decoded token
+      if (!decoded.id) {
+        console.error('Token missing user ID field:', decoded);
+        return res.status(403).json({
+          status: 'error',
+          message: 'Invalid token format: missing user ID'
+        });
+      }
+      
+      // Check if user type is specified
+      if (decoded.type && !['staff', 'citizen'].includes(decoded.type)) {
+        console.error('Invalid user type in token:', decoded.type);
+        return res.status(403).json({
+          status: 'error',
+          message: 'Invalid user type'
+        });
+      }
+      
       // Gắn userId vào request để sử dụng sau này
       req.userId = decoded.id;
+      
+      // If role is in the token, store it for convenience
+      if (decoded.role) {
+        req.userRole = decoded.role;
+      }
+      
       next();
     });
   } catch (error) {

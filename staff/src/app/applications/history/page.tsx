@@ -11,7 +11,7 @@ import {
   Button
 } from '@medusajs/ui';
 import { ChevronLeft } from '@medusajs/icons';
-import { fetchUserApplications } from '@/services/applicationService';
+import { fetchPendingApplications } from '@/services/applicationService';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { formatDate } from '@/utils/dateUtils';
 import ApplicationDetailModal from '@/components/ApplicationDetailModal';
@@ -101,12 +101,15 @@ export default function ApplicationHistoryPage() {
       return;
     }
     
-    // Lấy danh sách đơn của người dùng
+    // Lấy danh sách đơn của staff (đã sửa)
     const fetchApplications = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchUserApplications();
+        
+        // Sử dụng fetchPendingApplications thay vì fetchUserApplications
+        const response = await fetchPendingApplications();
+        const data = response?.data || [];
         setApplications(data);
       } catch (err) {
         console.error('Failed to fetch applications:', err);

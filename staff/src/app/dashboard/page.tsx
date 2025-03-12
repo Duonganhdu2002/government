@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import { useAuth } from '@/lib/hooks/useAuth';
-import NewApplicationModal from '@/components/NewApplicationModal';
-import ApplicationDetailModal from '@/components/ApplicationDetailModal';
-import { fetchDashboardData } from '@/services/applicationService';
 
 // Import Medusa UI components
 import {
@@ -28,7 +25,9 @@ import {
   User as UserIcon,
   BellAlert as BellIcon,
   ChevronRight,
+  User
 } from '@medusajs/icons';
+import { fetchDashboardData } from '@/services/applicationService';
 
 /**
  * Application status component
@@ -75,15 +74,15 @@ const ApplicationStatus = ({ status }: { status: string }) => {
 /**
  * Statistics card component
  */
-const StatCard = ({ 
-  title, 
-  value, 
-  description, 
-  icon: Icon 
-}: { 
-  title: string; 
-  value: number | string; 
-  description: string; 
+const StatCard = ({
+  title,
+  value,
+  description,
+  icon: Icon
+}: {
+  title: string;
+  value: number | string;
+  description: string;
   icon: React.ComponentType<any>;
 }) => (
   <div className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-base">
@@ -109,10 +108,10 @@ const StatCard = ({
 /**
  * Recent application item component
  */
-const RecentApplicationItem = ({ 
+const RecentApplicationItem = ({
   application,
   onViewDetail
-}: { 
+}: {
   application: any;
   onViewDetail: (id: number) => void;
 }) => (
@@ -132,8 +131,8 @@ const RecentApplicationItem = ({
       <Text size="small" className="text-ui-fg-subtle">
         ID: {application.applicationid}
       </Text>
-      <Button 
-        variant="secondary" 
+      <Button
+        variant="secondary"
         size="small"
         onClick={() => onViewDetail(application.applicationid)}
       >
@@ -144,34 +143,37 @@ const RecentApplicationItem = ({
 );
 
 /**
- * Quick link component
+ * Quick Link component
  */
-const QuickLink = ({ title, icon: Icon, href, description }: { 
-  title: string; 
+const QuickLink = ({ title, icon: Icon, href, description }: {
+  title: string;
   icon: React.ComponentType<any>;
   href: string;
   description: string;
 }) => (
-  <div className="bg-ui-bg-base rounded-lg border border-ui-border-base p-4">
-    <Heading level="h3" className="text-lg mb-2">{title}</Heading>
-    <Text size="small" className="text-ui-fg-subtle mb-4">
-      {description}
-    </Text>
-    <Link href={href}>
-      <Button variant="secondary" size="small">
-        Nộp hồ sơ
-        <ChevronRight className="ml-1" />
-      </Button>
-    </Link>
-  </div>
+  <Link href={href} className="no-underline">
+    <div className="flex items-center p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:bg-gray-50 transition-colors duration-150">
+      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mr-4">
+        <Icon className="w-6 h-6 text-blue-600" />
+      </div>
+      <div>
+        <Text size="base" weight="plus" className="text-ui-fg-base mb-1">
+          {title}
+        </Text>
+        <Text size="small" className="text-ui-fg-subtle">
+          {description}
+        </Text>
+      </div>
+    </div>
+  </Link>
 );
 
 /**
  * Notification item component
  */
-const NotificationItem = ({ 
-  notification 
-}: { 
+const NotificationItem = ({
+  notification
+}: {
   notification: {
     id: number;
     title: string;
@@ -207,14 +209,14 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [recentApplications, setRecentApplications] = useState<Array<{applicationid: number; [key: string]: any}>>([]);
+  const [recentApplications, setRecentApplications] = useState<Array<{ applicationid: number;[key: string]: any }>>([]);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     approved: 0,
     rejected: 0,
   });
-  
+
   // State for notifications
   const [notifications, setNotifications] = useState<Array<{
     id: number;
@@ -224,10 +226,10 @@ export default function DashboardPage() {
     read: boolean;
   }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  
+
   // State for new application modal
   const [showNewApplicationModal, setShowNewApplicationModal] = useState(false);
-  
+
   // State for application detail modal
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
 
@@ -240,12 +242,12 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Get dashboard data from service
       const dashboardData = await fetchDashboardData();
       setRecentApplications(dashboardData.applications);
       setStats(dashboardData.stats);
-      
+
       // Sample notifications
       const dummyNotifications = [
         {
@@ -263,9 +265,9 @@ export default function DashboardPage() {
           read: true
         }
       ];
-      
+
       setNotifications(dummyNotifications);
-      
+
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -282,7 +284,7 @@ export default function DashboardPage() {
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="px-4 py-6">
+    <div className="py-8 max-w-full">
       <div className="px-4 pb-4 mb-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
@@ -292,8 +294,8 @@ export default function DashboardPage() {
             </Text>
           </div>
           <div className="flex items-center">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               className="mr-2"
               onClick={() => setShowNotifications(true)}
             >
@@ -313,35 +315,35 @@ export default function DashboardPage() {
 
       {/* Statistics */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard 
-          title="Tổng số hồ sơ" 
-          value={stats.total} 
+        <StatCard
+          title="Tổng số hồ sơ"
+          value={stats.total}
           description="Tổng số hồ sơ đã nộp"
-          icon={DocumentText} 
+          icon={DocumentText}
         />
-        <StatCard 
-          title="Đang xử lý" 
-          value={stats.pending} 
+        <StatCard
+          title="Đang xử lý"
+          value={stats.pending}
           description="Số hồ sơ đang được xử lý"
-          icon={Clock} 
+          icon={Clock}
         />
-        <StatCard 
-          title="Đã duyệt" 
-          value={stats.approved} 
+        <StatCard
+          title="Đã duyệt"
+          value={stats.approved}
           description="Số hồ sơ đã được duyệt"
-          icon={Check} 
+          icon={Check}
         />
-        <StatCard 
-          title="Từ chối" 
-          value={stats.rejected} 
+        <StatCard
+          title="Từ chối"
+          value={stats.rejected}
           description="Số hồ sơ bị từ chối"
-          icon={XMark} 
+          icon={XMark}
         />
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Recent applications */}
-        <div className="md:col-span-2">
+
+      <div className="mt-8 grid gap-6 md:grid-cols-12">
+        {/* Left column: Stats and Recent Applications */}
+        <div className="md:col-span-8 space-y-6">
           <div className="bg-ui-bg-base rounded-lg border border-ui-border-base overflow-hidden">
             <div className="p-5 border-b border-ui-border-base flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
@@ -365,9 +367,9 @@ export default function DashboardPage() {
               ) : recentApplications.length > 0 ? (
                 <div>
                   {recentApplications.map((application) => (
-                    <RecentApplicationItem 
-                      key={application.applicationid} 
-                      application={application} 
+                    <RecentApplicationItem
+                      key={application.applicationid}
+                      application={application}
                       onViewDetail={setSelectedApplicationId}
                     />
                   ))}
@@ -386,110 +388,65 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        
-        {/* Document guides section */}
-        <div>
-          <div className="bg-ui-bg-base rounded-lg border border-ui-border-base overflow-hidden h-full">
-            <div className="p-5 border-b border-ui-border-base">
-              <div className="flex items-center">
-                <DocumentText className="text-ui-fg-interactive mr-2" />
-                <Text size="large" weight="plus" className="text-ui-fg-base">Tài liệu hướng dẫn</Text>
-              </div>
-              <Text size="small" className="text-ui-fg-subtle mt-1">
-                Thông tin hữu ích cho việc chuẩn bị hồ sơ
+
+        {/* Right column: Quick links and notifications */}
+        <div className="md:col-span-4 space-y-6">
+          {/* Quick Links */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <Text size="base" weight="plus" className="text-ui-fg-base">
+                Truy cập nhanh
               </Text>
             </div>
-            <div className="p-4">
-              <ul className="space-y-3">
-                <li>
-                  <Link href="/guides/identity-documents" className="flex items-center text-ui-fg-interactive hover:text-ui-fg-interactive-hover">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <UserIcon className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <Text weight="plus">Giấy tờ cá nhân</Text>
-                      <Text size="small" className="text-ui-fg-subtle">Hướng dẫn chuẩn bị giấy tờ cá nhân</Text>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/guides/application-process" className="flex items-center text-ui-fg-interactive hover:text-ui-fg-interactive-hover">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                      <DocumentText className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <Text weight="plus">Quy trình xử lý hồ sơ</Text>
-                      <Text size="small" className="text-ui-fg-subtle">Các bước xử lý hồ sơ hành chính</Text>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/guides/faq" className="flex items-center text-ui-fg-interactive hover:text-ui-fg-interactive-hover">
-                    <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
-                      <Check className="w-4 h-4 text-yellow-600" />
-                    </div>
-                    <div>
-                      <Text weight="plus">Câu hỏi thường gặp</Text>
-                      <Text size="small" className="text-ui-fg-subtle">Giải đáp các thắc mắc phổ biến</Text>
-                    </div>
-                  </Link>
-                </li>
-              </ul>
-              <Link href="/guides" className="flex justify-center mt-4">
-                <Button variant="secondary" size="small">
-                  Xem tất cả hướng dẫn
-                  <ChevronRight className="ml-1" />
-                </Button>
-              </Link>
+            <div className="p-4 space-y-3">
+              <QuickLink
+                title="Đơn cần xử lý"
+                icon={Clock}
+                href="/dashboard/pending-applications"
+                description="Xem danh sách đơn cần xử lý tại cơ quan của bạn"
+              />
+              
+              <QuickLink
+                title="Hồ sơ cá nhân"
+                icon={User}
+                href="/dashboard/profile"
+                description="Cập nhật thông tin hồ sơ cá nhân"
+              />
             </div>
           </div>
+
+          {/* Notifications drawer */}
+          <Drawer open={showNotifications}>
+            <Drawer.Content className="max-w-md">
+              <Drawer.Header>
+                <Drawer.Title>Thông báo</Drawer.Title>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => setShowNotifications(false)}
+                >
+                  <XMark />
+                </Button>
+              </Drawer.Header>
+              <Drawer.Body>
+                {notifications.length > 0 ? (
+                  <div>
+                    {notifications.map(notification => (
+                      <NotificationItem key={notification.id} notification={notification} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center">
+                    <Text className="text-ui-fg-subtle">
+                      Bạn không có thông báo nào
+                    </Text>
+                  </div>
+                )}
+              </Drawer.Body>
+            </Drawer.Content>
+          </Drawer>
         </div>
       </div>
-      
-      {/* Notifications drawer */}
-      <Drawer open={showNotifications}>
-        <Drawer.Content className="max-w-md">
-          <Drawer.Header>
-            <Drawer.Title>Thông báo</Drawer.Title>
-            <Button 
-              variant="secondary" 
-              size="small" 
-              onClick={() => setShowNotifications(false)}
-            >
-              <XMark />
-            </Button>
-          </Drawer.Header>
-          <Drawer.Body>
-            {notifications.length > 0 ? (
-              <div>
-                {notifications.map(notification => (
-                  <NotificationItem key={notification.id} notification={notification} />
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 text-center">
-                <Text className="text-ui-fg-subtle">
-                  Bạn không có thông báo nào
-                </Text>
-              </div>
-            )}
-          </Drawer.Body>
-        </Drawer.Content>
-      </Drawer>
-      
-      {/* New application modal */}
-      <NewApplicationModal 
-        isOpen={showNewApplicationModal}
-        onClose={() => setShowNewApplicationModal(false)}
-        onSuccess={handleApplicationSuccess}
-      />
-      
-      {/* Application detail modal */}
-      <ApplicationDetailModal
-        isOpen={selectedApplicationId !== null}
-        onClose={() => setSelectedApplicationId(null)}
-        applicationId={selectedApplicationId}
-      />
     </div>
   );
 } 

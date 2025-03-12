@@ -17,8 +17,232 @@ const applicationsController = {
       await redisClient.set('all_applications', JSON.stringify(result.rows), { EX: 60 });
       res.status(200).json(result.rows);
     } catch (error) {
-      console.error('Error fetching applications:', error.message);
       res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  },
+
+  // GET PENDING APPLICATIONS FOR STAFF AGENCY
+  getPendingApplicationsForStaffAgency: async (req, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({ 
+          status: 'error',
+          message: 'Authentication failed - no user ID found'
+        });
+      }
+      
+      // Get the staff's agency ID
+      try {
+        const staffResult = await pool.query(
+          'SELECT agencyid, role, fullname FROM staff WHERE staffid = $1',
+          [req.userId]
+        );
+        
+        if (staffResult.rows.length === 0) {
+          return res.status(404).json({ 
+            status: 'error',
+            message: 'Staff not found',
+            userId: req.userId
+          });
+        }
+        
+        const { agencyid, role, fullname } = staffResult.rows[0];
+        
+        // Check if agencyId is null or undefined
+        if (!agencyid) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Staff does not have an agency assigned',
+            staffId: req.userId
+          });
+        }
+        
+        // Check if we have cached results for this agency
+        const redisKey = `pending_applications_agency_${agencyid}`;
+        let cached;
+        try {
+          cached = await redisClient.get(redisKey);
+        } catch (redisError) {
+          // Continue without cache on Redis error
+        }
+        
+        if (cached) {
+          try {
+            const parsedData = JSON.parse(cached);
+            return res.status(200).json({
+              status: 'success',
+              data: parsedData
+            });
+          } catch (parseError) {
+            // Continue without using cache
+          }
+        }
+        
+        // Query applications that need approval at this agency
+        try {
+          const result = await pool.query(
+            `SELECT a.*, 
+              at.typename as applicationtypename, 
+              sat.typename as specialapplicationtypename,
+              c.fullname as citizenname,
+              (SELECT agencyname FROM agencies WHERE agencyid = a.agencyid) as agencyname
+            FROM applications a
+            LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+            LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+            LEFT JOIN citizens c ON a.citizenid = c.citizenid
+            WHERE a.agencyid = $1
+            AND (a.status = 'Submitted' OR LOWER(a.status) IN ('pending', 'in_review'))
+            ORDER BY 
+              CASE WHEN a.isoverdue = true THEN 0 ELSE 1 END,
+              a.duedate ASC,
+              a.submissiondate DESC;`,
+            [agencyid]
+          );
+          
+          // Cache the results for 5 minutes
+          try {
+            await redisClient.set(redisKey, JSON.stringify(result.rows), { EX: 300 });
+          } catch (redisError) {
+            // Continue without caching on Redis error
+          }
+          
+          return res.status(200).json({
+            status: 'success',
+            data: result.rows
+          });
+        } catch (dbQueryError) {
+          return res.status(500).json({ 
+            status: 'error',
+            message: 'Failed to query applications',
+            details: dbQueryError.message
+          });
+        }
+      } catch (staffQueryError) {
+        return res.status(500).json({ 
+          status: 'error',
+          message: 'Failed to fetch staff information',
+          details: staffQueryError.message
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error',
+        message: 'Failed to fetch pending applications',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  // GET APPLICATION DETAIL FOR STAFF
+  getApplicationDetailForStaff: async (req, res) => {
+    const { id } = req.params;
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Invalid Application ID' 
+      });
+    }
+    
+    try {
+      // Get the staff's agency ID
+      const staffResult = await pool.query(
+        'SELECT agencyid, role FROM staff WHERE staffid = $1',
+        [req.userId]
+      );
+      
+      if (staffResult.rows.length === 0) {
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Staff not found' 
+        });
+      }
+      
+      const { agencyid, role } = staffResult.rows[0];
+      
+      // Check if we have cached results for this application for staff view
+      const redisKey = `application_staff_view_${id}`;
+      const cached = await redisClient.get(redisKey);
+      
+      if (cached) {
+        const cachedData = JSON.parse(cached);
+        // Only return cached data if the application belongs to the staff's agency
+        // or if the staff has an admin role
+        if (cachedData.agencyid === agencyid || role === 'admin') {
+          return res.status(200).json(cachedData);
+        }
+      }
+      
+      // Query application details with additional information for staff
+      const result = await pool.query(
+        `SELECT a.*, 
+          at.typename as applicationtypename, 
+          sat.typename as specialapplicationtypename,
+          c.fullname as citizenname,
+          c.email as citizenemail,
+          c.phone as citizenphone,
+          c.address as citizenaddress,
+          (SELECT agencyname FROM agencies WHERE agencyid = a.agencyid) as agencyname,
+          (SELECT json_agg(
+            json_build_object(
+              'historyid', ph.historyid,
+              'status', ph.status,
+              'comments', ph.comments,
+              'timestamp', ph.timestamp,
+              'agencyid', ph.agencyid,
+              'agencyname', (SELECT agencyname FROM agencies WHERE agencyid = ph.agencyid),
+              'staffid', ph.staffid,
+              'staffname', (SELECT fullname FROM staff WHERE staffid = ph.staffid)
+            )
+          ) FROM processinghistory ph WHERE ph.applicationid = a.applicationid) as processing_history,
+          (SELECT json_agg(
+            json_build_object(
+              'mediafileid', mf.mediafileid,
+              'filename', mf.filename,
+              'filetype', mf.filetype,
+              'filesize', mf.filesize,
+              'uploaddate', mf.uploaddate,
+              'filepath', mf.filepath
+            )
+          ) FROM mediafiles mf WHERE mf.applicationid = a.applicationid) as media_files
+        FROM applications a
+        LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+        LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+        LEFT JOIN citizens c ON a.citizenid = c.citizenid
+        WHERE a.applicationid = $1;`,
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Application not found' 
+        });
+      }
+      
+      const applicationData = result.rows[0];
+      
+      // Check if the staff has permission to view this application
+      // Staff can only view applications assigned to their agency or if they have admin role
+      if (applicationData.agencyid !== agencyid && role !== 'admin') {
+        return res.status(403).json({ 
+          status: 'error',
+          message: 'You do not have permission to view this application' 
+        });
+      }
+      
+      // Cache the results for 5 minutes
+      await redisClient.set(redisKey, JSON.stringify(applicationData), { EX: 300 });
+      
+      res.status(200).json({
+        status: 'success',
+        data: applicationData
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error',
+        message: 'Failed to fetch application details' 
+      });
     }
   },
 
@@ -52,7 +276,6 @@ const applicationsController = {
       await redisClient.set(redisKey, JSON.stringify(result.rows[0]), { EX: 60 });
       res.status(200).json(result.rows[0]);
     } catch (error) {
-      console.error('Error fetching application by ID:', error.message);
       res.status(500).json({ error: 'Failed to fetch application' });
     }
   },
@@ -85,7 +308,6 @@ const applicationsController = {
       await redisClient.set(redisKey, JSON.stringify(result.rows), { EX: 60 });
       res.status(200).json(result.rows);
     } catch (error) {
-      console.error('Error fetching applications by citizen ID:', error.message);
       res.status(500).json({ error: 'Failed to fetch applications' });
     }
   },
@@ -100,7 +322,7 @@ const applicationsController = {
       description,
       submissiondate,
       status,
-      currentagencyid,
+      agencyid,
       lastupdated,
       duedate,
       isoverdue,
@@ -117,11 +339,11 @@ const applicationsController = {
       const result = await pool.query(
         `INSERT INTO applications 
          (citizenid, applicationtypeid, specialapplicationtypeid, title, description, 
-          submissiondate, status, currentagencyid, lastupdated, duedate, 
+          submissiondate, status, agencyid, lastupdated, duedate, 
           isoverdue, hasmedia, eventdate, location)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;`,
         [citizenid, applicationtypeid, specialapplicationtypeid, title, description, 
-         submissiondate, status || 'Submitted', currentagencyid, lastupdated || new Date(), 
+         submissiondate, status || 'Submitted', agencyid, lastupdated || new Date(), 
          duedate, isoverdue || false, hasmedia || false, eventdate, location]
       );
       
@@ -131,7 +353,6 @@ const applicationsController = {
       
       res.status(201).json(result.rows[0]);
     } catch (error) {
-      console.error('Error creating application:', error.message);
       res.status(500).json({ error: 'Failed to create application' });
     }
   },
@@ -147,7 +368,7 @@ const applicationsController = {
       description,
       submissiondate,
       status,
-      currentagencyid,
+      agencyid,
       lastupdated,
       duedate,
       isoverdue,
@@ -177,11 +398,11 @@ const applicationsController = {
         `UPDATE applications
          SET citizenid = $1, applicationtypeid = $2, specialapplicationtypeid = $3, 
              title = $4, description = $5, submissiondate = $6, status = $7, 
-             currentagencyid = $8, lastupdated = $9, duedate = $10, isoverdue = $11, 
+             agencyid = $8, lastupdated = $9, duedate = $10, isoverdue = $11, 
              hasmedia = $12, eventdate = $13, location = $14
          WHERE applicationid = $15 RETURNING *;`,
         [citizenid, applicationtypeid, specialapplicationtypeid, title, description, 
-         submissiondate, status, currentagencyid, lastupdated || new Date(), 
+         submissiondate, status, agencyid, lastupdated || new Date(), 
          duedate, isoverdue, hasmedia, eventdate, location, id]
       );
       
@@ -201,7 +422,6 @@ const applicationsController = {
       
       res.status(200).json(result.rows[0]);
     } catch (error) {
-      console.error('Error updating application:', error.message);
       res.status(500).json({ error: 'Failed to update application' });
     }
   },
@@ -241,7 +461,6 @@ const applicationsController = {
       
       res.status(200).json({ message: 'Application deleted successfully' });
     } catch (error) {
-      console.error('Error deleting application:', error.message);
       res.status(500).json({ error: 'Failed to delete application' });
     }
   },
@@ -295,7 +514,6 @@ const applicationsController = {
       
       res.status(200).json(statistics);
     } catch (error) {
-      console.error('Error fetching application statistics:', error.message);
       res.status(500).json({ error: 'Failed to fetch application statistics' });
     }
   },
@@ -333,8 +551,387 @@ const applicationsController = {
       
       res.status(200).json(result.rows);
     } catch (error) {
-      console.error('Error fetching current user applications:', error.message);
       res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  },
+
+  // UPDATE APPLICATION STATUS BY STAFF
+  updateApplicationStatus: async (req, res) => {
+    const { id } = req.params;
+    const { status, comments, nextAgencyId } = req.body;
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Invalid Application ID' 
+      });
+    }
+    
+    // Validate status
+    const validStatuses = ['in_review', 'approved', 'rejected', 'pending_additional_info', 'forwarded'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Invalid status value. Must be one of: ' + validStatuses.join(', ')
+      });
+    }
+    
+    // Start a transaction
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Get the staff information
+      const staffResult = await client.query(
+        'SELECT staffid, agencyid, fullname, role FROM staff WHERE staffid = $1',
+        [req.userId]
+      );
+      
+      if (staffResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Staff not found' 
+        });
+      }
+      
+      const { staffid, agencyid, fullname, role } = staffResult.rows[0];
+      
+      // Get the application
+      const applicationResult = await client.query(
+        'SELECT * FROM applications WHERE applicationid = $1',
+        [id]
+      );
+      
+      if (applicationResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Application not found' 
+        });
+      }
+      
+      const application = applicationResult.rows[0];
+      
+      // Check if the staff has permission to update this application
+      // Staff can only update applications assigned to their agency or if they have admin role
+      if (application.agencyid !== agencyid && role !== 'admin') {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ 
+          status: 'error',
+          message: 'You do not have permission to update this application' 
+        });
+      }
+      
+      // Determine the new current agency ID
+      let newAgencyId = agencyid;
+      
+      // If status is 'forwarded', we need a next agency ID
+      if (status === 'forwarded' && !nextAgencyId) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          status: 'error',
+          message: 'Next agency ID is required when forwarding an application' 
+        });
+      } else if (status === 'forwarded') {
+        // Verify the next agency exists
+        const agencyResult = await client.query(
+          'SELECT * FROM agencies WHERE agencyid = $1',
+          [nextAgencyId]
+        );
+        
+        if (agencyResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ 
+            status: 'error',
+            message: 'Next agency not found' 
+          });
+        }
+        
+        newAgencyId = nextAgencyId;
+      }
+      
+      // Update the application status
+      const updateResult = await client.query(
+        `UPDATE applications 
+        SET status = $1, 
+            agencyid = $2, 
+            lastupdated = NOW()
+        WHERE applicationid = $3
+        RETURNING *`,
+        [status, newAgencyId, id]
+      );
+      
+      // Add entry to processing history
+      await client.query(
+        `INSERT INTO processinghistory 
+          (applicationid, status, comments, timestamp, agencyid, staffid)
+        VALUES ($1, $2, $3, NOW(), $4, $5)`,
+        [id, status, comments || null, agencyid, staffid]
+      );
+      
+      // If status is 'approved' or 'rejected', we might want to send a notification to the citizen
+      if (status === 'approved' || status === 'rejected') {
+        await client.query(
+          `INSERT INTO notifications 
+            (citizenid, title, message, isread, createdat)
+          VALUES ($1, $2, $3, false, NOW())`,
+          [
+            application.citizenid,
+            `Your application has been ${status}`,
+            `Your application "${application.title}" has been ${status} by ${fullname} from the ${agencyResult ? agencyResult.rows[0].name : 'agency'}.${comments ? ' Comments: ' + comments : ''}`
+          ]
+        );
+      }
+      
+      // Commit the transaction
+      await client.query('COMMIT');
+      
+      // Clear any cached data for this application
+      await redisClient.del(`application_${id}`);
+      await redisClient.del(`application_staff_view_${id}`);
+      await redisClient.del(`pending_applications_agency_${agencyid}`);
+      if (nextAgencyId) {
+        await redisClient.del(`pending_applications_agency_${nextAgencyId}`);
+      }
+      
+      res.status(200).json({
+        status: 'success',
+        message: `Application status updated to ${status}`,
+        data: updateResult.rows[0]
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ 
+        status: 'error',
+        message: 'Failed to update application status' 
+      });
+    } finally {
+      client.release();
+    }
+  },
+
+  // SEARCH APPLICATIONS FOR STAFF
+  searchApplications: async (req, res) => {
+    try {
+      // Get the staff's agency ID and role
+      const staffResult = await pool.query(
+        'SELECT agencyid, role FROM staff WHERE staffid = $1',
+        [req.userId]
+      );
+      
+      if (staffResult.rows.length === 0) {
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Staff not found' 
+        });
+      }
+      
+      const { agencyid, role } = staffResult.rows[0];
+      
+      // Extract query parameters
+      const {
+        status,
+        applicationTypeId,
+        specialApplicationTypeId,
+        citizenId,
+        searchTerm,
+        startDate,
+        endDate,
+        isOverdue,
+        sortBy = 'submissiondate',
+        sortOrder = 'DESC',
+        page = 1,
+        limit = 10
+      } = req.query;
+      
+      // Build the query
+      let query = `
+        SELECT a.*, 
+          at.typename as applicationtypename, 
+          sat.typename as specialapplicationtypename,
+          c.fullname as citizenname,
+          (SELECT agencyname FROM agencies WHERE agencyid = a.agencyid) as agencyname
+        FROM applications a
+        LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+        LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+        LEFT JOIN citizens c ON a.citizenid = c.citizenid
+        WHERE 1=1
+      `;
+      
+      const queryParams = [];
+      let paramIndex = 1;
+      
+      // Only admin can see all applications, regular staff can only see applications for their agency
+      if (role !== 'admin') {
+        query += ` AND a.agencyid = $${paramIndex}`;
+        queryParams.push(agencyid);
+        paramIndex++;
+      }
+      
+      // Add filters
+      if (status) {
+        query += ` AND a.status = $${paramIndex}`;
+        queryParams.push(status);
+        paramIndex++;
+      }
+      
+      if (applicationTypeId) {
+        query += ` AND a.applicationtypeid = $${paramIndex}`;
+        queryParams.push(applicationTypeId);
+        paramIndex++;
+      }
+      
+      if (specialApplicationTypeId) {
+        query += ` AND a.specialapplicationtypeid = $${paramIndex}`;
+        queryParams.push(specialApplicationTypeId);
+        paramIndex++;
+      }
+      
+      if (citizenId) {
+        query += ` AND a.citizenid = $${paramIndex}`;
+        queryParams.push(citizenId);
+        paramIndex++;
+      }
+      
+      if (searchTerm) {
+        query += ` AND (
+          a.title ILIKE $${paramIndex} OR 
+          a.description ILIKE $${paramIndex} OR 
+          c.fullname ILIKE $${paramIndex}
+        )`;
+        queryParams.push(`%${searchTerm}%`);
+        paramIndex++;
+      }
+      
+      if (startDate) {
+        query += ` AND a.submissiondate >= $${paramIndex}`;
+        queryParams.push(startDate);
+        paramIndex++;
+      }
+      
+      if (endDate) {
+        query += ` AND a.submissiondate <= $${paramIndex}`;
+        queryParams.push(endDate);
+        paramIndex++;
+      }
+      
+      if (isOverdue !== undefined) {
+        query += ` AND a.isoverdue = $${paramIndex}`;
+        queryParams.push(isOverdue === 'true');
+        paramIndex++;
+      }
+      
+      // Add sorting
+      const validSortColumns = ['submissiondate', 'duedate', 'lastupdated', 'title', 'status'];
+      const validSortOrders = ['ASC', 'DESC'];
+      
+      const finalSortBy = validSortColumns.includes(sortBy) ? sortBy : 'submissiondate';
+      const finalSortOrder = validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+      
+      query += ` ORDER BY a.${finalSortBy} ${finalSortOrder}`;
+      
+      // Add pagination
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      queryParams.push(parseInt(limit), offset);
+      
+      // Execute the query
+      const result = await pool.query(query, queryParams);
+      
+      // Get total count for pagination
+      let countQuery = `
+        SELECT COUNT(*) 
+        FROM applications a
+        LEFT JOIN citizens c ON a.citizenid = c.citizenid
+        WHERE 1=1
+      `;
+      
+      // Reuse the same WHERE conditions but without ORDER BY, LIMIT, and OFFSET
+      const countParams = queryParams.slice(0, -2);
+      let countParamIndex = 1;
+      
+      if (role !== 'admin') {
+        countQuery += ` AND a.agencyid = $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (status) {
+        countQuery += ` AND a.status = $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (applicationTypeId) {
+        countQuery += ` AND a.applicationtypeid = $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (specialApplicationTypeId) {
+        countQuery += ` AND a.specialapplicationtypeid = $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (citizenId) {
+        countQuery += ` AND a.citizenid = $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (searchTerm) {
+        countQuery += ` AND (
+          a.title ILIKE $${countParamIndex} OR 
+          a.description ILIKE $${countParamIndex} OR 
+          c.fullname ILIKE $${countParamIndex}
+        )`;
+        countParamIndex++;
+      }
+      
+      if (startDate) {
+        countQuery += ` AND a.submissiondate >= $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (endDate) {
+        countQuery += ` AND a.submissiondate <= $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      if (isOverdue !== undefined) {
+        countQuery += ` AND a.isoverdue = $${countParamIndex}`;
+        countParamIndex++;
+      }
+      
+      const countResult = await pool.query(countQuery, countParams);
+      const totalCount = parseInt(countResult.rows[0].count);
+      const totalPages = Math.ceil(totalCount / parseInt(limit));
+      
+      res.status(200).json({
+        status: 'success',
+        count: result.rows.length,
+        totalCount,
+        totalPages,
+        currentPage: parseInt(page),
+        data: result.rows,
+        filters: {
+          status,
+          applicationTypeId,
+          specialApplicationTypeId,
+          citizenId,
+          searchTerm,
+          startDate,
+          endDate,
+          isOverdue
+        },
+        sorting: {
+          sortBy: finalSortBy,
+          sortOrder: finalSortOrder
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error',
+        message: 'Failed to search applications' 
+      });
     }
   }
 };

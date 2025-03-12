@@ -1040,6 +1040,8 @@ const authController = {
     }
     
     try {
+      console.log('Login attempt with staffId:', staffId);
+      
       // Query user based on staffId
       const query = `
         SELECT 
@@ -1057,6 +1059,24 @@ const authController = {
       }
       
       const user = result.rows[0];
+      console.log('Staff found:', { 
+        staffId: user.staffid, 
+        role: user.role || 'UNDEFINED', 
+        agencyId: user.agencyid || 'UNDEFINED'
+      });
+      
+      // Check if role is defined
+      if (!user.role) {
+        logger.warn('Staff account has no defined role', { staffId: user.staffid });
+        console.warn('Staff account missing role. Setting default role as "staff"');
+        user.role = 'staff'; // Set a default role if not defined
+      }
+      
+      // Check if agency ID is defined
+      if (!user.agencyid) {
+        logger.warn('Staff account has no agency assigned', { staffId: user.staffid });
+        console.warn('Staff account missing agency ID');
+      }
       
       // Verify password
       const isPasswordValid = await authUtil.comparePassword(password, user.passwordhash);

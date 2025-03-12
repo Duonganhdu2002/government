@@ -545,22 +545,17 @@ export const fetchDashboardData = async (): Promise<{
   };
 }> => {
   try {
-    // Sử dụng hàm fetchUserApplications để lấy danh sách đơn của người dùng
-    const applications = await fetchUserApplications();
+    // Không sử dụng fetchUserApplications nữa vì gọi API citizen
+    // Thay vào đó, sử dụng fetchPendingApplications dành cho staff
+    const response = await fetchPendingApplications();
+    const applications = response?.data || [];
     
-    // Tính toán số liệu thống kê
+    // Tính toán số liệu thống kê dựa trên pending applications
     const stats = {
       total: applications.length,
-      pending: applications.filter((app: any) => 
-        (app.status || '').toLowerCase() === 'pending' || 
-        (app.status || '').toLowerCase() === 'processing'
-      ).length,
-      approved: applications.filter((app: any) => 
-        (app.status || '').toLowerCase() === 'approved'
-      ).length,
-      rejected: applications.filter((app: any) => 
-        (app.status || '').toLowerCase() === 'rejected'
-      ).length,
+      pending: applications.length, // Tất cả đều là pending
+      approved: 0,  // Staff dashboard chỉ hiển thị pending applications
+      rejected: 0,  // Staff dashboard chỉ hiển thị pending applications
     };
     
     // Sắp xếp đơn hàng theo thời gian nộp mới nhất
@@ -579,6 +574,215 @@ export const fetchDashboardData = async (): Promise<{
     };
   } catch (error) {
     console.error('Error in fetchDashboardData:', error);
+    
+    // Trả về dữ liệu trống khi có lỗi để tránh crash UI
+    return {
+      applications: [],
+      stats: {
+        total: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+      }
+    };
+  }
+};
+
+/**
+ * Lấy danh sách đơn ứng dụng cần duyệt tại cơ quan của nhân viên
+ */
+export const fetchPendingApplications = async (): Promise<any> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
+  
+  try {
+    console.log('Calling pending-approval endpoint with URL:', `${API_BASE_URL}/api/applications/pending-approval`);
+    
+    const headers = getAuthHeaders();
+    console.log('Auth headers:', headers);
+    
+    // Make the actual call
+    const response = await fetch(`${API_BASE_URL}/api/applications/pending-approval`, {
+      signal: controller.signal,
+      headers: headers,
+      credentials: 'include' // Include cookies with request
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log('Response status:', response.status, response.statusText);
+    
+    // Log the full response for debugging
+    const responseText = await response.text();
+    console.log('Response text:', responseText);
+    
+    // Convert back to JSON if it was successful
+    if (response.ok) {
+      try {
+        const jsonResponse = JSON.parse(responseText);
+        
+        // Check if the response has the expected structure
+        if (jsonResponse && jsonResponse.status === 'success' && Array.isArray(jsonResponse.data)) {
+          return jsonResponse;
+        } else if (jsonResponse && Array.isArray(jsonResponse)) {
+          // Handle old response format (direct array)
+          return { status: 'success', data: jsonResponse };
+        } else if (jsonResponse && jsonResponse.data) {
+          // Ensure we return in the expected format
+          return jsonResponse;
+        } else {
+          console.error('Unexpected response format:', jsonResponse);
+          throw new Error('Unexpected response format from server');
+        }
+      } catch (e) {
+        console.error('Error parsing JSON response:', e);
+        throw new Error('Invalid response format from server');
+      }
+    }
+    
+    // Get more information about the error
+    let errorMessage = '';
+    try {
+      const errorData = JSON.parse(responseText);
+      errorMessage = errorData.message || 'Unknown error';
+      console.log('Error details from server:', errorData);
+    } catch (e) {
+      errorMessage = responseText || `Error: ${response.status} ${response.statusText}`;
+    }
+    
+    // Check for specific error types and provide more helpful messages
+    if (response.status === 403) {
+      throw new Error(`Không có quyền truy cập: ${errorMessage}. Vui lòng đăng nhập bằng tài khoản nhân viên có quyền xử lý đơn.`);
+    } else if (response.status === 401) {
+      throw new Error(`Phiên đăng nhập đã hết hạn: ${errorMessage}. Vui lòng đăng nhập lại.`);
+    } else if (response.status === 404) {
+      throw new Error(`Không tìm thấy dữ liệu: ${errorMessage}.`);
+    } else {
+      throw new Error(`Lỗi khi tải dữ liệu: ${errorMessage}`);
+    }
+  } catch (error) {
+    console.error('Error in fetchPendingApplications:', error);
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
+
+/**
+ * Lấy thông tin chi tiết của đơn ứng dụng cho nhân viên
+ */
+export const fetchApplicationDetailForStaff = async (id: string): Promise<any> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 giây timeout
+  
+  try {
+    console.log(`Fetching application details for ID: ${id} using standard endpoint`);
+    
+    // Use the standard application detail endpoint instead of staff-view
+    const response = await fetch(`${API_BASE_URL}/api/applications/${id}`, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      credentials: 'include' // Include cookies with request
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error('Error response from API:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: `${API_BASE_URL}/api/applications/${id}`
+      });
+      
+      throw new Error(`Failed to fetch application detail: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('Successfully fetched application detail:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in fetchApplicationDetailForStaff:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cập nhật trạng thái đơn ứng dụng
+ */
+export const updateApplicationStatus = async (id: string, status: string, comments?: string, nextAgencyId?: number): Promise<any> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/applications/update-status/${id}`, {
+      method: 'PUT',
+      signal: controller.signal,
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status,
+        comments,
+        nextAgencyId
+      })
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error('Error response from API:', response.status, response.statusText);
+      throw new Error(`Failed to update application status: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('Successfully updated application status:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in updateApplicationStatus:', error);
+    throw error;
+  }
+};
+
+/**
+ * Tìm kiếm và lọc đơn ứng dụng
+ */
+export const searchApplications = async (searchParams: any): Promise<any> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
+  
+  try {
+    // Xây dựng query string từ searchParams
+    const queryString = Object.entries(searchParams)
+      .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value as string)}`)
+      .join('&');
+    
+    const response = await fetch(`${API_BASE_URL}/api/applications/search?${queryString}`, {
+      signal: controller.signal,
+      headers: getAuthHeaders()
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error('Error response from API:', response.status, response.statusText);
+      throw new Error(`Failed to search applications: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('Successfully searched applications:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in searchApplications:', error);
     throw error;
   }
 }; 

@@ -246,13 +246,13 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
           </div>
 
           <div class="section">
-            <div class="section-title">Kính gửi: Cơ quan chức năng</div>
+            <div class="section-title">Kính gửi: ${application.agencyname || 'Cơ quan chức năng'}</div>
             <div class="field">
-              <p>Tôi tên là: <strong>${user?.fullname || application.citizenname || ''}</strong></p>
-              <p>Số CCCD/CMND: <strong>${user?.identificationNumber || application.citizenid || ''}</strong></p>
-              <p>Địa chỉ: <strong>${user?.address || application.citizenaddress || ''}</strong></p>
-              <p>Số điện thoại: <strong>${user?.phone || application.citizenphone || ''}</strong></p>
-              <p>Email: <strong>${user?.email || application.citizenemail || ''}</strong></p>
+              <p>Người nộp đơn: <strong>${application.citizenname || ''}</strong></p>
+              <p>Số CCCD/CMND: <strong>${application.citizenid || ''}</strong></p>
+              <p>Địa chỉ: <strong>${application.citizenaddress || ''}</strong></p>
+              <p>Số điện thoại: <strong>${application.citizenphone || ''}</strong></p>
+              <p>Email: <strong>${application.citizenemail || ''}</strong></p>
             </div>
           </div>
 
@@ -268,6 +268,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
               <p>Hạn xử lý: <strong>${formatDate(application.duedate)}</strong></p>
               ` : ''}
               <p>Trạng thái: <strong>${getStatusText(application.status)}</strong></p>
+              <p>Cơ quan xử lý: <strong>${application.agencyname || 'N/A'}</strong></p>
             </div>
           </div>
 
@@ -311,7 +312,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
 
           <div class="section">
             <p>
-              Tôi xin cam đoan những thông tin trên đây là hoàn toàn đúng sự thật. Tôi xin chịu trách nhiệm trước pháp luật về tính chính xác của các thông tin đã khai báo.
+              Đơn đăng ký này đã được nộp vào hệ thống và đang được xử lý. Nhân viên có thể thêm ý kiến xử lý và cập nhật trạng thái đơn dựa trên các quy định hiện hành.
             </p>
           </div>
 
@@ -322,8 +323,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
             </div>
             <div class="signature-box">
               <div class="signature-date">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
-              <div class="signature-title">NGƯỜI LÀM ĐƠN</div>
-              <div><strong>${user?.fullname || application.citizenname || ''}</strong></div>
+              <div class="signature-title">NGƯỜI NỘP ĐƠN</div>
+              <div><strong>${application.citizenname || ''}</strong></div>
             </div>
           </div>
         </div>
@@ -353,23 +354,25 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
     switch (status?.toLowerCase()) {
       case 'pending':
         return 'Chờ xử lý';
+      case 'in_review':
+        return 'Đang xem xét';
+      case 'submitted':
+        return 'Đã nộp';
       case 'approved':
         return 'Đã duyệt';
       case 'rejected':
         return 'Đã từ chối';
-      case 'processing':
-        return 'Đang xử lý';
+      case 'pending_additional_info':
+        return 'Cần bổ sung';
+      case 'forwarded':
+        return 'Đã chuyển tiếp';
       default:
         return status || 'Chờ xử lý';
     }
   };
 
   return (
-    <Modal 
-      isOpen={true} 
-      onClose={onClose} 
-      className="max-w-6xl flex flex-col overflow-hidden"
-    >
+    <Modal isOpen={true} onClose={onClose}>
       <Modal.Header className="p-4 flex justify-between items-center bg-white z-30">
         <div className="flex items-center">
           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
@@ -383,7 +386,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
               </svg>
             </span>
           </div>
-          <Heading level="h3">Xem trước đơn của bạn</Heading>
+          <Heading level="h3">Xem trước đơn</Heading>
         </div>
         <div>
           <Button variant="secondary" size="small" onClick={onClose} aria-label="Đóng">
@@ -479,22 +482,22 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
 
             {/* Kính gửi */}
             <div className="mb-6">
-              <Heading level="h3" className="font-bold mb-3">Kính gửi: Cơ quan chức năng</Heading>
+              <Heading level="h3" className="font-bold mb-3">Kính gửi: {application.agencyname || 'Cơ quan chức năng'}</Heading>
               <div className="space-y-2">
                 <div>
-                  <Text>Tôi tên là: <span className="font-semibold">{user?.fullname || application.citizenname || ''}</span></Text>
+                  <Text>Người nộp đơn: <span className="font-semibold">{application.citizenname || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Số CCCD/CMND: <span className="font-semibold">{user?.identificationNumber || application.citizenid || ''}</span></Text>
+                  <Text>Số CCCD/CMND: <span className="font-semibold">{application.citizenid || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Địa chỉ: <span className="font-semibold">{user?.address || application.citizenaddress || ''}</span></Text>
+                  <Text>Địa chỉ: <span className="font-semibold">{application.citizenaddress || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Số điện thoại: <span className="font-semibold">{user?.phone || application.citizenphone || ''}</span></Text>
+                  <Text>Số điện thoại: <span className="font-semibold">{application.citizenphone || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Email: <span className="font-semibold">{user?.email || application.citizenemail || ''}</span></Text>
+                  <Text>Email: <span className="font-semibold">{application.citizenemail || ''}</span></Text>
                 </div>
               </div>
             </div>
@@ -523,6 +526,9 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
                   <Text>Trạng thái: <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusClass(application.status)}`}>
                     {getStatusText(application.status)}
                   </span></Text>
+                </div>
+                <div>
+                  <Text>Cơ quan xử lý: <span className="font-semibold">{application.agencyname || 'N/A'}</span></Text>
                 </div>
               </div>
             </div>
@@ -579,10 +585,10 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
               </div>
             )}
 
-            {/* Cam kết */}
+            {/* Cam kết - Staff version */}
             <div className="mb-8">
               <Text className="text-sm">
-                Tôi xin cam đoan những thông tin trên đây là hoàn toàn đúng sự thật. Tôi xin chịu trách nhiệm trước pháp luật về tính chính xác của các thông tin đã khai báo.
+                Đơn này đã được nộp vào hệ thống và đang được xử lý bởi nhân viên có thẩm quyền. Quá trình xử lý tuân thủ theo các quy định hiện hành của cơ quan.
               </Text>
             </div>
 
@@ -593,8 +599,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
               </div>
               <div className="text-center">
                 <Text className="italic mb-4">Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}</Text>
-                <Text className="font-semibold mb-24">NGƯỜI LÀM ĐƠN</Text>
-                <Text className="font-semibold">{user?.fullname || application.citizenname || ''}</Text>
+                <Text className="font-semibold mb-24">NGƯỜI NỘP ĐƠN</Text>
+                <Text className="font-semibold">{application.citizenname || ''}</Text>
               </div>
             </div>
           </div>
@@ -648,13 +654,17 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
 const getStatusClass = (status: string): string => {
   switch (status?.toLowerCase()) {
     case 'pending':
+    case 'submitted':
       return 'bg-yellow-100 text-yellow-800';
     case 'approved':
       return 'bg-green-100 text-green-800';
     case 'rejected':
       return 'bg-red-100 text-red-800';
-    case 'processing':
+    case 'in_review':
+    case 'forwarded':
       return 'bg-blue-100 text-blue-800';
+    case 'pending_additional_info':
+      return 'bg-orange-100 text-orange-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }

@@ -94,15 +94,48 @@ export const useAuth = () => {
               sameSite: 'lax'
             });
             
+            // Double-check that role is properly set
+            if (!userData.role) {
+              console.warn('WARNING: User role is not defined in the API response');
+              console.log('Full user data received:', userData);
+              
+              // Try to check for role in a different case format
+              const possibleRoleKeys = ['role', 'Role', 'ROLE', 'userRole', 'user_role'];
+              for (const key of possibleRoleKeys) {
+                if (userData[key]) {
+                  console.log(`Found role in field ${key}:`, userData[key]);
+                  userData.role = userData[key];
+                  break;
+                }
+              }
+            }
+            
             const staffUser: StaffUser = {
               id: userData.id || userData.staffid,
               type: STAFF_TYPE as 'staff',
-              role: userData.role || '',
+              role: userData.role || 'staff', // Default to 'staff' if not provided
               agencyId: userData.agencyId || userData.agencyid || 0,
               name: userData.name || userData.fullname || ''
             };
             
             console.log('Created staff user object:', staffUser);
+            
+            // Save more detailed token and user details to localStorage for debugging
+            try {
+              localStorage.setItem('auth_debug', JSON.stringify({
+                hasRole: !!staffUser.role,
+                role: staffUser.role,
+                agencyId: staffUser.agencyId,
+                tokenTime: new Date().toISOString(),
+                userId: staffUser.id,
+                tokenExp: tokens.expiresIn
+              }));
+              
+              // Also save raw user data for troubleshooting
+              localStorage.setItem('user_data_debug', JSON.stringify(userData));
+            } catch (e) {
+              console.error('Error saving debug info:', e);
+            }
             
             dispatch(loginAction(staffUser));
             

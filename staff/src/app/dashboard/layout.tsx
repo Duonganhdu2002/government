@@ -8,6 +8,8 @@ import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { apiClient } from "@/lib/api";
+import { fetchPendingApplications } from '@/services/applicationService';
+import Cookies from "js-cookie";
 
 // Import Medusa UI components
 import {
@@ -27,7 +29,7 @@ import {
   Plus,
   Clock,
   User,
-  Book
+  Book,
 } from "@medusajs/icons";
 
 /**
@@ -117,6 +119,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Thêm trạng thái cho số lượng hồ sơ
   const [applicationCount, setApplicationCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // Chọn một ảnh đại diện và màu nền ngẫu nhiên khi component được mount
   useEffect(() => {
@@ -134,24 +138,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user]);
 
-  // Fetch application count
+  // Fetch application count (MODIFIED TO AVOID CITIZEN API)
   useEffect(() => {
-    if (user) {
-      // Fetch the application count
-      const fetchApplicationCount = async () => {
-        try {
-          const response = await apiClient.get('/api/applications/current-user');
-          const applications = response.data || [];
-          setApplicationCount(applications.length);
-        } catch (error) {
-          console.error('Error fetching application count:', error);
-          setApplicationCount(0);
-        }
-      };
-      
-      fetchApplicationCount();
+    // Không gọi API /api/applications/current-user cho staff
+    // Chỉ hiển thị các pending applications của agency
+    if (user && user.role === 'staff') {
+      // Sử dụng API dành cho staff
+      fetchPendingApplicationsCount();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      // Fetch pending applications count
+      fetchPendingApplicationsCount();
+    }
+  }, [isAuthenticated]);
+
+  const fetchPendingApplicationsCount = async () => {
+    try {
+      // Store auth info for debugging purposes
+      try {
+        const authToken = Cookies.get('accessToken');
+        localStorage.setItem('last_token_check', JSON.stringify({
+          hasToken: !!authToken,
+          tokenTime: new Date().toISOString(),
+          role: user?.role || 'unknown'
+        }));
+      } catch (e) {
+        console.error('Error saving token debug info:', e);
+      }
+      
+      const response = await fetchPendingApplications();
+      setPendingCount(response?.data?.length || 0);
+      // Sử dụng cùng giá trị này cho applicationCount vì staff chỉ cần biết pending applications
+      setApplicationCount(response?.data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching pending applications count:', error);
+      // Don't update count, but keep current value
+    }
+  };
 
   useEffect(() => {
     // If authentication check is complete and user is not authenticated
@@ -260,26 +286,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   Dashboard
                 </SidebarNavItem>
                 <SidebarNavItem
-                  href="/dashboard/applications"
-                  icon={<Plus />}
-                  active={isActive('/dashboard/applications')}
-                >
-                  Nộp hồ sơ
-                </SidebarNavItem>
-                <SidebarNavItem
-                  href="/dashboard/history"
+                  href="/dashboard/pending-applications"
                   icon={<Clock />}
-                  badge={applicationCount}
-                  active={isActive('/dashboard/history')}
+                  active={isActive('/dashboard/pending-applications')}
+                  badge={pendingCount}
                 >
-                  Lịch sử
-                </SidebarNavItem>
-                <SidebarNavItem
-                  href="/dashboard/guides"
-                  icon={<Book />}
-                  active={isActive('/dashboard/guides')}
-                >
-                  Hướng dẫn
+                  Đơn cần xử lý
                 </SidebarNavItem>
                 <SidebarNavItem
                   href="/dashboard/profile"
@@ -333,26 +345,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 Dashboard
               </SidebarNavItem>
               <SidebarNavItem
-                href="/dashboard/applications"
-                icon={<Plus />}
-                active={isActive('/dashboard/applications')}
-              >
-                Nộp hồ sơ
-              </SidebarNavItem>
-              <SidebarNavItem
-                href="/dashboard/history"
+                href="/dashboard/pending-applications"
                 icon={<Clock />}
-                badge={applicationCount}
-                active={isActive('/dashboard/history')}
+                active={isActive('/dashboard/pending-applications')}
+                badge={pendingCount}
               >
-                Lịch sử
-              </SidebarNavItem>
-              <SidebarNavItem
-                href="/dashboard/guides"
-                icon={<Book />}
-                active={isActive('/dashboard/guides')}
-              >
-                Hướng dẫn
+                Đơn cần xử lý
               </SidebarNavItem>
               <SidebarNavItem
                 href="/dashboard/profile"
@@ -362,7 +360,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 Thông tin cá nhân
               </SidebarNavItem>
             </SidebarNav>
-
             <div className="mt-auto p-4 border-t border-ui-border-base">
               <div className="flex items-center gap-3 mb-4">
                 {renderAvatar()}
