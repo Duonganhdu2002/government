@@ -44,7 +44,7 @@ const routes = {
   auth: require('./routes/authRoutes'),
   postCategories: require('./routes/postCategoriesRoutes'),
   posts: require('./routes/postRoutes'),
-  applicationUpload: require('./routes/applicationUploadRoutes')
+  applicationUpload: require('./routes/applicationUploadRoutes'),
 };
 
 // Khởi tạo ứng dụng Express

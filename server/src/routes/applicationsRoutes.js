@@ -39,6 +39,9 @@ router.get('/staff-view/:id', verifyToken, isStaff, applicationsController.getAp
 // Cập nhật trạng thái đơn ứng dụng (chỉ dành cho nhân viên)
 router.patch('/update-status/:id', verifyToken, isStaff, applicationsController.updateApplicationStatus);
 
+// Get all applications for staff (including forwarded ones)
+router.get('/all', verifyToken, isStaff, applicationsController.getAllApplicationsForStaff);
+
 // Lấy thông tin chi tiết của một đơn ứng dụng theo ID
 router.get('/:id', applicationsController.getApplicationById);
 

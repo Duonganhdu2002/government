@@ -294,6 +294,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   Đơn cần xử lý
                 </SidebarNavItem>
                 <SidebarNavItem
+                  href="/dashboard/all-applications"
+                  icon={<Book />}
+                  active={isActive('/dashboard/all-applications')}
+                >
+                  Tất cả đơn
+                </SidebarNavItem>
+                <SidebarNavItem
                   href="/dashboard/profile"
                   icon={<User />}
                   active={isActive('/dashboard/profile')}
@@ -351,6 +358,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 badge={pendingCount}
               >
                 Đơn cần xử lý
+              </SidebarNavItem>
+              <SidebarNavItem
+                href="/dashboard/all-applications"
+                icon={<Book />}
+                active={isActive('/dashboard/all-applications')}
+              >
+                Tất cả đơn
               </SidebarNavItem>
               <SidebarNavItem
                 href="/dashboard/profile"

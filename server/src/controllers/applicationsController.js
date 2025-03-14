@@ -558,12 +558,11 @@ const applicationsController = {
   // UPDATE APPLICATION STATUS BY STAFF (uses PATCH for partial update)
   updateApplicationStatus: async (req, res) => {
     const { id } = req.params;
-    const { status, comments, nextAgencyId } = req.body;
+    const { status, comments } = req.body;
     
     console.log('PATCH update-status called for application ID:', id, 'with data:', { 
       status, 
-      commentsLength: comments ? comments.length : 0, 
-      nextAgencyId 
+      commentsLength: comments ? comments.length : 0
     });
     
     if (!id || isNaN(id)) {
@@ -574,7 +573,7 @@ const applicationsController = {
     }
     
     // Validate status
-    const validStatuses = ['in_review', 'approved', 'rejected', 'pending_additional_info', 'forwarded'];
+    const validStatuses = ['in_review', 'approved', 'rejected', 'pending_additional_info'];
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({ 
         status: 'error',
@@ -632,46 +631,15 @@ const applicationsController = {
         });
       }
       
-      // Determine the new current agency ID
-      let newAgencyId = agencyid;
-      let agencyResult = null;
-      
-      // If status is 'forwarded', we need a next agency ID
-      if (status === 'forwarded' && !nextAgencyId) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          status: 'error',
-          message: 'Next agency ID is required when forwarding an application' 
-        });
-      } else if (status === 'forwarded') {
-        // Verify the next agency exists
-        agencyResult = await client.query(
-          'SELECT * FROM agencies WHERE agencyid = $1',
-          [nextAgencyId]
-        );
-        
-        if (agencyResult.rows.length === 0) {
-          await client.query('ROLLBACK');
-          return res.status(404).json({ 
-            status: 'error',
-            message: 'Next agency not found' 
-          });
-        }
-        
-        newAgencyId = nextAgencyId;
-        console.log('Forwarding to agency ID:', newAgencyId);
-      }
-      
       // Update the application status (PATCH - only update what changed)
       console.log('Updating application status to:', status);
       const updateResult = await client.query(
         `UPDATE applications 
         SET status = $1, 
-            agencyid = $2, 
             lastupdated = NOW()
-        WHERE applicationid = $3
+        WHERE applicationid = $2
         RETURNING *`,
-        [status, newAgencyId, id]
+        [status, id]
       );
       
       // Add entry to processing history
@@ -690,9 +658,6 @@ const applicationsController = {
         await redisClient.del(`application_${id}`);
         await redisClient.del(`application_staff_view_${id}`);
         await redisClient.del(`pending_applications_agency_${agencyid}`);
-        if (nextAgencyId) {
-          await redisClient.del(`pending_applications_agency_${nextAgencyId}`);
-        }
         console.log('Cache cleared for application ID:', id);
       } catch (cacheError) {
         console.error('Error clearing cache:', cacheError);
@@ -937,6 +902,95 @@ const applicationsController = {
       res.status(500).json({ 
         status: 'error',
         message: 'Failed to search applications' 
+      });
+    }
+  },
+
+  // GET ALL APPLICATIONS FOR STAFF (including forwarded applications)
+  getAllApplicationsForStaff: async (req, res) => {
+    try {
+      console.log(`[getAllApplicationsForStaff] Request received from user ID: ${req.userId}`);
+      
+      // Get the staff's agency ID and role
+      const staffResult = await pool.query(
+        'SELECT staffid, agencyid, role FROM staff WHERE staffid = $1',
+        [req.userId]
+      );
+      
+      if (staffResult.rows.length === 0) {
+        console.log(`[getAllApplicationsForStaff] Staff not found for user ID: ${req.userId}`);
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Staff not found' 
+        });
+      }
+      
+      const { agencyid, role } = staffResult.rows[0];
+      console.log(`[getAllApplicationsForStaff] Staff found: Agency=${agencyid}, Role=${role}`);
+      
+      // Check if we have cached results
+      const redisKey = `all_applications_staff_${req.userId}`;
+      let cached;
+      try {
+        cached = await redisClient.get(redisKey);
+      } catch (redisError) {
+        console.error('[getAllApplicationsForStaff] Redis error:', redisError);
+        // Continue without cache if Redis has an issue
+      }
+      
+      if (cached) {
+        console.log(`[getAllApplicationsForStaff] Returning cached results for user ${req.userId}`);
+        return res.status(200).json(JSON.parse(cached));
+      }
+      
+      // Construct base query - SIMPLIFIED: only include applications assigned to this agency
+      let query = `
+        SELECT a.*, 
+          at.typename as applicationtypename, 
+          sat.typename as specialapplicationtypename,
+          c.fullname as citizenname,
+          (SELECT agencyname FROM agencies WHERE agencyid = a.agencyid) as agencyname
+        FROM applications a
+        LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+        LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+        LEFT JOIN citizens c ON a.citizenid = c.citizenid
+      `;
+      
+      const params = [];
+      
+      // If not admin, limit results to applications that are currently assigned to their agency
+      if (role !== 'admin') {
+        query += ` WHERE a.agencyid = $1`;
+        params.push(agencyid);
+      }
+      
+      query += ` ORDER BY a.submissiondate DESC`;
+      
+      console.log(`[getAllApplicationsForStaff] Executing simple query with params: ${params.join(', ')}`);
+      const result = await pool.query(query, params);
+      console.log(`[getAllApplicationsForStaff] Query returned ${result.rows.length} applications`);
+      
+      // Cache results for 2 minutes
+      try {
+        await redisClient.set(redisKey, JSON.stringify({
+          status: 'success',
+          data: result.rows
+        }), { EX: 120 });
+      } catch (redisError) {
+        console.error('[getAllApplicationsForStaff] Redis caching error:', redisError);
+        // Continue without caching if Redis has an issue
+      }
+      
+      res.status(200).json({
+        status: 'success',
+        data: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching all applications for staff:', error);
+      res.status(500).json({ 
+        status: 'error',
+        message: 'Failed to fetch applications',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }

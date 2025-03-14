@@ -846,4 +846,72 @@ export const searchApplications = async (searchParams: any): Promise<any> => {
     console.error('Error in searchApplications:', error);
     throw error;
   }
+};
+
+/**
+ * Lấy tất cả đơn từ API, bao gồm cả đơn đã chuyển tiếp
+ */
+export const fetchAllApplications = async (): Promise<any> => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const url = `${API_URL}/api/applications/all`;
+  
+  try {
+    console.log(`[fetchAllApplications] Gọi API: ${url}`);
+    
+    // Lấy headers auth
+    const headers = {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    
+    // Kiểm tra headers auth
+    const hasAuthHeaders = Object.keys(getAuthHeaders()).length > 0;
+    console.log(`[fetchAllApplications] Has auth headers: ${hasAuthHeaders ? 'Yes' : 'No'}`);
+    console.log('[fetchAllApplications] Headers keys:', Object.keys(headers));
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 giây timeout
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    // Log thông tin response
+    console.log(`[fetchAllApplications] Status: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) {
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.error('[fetchAllApplications] Error response:', errorText);
+      } catch (e) {
+        errorText = 'Không thể đọc response body';
+      }
+      
+      if (response.status === 401) {
+        throw new Error('Vui lòng đăng nhập để tiếp tục');
+      } else if (response.status === 403) {
+        throw new Error('Bạn không có quyền truy cập vào tài nguyên này');
+      } else if (response.status === 500) {
+        throw new Error(`Lỗi máy chủ nội bộ: ${errorText}`);
+      }
+      throw new Error(`Lỗi HTTP: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('[fetchAllApplications] Success, received data:', data ? 'OK' : 'Không có dữ liệu');
+    return data;
+  } catch (error: any) {
+    console.error('[fetchAllApplications] Error:', error);
+    if (error.name === 'AbortError') {
+      throw new Error('Yêu cầu bị hủy do quá thời gian chờ');
+    }
+    throw error;
+  }
 }; 

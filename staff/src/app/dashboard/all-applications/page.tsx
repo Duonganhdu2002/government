@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   Container,
@@ -13,7 +12,9 @@ import {
   Table,
   Textarea,
   Label,
-  Select
+  Select,
+  Tabs,
+  Input
 } from '@medusajs/ui';
 import {
   ChevronLeft,
@@ -29,35 +30,33 @@ import {
   ChevronDown,
   MapPin
 } from '@medusajs/icons';
-import { fetchPendingApplications, updateApplicationStatus, fetchApplicationDetailForStaff } from '@/services/applicationService';
+import { fetchAllApplications, updateApplicationStatus, fetchApplicationDetailForStaff } from '@/services/applicationService';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
-import { getAuthHeaders } from '@/lib/api';
 import ApplicationDetailModal from '@/components/ApplicationDetailModal';
 import Modal from '@/components/Modal';
-import AgencySelector from '@/components/AgencySelector';
 
-// Application status component
+// Application Status Component
 const ApplicationStatus = ({ status }: { status: string }) => {
   const getStatusClass = () => {
-    // Sử dụng màu trung tính (xám, đen, trắng) thay vì màu rực rỡ
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'approved':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-green-100 text-green-800';
       case 'rejected':
-        return 'bg-gray-200 text-gray-900';
-      case 'pending':
+        return 'bg-red-100 text-red-800';
       case 'in_review':
-      case 'submitted':
-        return 'bg-gray-50 text-gray-700';
+        return 'bg-blue-100 text-blue-800';
       case 'pending_additional_info':
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-yellow-100 text-yellow-800';
+      case 'submitted':
+      case 'pending':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusText = () => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'pending':
         return 'Đang chờ';
       case 'in_review':
@@ -71,7 +70,7 @@ const ApplicationStatus = ({ status }: { status: string }) => {
       case 'pending_additional_info':
         return 'Cần bổ sung';
       default:
-        return status;
+        return status || 'Không xác định';
     }
   };
 
@@ -89,7 +88,7 @@ const Spinner = () => (
   </div>
 );
 
-// Status update modal component
+// Status update modal component (giống với trong pending-applications/page.tsx)
 type StatusUpdateModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -162,201 +161,96 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <Modal.Header>
-        <div className="flex w-full justify-between items-center">
-          <Text size="large" weight="plus" className="font-bold">
-            Cập nhật trạng thái đơn
-          </Text>
-          <Button variant="secondary" size="small" onClick={onClose}>
-            <XMark />
-          </Button>
-        </div>
-      </Modal.Header>
-      <Modal.Body className="flex flex-col py-6 px-8 gap-y-8">
-        {error && (
-          <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded">
-            <div className="font-semibold text-red-600">{error}</div>
-            {errorDetail && <div className="mt-2 text-sm">{errorDetail}</div>}
-            <div className="mt-3 text-sm">
-              <span className="font-medium">Hướng dẫn:</span> Vui lòng thử lại sau vài phút. Nếu lỗi vẫn tiếp tục xảy ra, hãy liên hệ với bộ phận hỗ trợ kỹ thuật.
+      <div className="z-[9000] relative">
+        <Modal.Header>
+          <div className="flex w-full justify-between items-center">
+            <Text size="large" weight="plus" className="font-bold">
+              Cập nhật trạng thái đơn
+            </Text>
+            <Button variant="secondary" size="small" onClick={onClose}>
+              <XMark />
+            </Button>
+          </div>
+        </Modal.Header>
+        <Modal.Body className="flex flex-col py-6 px-8 gap-y-8">
+          {error && (
+            <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded">
+              <div className="font-semibold text-red-600">{error}</div>
+              {errorDetail && <div className="mt-2 text-sm">{errorDetail}</div>}
+              <div className="mt-3 text-sm">
+                <span className="font-medium">Hướng dẫn:</span> Vui lòng thử lại sau vài phút. Nếu lỗi vẫn tiếp tục xảy ra, hãy liên hệ với bộ phận hỗ trợ kỹ thuật.
+              </div>
+            </div>
+          )}
+          
+          <div>
+            <Label className="mb-2 block">Trạng thái mới</Label>
+            <div className="relative">
+              <Select
+                value={status}
+                onValueChange={(value) => {
+                  console.log(`Status changed to: ${value}`);
+                  setStatus(value);
+                }}
+              >
+                <Select.Trigger className="w-full z-20 relative">
+                  <Select.Value placeholder="Chọn trạng thái">
+                    {getStatusDisplayValue(status)}
+                  </Select.Value>
+                </Select.Trigger>
+                <Select.Content position="popper" className="z-[10000]">
+                  {statusOptions.map((option) => (
+                    <Select.Item key={option.value} value={option.value} className="cursor-pointer hover:bg-gray-100">
+                      {option.label}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select>
             </div>
           </div>
-        )}
-        
-        <div>
-          <Label className="mb-2 block">Trạng thái mới</Label>
-          <div className="relative">
-            <Select
-              value={status}
-              onValueChange={(value) => {
-                console.log(`Status changed to: ${value}`);
-                setStatus(value);
-              }}
-            >
-              <Select.Trigger className="w-full z-20 relative">
-                <Select.Value placeholder="Chọn trạng thái">
-                  {getStatusDisplayValue(status)}
-                </Select.Value>
-              </Select.Trigger>
-              <Select.Content position="popper" className="z-[100]">
-                {statusOptions.map((option) => (
-                  <Select.Item key={option.value} value={option.value} className="cursor-pointer hover:bg-gray-100">
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select>
+          
+          <div>
+            <Label className="mb-2 block">Ghi chú/Ý kiến</Label>
+            <Textarea
+              value={comments}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComments(e.target.value)}
+              placeholder="Nhập ghi chú hoặc ý kiến về đơn này..."
+              rows={4}
+              className="w-full"
+            />
           </div>
-        </div>
-        
-        <div>
-          <Label className="mb-2 block">Ghi chú/Ý kiến</Label>
-          <Textarea
-            value={comments}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComments(e.target.value)}
-            placeholder="Nhập ghi chú hoặc ý kiến về đơn này..."
-            rows={4}
-            className="w-full"
-          />
-        </div>
-      </Modal.Body>
-      <Modal.Footer>
-        <div className="flex w-full justify-end gap-x-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Hủy
-          </Button>
-          <Button variant="primary" onClick={handleSubmit} isLoading={loading}>
-            Cập nhật
-          </Button>
-        </div>
-      </Modal.Footer>
+        </Modal.Body>
+        <Modal.Footer>
+          <div className="flex w-full justify-end gap-x-2">
+            <Button variant="secondary" onClick={onClose} disabled={loading}>
+              Hủy
+            </Button>
+            <Button variant="primary" onClick={handleSubmit} isLoading={loading}>
+              Cập nhật
+            </Button>
+          </div>
+        </Modal.Footer>
+      </div>
     </Modal>
   );
 };
 
-// Custom collapsible section component
-const CollapsibleSection = ({
-  title,
-  children
-}: {
-  title: string;
-  children: React.ReactNode
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="border border-gray-200 rounded-md mb-4">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full py-3 px-4 bg-gray-50 rounded-t-md text-left"
-      >
-        <Text size="base" weight="plus">{title}</Text>
-        <div className={`w-4 h-4 text-gray-500 transform transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          <ChevronDown />
-        </div>
-      </button>
-      {isOpen && (
-        <div className="p-4 border-t border-gray-200">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Custom icons
-interface IconProps {
-  className?: string;
-}
-
-const FileTextIcon = ({ className = "" }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`w-5 h-5 ${className}`}
-  >
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
-  </svg>
-);
-
-const ImageIcon = ({ className = "" }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`w-5 h-5 ${className}`}
-  >
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-    <circle cx="8.5" cy="8.5" r="1.5" />
-    <polyline points="21 15 16 10 5 21" />
-  </svg>
-);
-
-const VideoIcon = ({ className = "" }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`w-5 h-5 ${className}`}
-  >
-    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-    <line x1="10" y1="8" x2="10" y2="16" />
-    <line x1="14" y1="8" x2="14" y2="16" />
-  </svg>
-);
-
-// Custom Card component
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-interface CardPartProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-const Card = ({ children, className = "" }: CardProps) => {
-  return <div className={`bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow ${className}`}>{children}</div>;
-};
-
-Card.Header = ({ children, className = "" }: CardPartProps) => {
-  return <div className={`px-4 py-3 border-b border-gray-200 bg-gray-50 ${className}`}>{children}</div>;
-};
-
-Card.Content = ({ children, className = "" }: CardPartProps) => {
-  return <div className={`p-4 ${className}`}>{children}</div>;
-};
-
-export default function PendingApplicationsPage() {
+export default function AllApplicationsPage() {
   const router = useRouter();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [applications, setApplications] = useState<any[]>([]);
+  const [filteredApplications, setFilteredApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedApplicationDetailId, setSelectedApplicationDetailId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Add pagination state
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -371,51 +265,90 @@ export default function PendingApplicationsPage() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    // Calculate total pages whenever applications array changes
-    if (applications.length > 0) {
-      setTotalPages(Math.ceil(applications.length / itemsPerPage));
-    } else {
-      setTotalPages(1);
+    // Filter applications based on active tab and search term
+    let filtered = [...applications];
+    
+    // Filter by tab
+    if (activeTab === 'pending') {
+      filtered = filtered.filter(app => 
+        ['pending', 'submitted', 'in_review'].includes(app.status?.toLowerCase())
+      );
+    } else if (activeTab === 'completed') {
+      filtered = filtered.filter(app => 
+        ['approved', 'rejected'].includes(app.status?.toLowerCase())
+      );
     }
-  }, [applications, itemsPerPage]);
+    
+    // Apply status filter if not 'all'
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(app => app.status?.toLowerCase() === statusFilter.toLowerCase());
+    }
+    
+    // Apply search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(app => 
+        app.title?.toLowerCase().includes(term) || 
+        app.citizenname?.toLowerCase().includes(term) ||
+        app.applicationid?.toString().includes(term)
+      );
+    }
+    
+    setFilteredApplications(filtered);
+    
+    // Reset to first page when filters change
+    setCurrentPage(1);
+    
+    // Calculate total pages
+    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+  }, [applications, activeTab, searchTerm, statusFilter, itemsPerPage]);
 
   const loadApplications = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetchPendingApplications();
-      // Handle the response data structure properly
+      console.log('Đang gọi API để lấy tất cả đơn...');
+      
+      const response = await fetchAllApplications();
+      console.log('Kết quả API:', response);
+      
+      // Kiểm tra cấu trúc response
       if (response && response.status === 'success' && Array.isArray(response.data)) {
         setApplications(response.data);
+        setFilteredApplications(response.data);
+        console.log(`Đã tải thành công ${response.data.length} đơn`);
       } else if (response && Array.isArray(response)) {
-        // For backward compatibility
+        // Trường hợp API trả về mảng trực tiếp (backward compatibility)
         setApplications(response);
+        setFilteredApplications(response);
+        console.log(`Đã tải thành công ${response.length} đơn (dạng mảng)`);
       } else {
-        console.error('Unexpected response format:', response);
+        console.error('Dữ liệu không đúng định dạng:', response);
         setApplications([]);
+        setFilteredApplications([]);
         setError('Dữ liệu không đúng định dạng. Vui lòng thử lại sau.');
       }
     } catch (err: any) {
-      console.error('Error loading applications:', err);
-
-      // Check if it's an authentication error and provide helpful instructions
-      if (err.message && (err.message.includes('đăng nhập') || err.message.includes('quyền truy cập'))) {
-        setError(err.message);
+      console.error('Lỗi khi tải danh sách đơn:', err);
+      
+      // Xử lý các loại lỗi cụ thể
+      if (err.message?.includes('401') || err.message?.includes('đăng nhập')) {
+        setError('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
+      } else if (err.message?.includes('403') || err.message?.includes('quyền truy cập')) {
+        setError('Bạn không có quyền truy cập vào tài nguyên này.');
+      } else if (err.message?.includes('timeout') || err.message?.includes('quá thời gian')) {
+        setError('Máy chủ không phản hồi. Vui lòng thử lại sau.');
+      } else if (err.message?.includes('404')) {
+        setError('Không tìm thấy dữ liệu hoặc endpoint API không tồn tại.');
+      } else if (err.message?.includes('400')) {
+        setError('Yêu cầu không hợp lệ. Vui lòng kiểm tra cấu hình API và thử lại.');
       } else {
         setError(err.message || 'Không thể tải danh sách đơn. Vui lòng thử lại sau.');
       }
     } finally {
       setLoading(false);
-      // Reset to first page when reloading data
-      setCurrentPage(1);
     }
-  };
-
-  // Function to handle re-login
-  const handleReLogin = () => {
-    // Clear current session and redirect to login
-    router.push('/login');
   };
 
   const handleViewDetail = (id: number) => {
@@ -441,29 +374,39 @@ export default function PendingApplicationsPage() {
 
   const handleItemsPerPageChange = (value: string) => {
     setItemsPerPage(Number(value));
-    setCurrentPage(1); // Reset to first page when changing items per page
+    setCurrentPage(1);
   };
 
   // Get current page items
   const getCurrentPageItems = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return applications.slice(startIndex, endIndex);
+    return filteredApplications.slice(startIndex, endIndex);
   };
 
   if (authLoading) {
     return <Spinner />;
   }
 
+  // Status options for filter
+  const statusOptions = [
+    { value: 'all', label: 'Tất cả trạng thái' },
+    { value: 'submitted', label: 'Đã nộp' },
+    { value: 'in_review', label: 'Đang xem xét' },
+    { value: 'approved', label: 'Đã duyệt' },
+    { value: 'rejected', label: 'Từ chối' },
+    { value: 'pending_additional_info', label: 'Cần bổ sung thông tin' }
+  ];
+
   return (
     <Container className="py-6 max-w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
           <Heading level="h1" className="text-2xl font-bold">
-            Đơn cần xử lý
+            Quản lý tất cả đơn
           </Heading>
           <Text className="text-ui-fg-subtle mt-1">
-            Danh sách đơn cần xử lý tại cơ quan của bạn.
+            Tất cả đơn trong hệ thống được gán cho đơn vị của bạn.
           </Text>
         </div>
         <Button variant="secondary" onClick={loadApplications}>
@@ -473,36 +416,76 @@ export default function PendingApplicationsPage() {
       </div>
 
       {error && (
-        <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded flex items-center">
+        <div className="p-4 mb-4 bg-red-50 border border-red-200 text-red-700 rounded flex items-center">
           <ExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           <div className="flex-1">
             <p>{error}</p>
-            {(error.includes('đăng nhập') || error.includes('quyền truy cập')) && (
-              <Button
-                variant="secondary"
-                className="mt-2"
-                onClick={handleReLogin}
-              >
-                Đăng nhập lại
-              </Button>
-            )}
           </div>
         </div>
       )}
 
+      {/* Filtering and Search Section */}
+      <div className="mb-6 bg-white p-4 rounded-lg border border-gray-200">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="flex-1">
+            <Label htmlFor="search" className="mb-2 block">Tìm kiếm đơn</Label>
+            <Input 
+              id="search"
+              placeholder="Tìm theo tiêu đề, ID, người nộp..."
+              value={searchTerm}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div className="w-full md:w-64">
+            <Label htmlFor="statusFilter" className="mb-2 block">Lọc theo trạng thái</Label>
+            <Select
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+            >
+              <Select.Trigger className="w-full">
+                <Select.Value placeholder="Chọn trạng thái" />
+              </Select.Trigger>
+              <Select.Content position="popper" className="z-[100]">
+                {statusOptions.map((option) => (
+                  <Select.Item key={option.value} value={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
+        </div>
+
+        {/* Tabs for different application states */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs.List className="border-b border-gray-200">
+            <Tabs.Trigger value="all" className="px-4 py-2">
+              Tất cả đơn
+            </Tabs.Trigger>
+            <Tabs.Trigger value="pending" className="px-4 py-2">
+              Đơn đang xử lý
+            </Tabs.Trigger>
+            <Tabs.Trigger value="completed" className="px-4 py-2">
+              Đơn đã xử lý
+            </Tabs.Trigger>
+          </Tabs.List>
+        </Tabs>
+      </div>
+
       {loading ? (
         <Spinner />
-      ) : applications.length === 0 ? (
+      ) : filteredApplications.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <Heading level="h2" className="text-xl mb-2">
-            Không có đơn nào cần xử lý
+            Không tìm thấy đơn nào
           </Heading>
           <Text className="text-ui-fg-subtle">
-            Hiện tại không có đơn nào cần xử lý tại cơ quan của bạn.
+            Không có đơn nào phù hợp với điều kiện tìm kiếm.
           </Text>
         </div>
       ) : (
-        <div className="relative flex flex-col" style={{ height: 'calc(100vh - 250px)' }}>
+        <div className="relative flex flex-col" style={{ height: 'calc(100vh - 300px)' }}>
           <div className="overflow-auto flex-grow">
             <Table>
               <Table.Header>
@@ -512,9 +495,8 @@ export default function PendingApplicationsPage() {
                   <Table.HeaderCell>Loại đơn</Table.HeaderCell>
                   <Table.HeaderCell>Người nộp</Table.HeaderCell>
                   <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
-                  <Table.HeaderCell>Hạn xử lý</Table.HeaderCell>
+                  <Table.HeaderCell>Cơ quan hiện tại</Table.HeaderCell>
                   <Table.HeaderCell>Trạng thái</Table.HeaderCell>
-                  <Table.HeaderCell>Quá hạn</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">Hành động</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
@@ -532,32 +514,10 @@ export default function PendingApplicationsPage() {
                     </Table.Cell>
                     <Table.Cell>{app.submissiondate ? formatDate(app.submissiondate) : 'N/A'}</Table.Cell>
                     <Table.Cell>
-                      <div className="flex items-center">
-                        {app.duedate ? (
-                          <>
-                            <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                            {formatDate(app.duedate)}
-                          </>
-                        ) : (
-                          'N/A'
-                        )}
-                      </div>
+                      {app.agencyname || 'N/A'}
                     </Table.Cell>
                     <Table.Cell>
                       <ApplicationStatus status={app.status} />
-                    </Table.Cell>
-                    <Table.Cell>
-                      {app.isoverdue ? (
-                        <Badge className="bg-gray-200 text-gray-800">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Quá hạn
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-gray-100 text-gray-700">
-                          <Check className="w-3 h-3 mr-1" />
-                          Trong hạn
-                        </Badge>
-                      )}
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex justify-end gap-2">
@@ -569,6 +529,8 @@ export default function PendingApplicationsPage() {
                           <Eye className="w-3.5 h-3.5 mr-1" />
                           Chi tiết
                         </Button>
+                        
+                        {/* Nút Cập nhật trạng thái */}
                         <Button
                           variant="secondary"
                           size="small"
@@ -588,10 +550,10 @@ export default function PendingApplicationsPage() {
             </Table>
           </div>
 
-          {/* Simplified fixed pagination controls */}
+          {/* Pagination controls */}
           <div className="border-t border-gray-200 bg-white py-3 px-4 absolute bottom-0 left-0 right-0 flex justify-between items-center">
             <div className="text-sm text-gray-600">
-              Hiển thị {(currentPage - 1) * itemsPerPage + 1} đến {Math.min(currentPage * itemsPerPage, applications.length)} trong tổng số {applications.length} đơn
+              Hiển thị {filteredApplications.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} đến {Math.min(currentPage * itemsPerPage, filteredApplications.length)} trong tổng số {filteredApplications.length} đơn
             </div>
 
             <div className="flex items-center">
@@ -608,6 +570,8 @@ export default function PendingApplicationsPage() {
                   <Select.Content>
                     <Select.Item value="5">5</Select.Item>
                     <Select.Item value="10">10</Select.Item>
+                    <Select.Item value="20">20</Select.Item>
+                    <Select.Item value="50">50</Select.Item>
                   </Select.Content>
                 </Select>
               </div>
@@ -638,7 +602,7 @@ export default function PendingApplicationsPage() {
                 </Button>
 
                 <Text className="ml-2">
-                  Hiển thị 1 đến {totalPages} trong tổng số {totalPages} trang
+                  Trang {currentPage} / {totalPages}
                 </Text>
               </div>
             </div>
@@ -646,16 +610,18 @@ export default function PendingApplicationsPage() {
         </div>
       )}
 
-      {/* Fix modal backdrop issue */}
+      {/* Modals */}
       {selectedApplicationId && (
-        <div className={`${isStatusModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isStatusModalOpen ? 'auto' : 'none' }}>
-          <StatusUpdateModal
-            isOpen={isStatusModalOpen}
-            onClose={() => setIsStatusModalOpen(false)}
-            applicationId={selectedApplicationId}
-            onSuccess={handleStatusUpdateSuccess}
-          />
-        </div>
+        <>
+          <div className={`${isStatusModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isStatusModalOpen ? 'auto' : 'none' }}>
+            <StatusUpdateModal
+              isOpen={isStatusModalOpen}
+              onClose={() => setIsStatusModalOpen(false)}
+              applicationId={selectedApplicationId}
+              onSuccess={handleStatusUpdateSuccess}
+            />
+          </div>
+        </>
       )}
 
       <div className={`${isDetailModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isDetailModalOpen ? 'auto' : 'none' }}>
@@ -667,4 +633,4 @@ export default function PendingApplicationsPage() {
       </div>
     </Container>
   );
-}
+} 
