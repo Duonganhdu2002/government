@@ -21,11 +21,11 @@ import {
   Check,
   XMark,
   Clock,
-  Plus,
-  User as UserIcon,
   BellAlert as BellIcon,
   ChevronRight,
-  User
+  User,
+  MagnifyingGlass,
+  ChartBar
 } from '@medusajs/icons';
 import { fetchDashboardData } from '@/services/applicationService';
 
@@ -106,9 +106,9 @@ const StatCard = ({
 );
 
 /**
- * Recent application item component
+ * Application item component for staff to process
  */
-const RecentApplicationItem = ({
+const ApplicationToProcessItem = ({
   application,
   onViewDetail
 }: {
@@ -127,16 +127,27 @@ const RecentApplicationItem = ({
       </div>
       <ApplicationStatus status={application.status || 'pending'} />
     </div>
-    <div className="mt-4 flex justify-between">
+    <div className="mt-2">
+      <Text size="small" className="text-ui-fg-subtle">
+        Người nộp: {application.applicantname || 'Chưa xác định'}
+      </Text>
       <Text size="small" className="text-ui-fg-subtle">
         ID: {application.applicationid}
       </Text>
+    </div>
+    <div className="mt-2 flex justify-end">
       <Button
         variant="secondary"
         size="small"
+        className="mr-2"
         onClick={() => onViewDetail(application.applicationid)}
       >
         Xem chi tiết
+      </Button>
+      <Button
+        size="small"
+      >
+        Xử lý
       </Button>
     </div>
   </div>
@@ -202,19 +213,30 @@ const NotificationItem = ({
   </div>
 );
 
+// Define types for the stats to avoid TypeScript errors
+interface DashboardStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  today?: number;
+}
+
 /**
- * Dashboard page component
+ * Dashboard page component for Staff
  */
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [recentApplications, setRecentApplications] = useState<Array<{ applicationid: number;[key: string]: any }>>([]);
-  const [stats, setStats] = useState({
+  const [applicationsToProcess, setApplicationsToProcess] = useState<Array<{ applicationid: number;[key: string]: any }>>([]);
+  // Update stats with proper typing
+  const [stats, setStats] = useState<DashboardStats>({
     total: 0,
     pending: 0,
     approved: 0,
     rejected: 0,
+    today: 0
   });
 
   // State for notifications
@@ -226,9 +248,6 @@ export default function DashboardPage() {
     read: boolean;
   }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-
-  // State for new application modal
-  const [showNewApplicationModal, setShowNewApplicationModal] = useState(false);
 
   // State for application detail modal
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
@@ -245,39 +264,43 @@ export default function DashboardPage() {
 
       // Get dashboard data from service
       const dashboardData = await fetchDashboardData();
-      setRecentApplications(dashboardData.applications);
-      setStats(dashboardData.stats);
+      setApplicationsToProcess(dashboardData.applications);
+      
+      // Handle stats with today field (ensure type safety)
+      const apiStats = dashboardData.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
+      setStats({
+        total: apiStats.total || 0,
+        pending: apiStats.pending || 0,
+        approved: apiStats.approved || 0,
+        rejected: apiStats.rejected || 0,
+        today: 10 // Hardcoded for now since API doesn't provide it
+      });
 
-      // Sample notifications
-      const dummyNotifications = [
+      // Sample notifications for staff
+      const staffNotifications = [
         {
           id: 1,
-          title: 'Hồ sơ của bạn đã được phê duyệt',
-          message: 'Hồ sơ đăng ký khai sinh đã được phê duyệt thành công',
-          date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Yesterday
+          title: 'Hồ sơ mới cần xử lý',
+          message: 'Có 5 hồ sơ mới được nộp cần được xử lý',
+          date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
           read: false
         },
         {
           id: 2,
-          title: 'Cập nhật trạng thái hồ sơ',
-          message: 'Hồ sơ đăng ký kết hôn đang được xử lý',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+          title: 'Nhắc nhở thời hạn',
+          message: 'Có 3 hồ sơ sắp đến hạn xử lý',
+          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
           read: true
         }
       ];
 
-      setNotifications(dummyNotifications);
+      setNotifications(staffNotifications);
 
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Handle application submission success
-  const handleApplicationSuccess = async () => {
-    await loadDashboardData(); // Reload dashboard data after submission
   };
 
   // Count unread notifications
@@ -288,9 +311,9 @@ export default function DashboardPage() {
       <div className="px-4 pb-4 mb-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
-            <Heading level="h1" className="text-2xl text-ui-fg-base mb-2">Bảng điều khiển</Heading>
+            <Heading level="h1" className="text-2xl text-ui-fg-base mb-2">Bảng điều khiển cán bộ</Heading>
             <Text className="text-ui-fg-subtle">
-              Chào mừng {user?.name || 'bạn'} đến với Cổng dịch vụ công
+              Chào mừng cán bộ {user?.name || ''} đến với Hệ thống quản lý hồ sơ
             </Text>
           </div>
           <div className="flex items-center">
@@ -305,32 +328,34 @@ export default function DashboardPage() {
                 <Badge className="ml-2 bg-red-100 text-red-600">{unreadNotifications}</Badge>
               )}
             </Button>
-            <Button onClick={() => setShowNewApplicationModal(true)}>
-              <Plus className="mr-2" />
-              Nộp hồ sơ mới
-            </Button>
+            <Link href="/dashboard/reports">
+              <Button variant="secondary">
+                <ChartBar className="mr-2" />
+                Báo cáo
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-8">
         <StatCard
           title="Tổng số hồ sơ"
           value={stats.total}
-          description="Tổng số hồ sơ đã nộp"
+          description="Tổng số hồ sơ đã tiếp nhận"
           icon={DocumentText}
         />
         <StatCard
-          title="Đang xử lý"
+          title="Chờ xử lý"
           value={stats.pending}
-          description="Số hồ sơ đang được xử lý"
+          description="Số hồ sơ đang chờ xử lý"
           icon={Clock}
         />
         <StatCard
-          title="Đã duyệt"
+          title="Đã xử lý"
           value={stats.approved}
-          description="Số hồ sơ đã được duyệt"
+          description="Số hồ sơ đã xử lý"
           icon={Check}
         />
         <StatCard
@@ -339,20 +364,26 @@ export default function DashboardPage() {
           description="Số hồ sơ bị từ chối"
           icon={XMark}
         />
+        <StatCard
+          title="Hôm nay"
+          value={stats.today || 0}
+          description="Số hồ sơ tiếp nhận hôm nay"
+          icon={DocumentText}
+        />
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-12">
-        {/* Left column: Stats and Recent Applications */}
+        {/* Left column: Applications to process */}
         <div className="md:col-span-8 space-y-6">
           <div className="bg-ui-bg-base rounded-lg border border-ui-border-base overflow-hidden">
             <div className="p-5 border-b border-ui-border-base flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <Text size="large" weight="plus" className="text-ui-fg-base">Hồ sơ gần đây</Text>
+                <Text size="large" weight="plus" className="text-ui-fg-base">Hồ sơ cần xử lý</Text>
                 <Text size="small" className="text-ui-fg-subtle mt-1">
-                  3 hồ sơ mới nhất bạn đã nộp
+                  Danh sách hồ sơ đang chờ được xử lý
                 </Text>
               </div>
-              <Link href="/dashboard/history">
+              <Link href="/dashboard/all-applications">
                 <Button variant="secondary" size="small">
                   Xem tất cả
                   <ChevronRight className="ml-1" />
@@ -364,10 +395,10 @@ export default function DashboardPage() {
                 <div className="p-8 flex justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-fg-interactive"></div>
                 </div>
-              ) : recentApplications.length > 0 ? (
+              ) : applicationsToProcess.length > 0 ? (
                 <div>
-                  {recentApplications.map((application) => (
-                    <RecentApplicationItem
+                  {applicationsToProcess.map((application) => (
+                    <ApplicationToProcessItem
                       key={application.applicationid}
                       application={application}
                       onViewDetail={setSelectedApplicationId}
@@ -377,19 +408,15 @@ export default function DashboardPage() {
               ) : (
                 <div className="p-8 text-center">
                   <Text className="text-ui-fg-subtle mb-4">
-                    Bạn chưa có hồ sơ nào. Hãy nộp hồ sơ đầu tiên của bạn!
+                    Không có hồ sơ nào đang chờ xử lý.
                   </Text>
-                  <Button variant="secondary" onClick={() => setShowNewApplicationModal(true)}>
-                    <Plus className="mr-2" />
-                    Nộp hồ sơ mới
-                  </Button>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right column: Quick links and notifications */}
+        {/* Right column: Quick links and statistics */}
         <div className="md:col-span-4 space-y-6">
           {/* Quick Links */}
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -400,17 +427,31 @@ export default function DashboardPage() {
             </div>
             <div className="p-4 space-y-3">
               <QuickLink
-                title="Đơn cần xử lý"
+                title="Hồ sơ chờ xử lý"
                 icon={Clock}
                 href="/dashboard/pending-applications"
-                description="Xem danh sách đơn cần xử lý tại cơ quan của bạn"
+                description="Xem danh sách hồ sơ cần xử lý"
               />
               
               <QuickLink
-                title="Hồ sơ cá nhân"
-                icon={User}
-                href="/dashboard/profile"
-                description="Cập nhật thông tin hồ sơ cá nhân"
+                title="Hồ sơ trễ hạn"
+                icon={Clock}
+                href="/dashboard/overdue-applications"
+                description="Xem các hồ sơ đã quá hạn xử lý"
+              />
+              
+              <QuickLink
+                title="Thống kê báo cáo"
+                icon={ChartBar}
+                href="/dashboard/reports"
+                description="Xem thống kê và báo cáo tình hình xử lý"
+              />
+              
+              <QuickLink
+                title="Tra cứu hồ sơ"
+                icon={MagnifyingGlass}
+                href="/dashboard/search"
+                description="Tra cứu hồ sơ theo nhiều tiêu chí"
               />
             </div>
           </div>

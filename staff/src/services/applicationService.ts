@@ -857,18 +857,13 @@ export const fetchAllApplications = async (): Promise<any> => {
   
   try {
     console.log(`[fetchAllApplications] Gọi API: ${url}`);
-    
-    // Lấy headers auth
     const headers = {
       ...getAuthHeaders(),
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     };
     
-    // Kiểm tra headers auth
-    const hasAuthHeaders = Object.keys(getAuthHeaders()).length > 0;
-    console.log(`[fetchAllApplications] Has auth headers: ${hasAuthHeaders ? 'Yes' : 'No'}`);
-    console.log('[fetchAllApplications] Headers keys:', Object.keys(headers));
+    console.log('[fetchAllApplications] Headers:', Object.keys(headers).length > 0 ? 'Có header auth' : 'Không có header auth');
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 giây timeout
@@ -898,8 +893,6 @@ export const fetchAllApplications = async (): Promise<any> => {
         throw new Error('Vui lòng đăng nhập để tiếp tục');
       } else if (response.status === 403) {
         throw new Error('Bạn không có quyền truy cập vào tài nguyên này');
-      } else if (response.status === 500) {
-        throw new Error(`Lỗi máy chủ nội bộ: ${errorText}`);
       }
       throw new Error(`Lỗi HTTP: ${response.status} - ${errorText}`);
     }
