@@ -37,7 +37,7 @@ router.get('/search', verifyToken, isStaff, applicationsController.searchApplica
 router.get('/staff-view/:id', verifyToken, isStaff, applicationsController.getApplicationDetailForStaff);
 
 // Cập nhật trạng thái đơn ứng dụng (chỉ dành cho nhân viên)
-router.put('/update-status/:id', verifyToken, isStaff, applicationsController.updateApplicationStatus);
+router.patch('/update-status/:id', verifyToken, isStaff, applicationsController.updateApplicationStatus);
 
 // Lấy thông tin chi tiết của một đơn ứng dụng theo ID
 router.get('/:id', applicationsController.getApplicationById);

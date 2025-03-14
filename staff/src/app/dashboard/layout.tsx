@@ -390,7 +390,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="px-4 pb-4 mb-4">
               <div className="flex justify-between items-center">
                 <Heading level="h1" className="text-ui-fg-base">Dashboard</Heading>
-                <Kbd>Ctrl+K</Kbd>
               </div>
             </div>
             <div className="px-4">

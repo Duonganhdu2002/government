@@ -713,42 +713,103 @@ export const fetchApplicationDetailForStaff = async (id: string): Promise<any> =
 };
 
 /**
- * Cập nhật trạng thái đơn ứng dụng
+ * Cập nhật trạng thái đơn ứng dụng (sử dụng PATCH cho cập nhật một phần)
  */
 export const updateApplicationStatus = async (id: string, status: string, comments?: string, nextAgencyId?: number): Promise<any> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 giây timeout
   
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/applications/update-status/${id}`, {
-      method: 'PUT',
-      signal: controller.signal,
-      headers: {
+  // Maximum retries
+  const maxRetries = 2;
+  let retryCount = 0;
+  let lastError;
+  
+  while (retryCount <= maxRetries) {
+    try {
+      console.log(`Updating application status [Attempt ${retryCount + 1}/${maxRetries + 1}]:`, {
+        id,
+        status,
+        commentsLength: comments ? comments.length : 0,
+        hasNextAgency: !!nextAgencyId
+      });
+      
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const url = `${API_URL}/api/applications/update-status/${id}`;
+      console.log(`Making PATCH request to: ${url}`);
+      
+      const headers = {
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+      };
+      
+      const body = JSON.stringify({
         status,
-        comments,
-        nextAgencyId
-      })
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      console.error('Error response from API:', response.status, response.statusText);
-      throw new Error(`Failed to update application status: ${response.status} ${response.statusText}`);
+        comments: comments || '',
+        nextAgencyId: nextAgencyId || null
+      });
+      
+      console.log('Request headers:', Object.keys(headers));
+      console.log('Request body:', body);
+      
+      const response = await fetch(url, {
+        method: 'PATCH', // Using PATCH for partial update
+        signal: controller.signal,
+        headers,
+        body
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Status: ${response.status} ${response.statusText}`;
+        
+        try {
+          // Try to parse error response as JSON
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (parseError) {
+          // Use text response if not JSON
+          errorMessage = errorText || errorMessage;
+        }
+        
+        console.error('Error response details:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage,
+          url
+        });
+        throw new Error(`Failed to update application status: ${errorMessage}`);
+      }
+      
+      const data = await response.json();
+      console.log('Successfully updated application status:', data);
+      return data;
+    } catch (error: any) {
+      lastError = error;
+      
+      console.error(`Error in updateApplicationStatus [Attempt ${retryCount + 1}/${maxRetries + 1}]:`, error);
+      
+      // Don't retry if it's a client-side error (e.g., network issue)
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout: The server took too long to respond');
+      }
+      
+      // Only retry on server errors (5xx)
+      if (retryCount < maxRetries && error.message && error.message.includes('500')) {
+        retryCount++;
+        // Exponential backoff delay
+        const delay = 1000 * Math.pow(2, retryCount);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        break;
+      }
     }
-    
-    const data = await response.json();
-    
-    console.log('Successfully updated application status:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in updateApplicationStatus:', error);
-    throw error;
   }
+  
+  // If we've exhausted all retries
+  throw lastError || new Error('Failed to update application status after multiple attempts');
 };
 
 /**

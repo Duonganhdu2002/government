@@ -41,16 +41,18 @@ const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 scrollbar-hide"
+      className="fixed inset-0 flex items-center justify-center p-6 scrollbar-hide z-[60]"
       onClick={onClose}
+      style={{ pointerEvents: 'auto' }}
     >
       <div 
-        className={`bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col scrollbar-hide ${className}`}
+        className={`bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col scrollbar-hide z-[70] relative ${className}`}
         onClick={handleModalContentClick}
         style={{ 
           maxWidth: 'calc(100vw - 48px)',
-          height: 'calc(100vh - 96px)',
-          maxHeight: 'calc(100vh - 96px)'
+          maxHeight: 'calc(100vh - 96px)',
+          height: 'auto',
+          pointerEvents: 'auto'
         }}
       >
         {children}
@@ -67,7 +69,7 @@ Modal.Header = ({ children, className = "" }: { children: React.ReactNode, class
 );
 
 Modal.Body = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`flex-grow overflow-auto scrollbar-hide ${className}`}>
+  <div className={`flex-grow overflow-auto scrollbar-hide ${className}`} style={{ minHeight: "200px" }}>
     {children}
   </div>
 );

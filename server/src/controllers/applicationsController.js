@@ -186,11 +186,11 @@ const applicationsController = {
           (SELECT json_agg(
             json_build_object(
               'historyid', ph.historyid,
-              'status', ph.status,
-              'comments', ph.comments,
-              'timestamp', ph.timestamp,
-              'agencyid', ph.agencyid,
-              'agencyname', (SELECT agencyname FROM agencies WHERE agencyid = ph.agencyid),
+              'applicationid', ph.applicationid,
+              'actiontaken', ph.actiontaken,
+              'notes', ph.notes,
+              'actiondate', ph.actiondate,
+              'isdelayed', ph.isdelayed,
               'staffid', ph.staffid,
               'staffname', (SELECT fullname FROM staff WHERE staffid = ph.staffid)
             )
@@ -555,10 +555,16 @@ const applicationsController = {
     }
   },
 
-  // UPDATE APPLICATION STATUS BY STAFF
+  // UPDATE APPLICATION STATUS BY STAFF (uses PATCH for partial update)
   updateApplicationStatus: async (req, res) => {
     const { id } = req.params;
     const { status, comments, nextAgencyId } = req.body;
+    
+    console.log('PATCH update-status called for application ID:', id, 'with data:', { 
+      status, 
+      commentsLength: comments ? comments.length : 0, 
+      nextAgencyId 
+    });
     
     if (!id || isNaN(id)) {
       return res.status(400).json({ 
@@ -597,6 +603,7 @@ const applicationsController = {
       }
       
       const { staffid, agencyid, fullname, role } = staffResult.rows[0];
+      console.log('Staff info:', { staffid, agencyid, role });
       
       // Get the application
       const applicationResult = await client.query(
@@ -613,6 +620,7 @@ const applicationsController = {
       }
       
       const application = applicationResult.rows[0];
+      console.log('Current application status:', application.status);
       
       // Check if the staff has permission to update this application
       // Staff can only update applications assigned to their agency or if they have admin role
@@ -626,6 +634,7 @@ const applicationsController = {
       
       // Determine the new current agency ID
       let newAgencyId = agencyid;
+      let agencyResult = null;
       
       // If status is 'forwarded', we need a next agency ID
       if (status === 'forwarded' && !nextAgencyId) {
@@ -636,7 +645,7 @@ const applicationsController = {
         });
       } else if (status === 'forwarded') {
         // Verify the next agency exists
-        const agencyResult = await client.query(
+        agencyResult = await client.query(
           'SELECT * FROM agencies WHERE agencyid = $1',
           [nextAgencyId]
         );
@@ -650,9 +659,11 @@ const applicationsController = {
         }
         
         newAgencyId = nextAgencyId;
+        console.log('Forwarding to agency ID:', newAgencyId);
       }
       
-      // Update the application status
+      // Update the application status (PATCH - only update what changed)
+      console.log('Updating application status to:', status);
       const updateResult = await client.query(
         `UPDATE applications 
         SET status = $1, 
@@ -666,36 +677,29 @@ const applicationsController = {
       // Add entry to processing history
       await client.query(
         `INSERT INTO processinghistory 
-          (applicationid, status, comments, timestamp, agencyid, staffid)
+          (applicationid, staffid, actiontaken, actiondate, notes, isdelayed)
         VALUES ($1, $2, $3, NOW(), $4, $5)`,
-        [id, status, comments || null, agencyid, staffid]
+        [id, staffid, status, comments || null, false]
       );
-      
-      // If status is 'approved' or 'rejected', we might want to send a notification to the citizen
-      if (status === 'approved' || status === 'rejected') {
-        await client.query(
-          `INSERT INTO notifications 
-            (citizenid, title, message, isread, createdat)
-          VALUES ($1, $2, $3, false, NOW())`,
-          [
-            application.citizenid,
-            `Your application has been ${status}`,
-            `Your application "${application.title}" has been ${status} by ${fullname} from the ${agencyResult ? agencyResult.rows[0].name : 'agency'}.${comments ? ' Comments: ' + comments : ''}`
-          ]
-        );
-      }
       
       // Commit the transaction
       await client.query('COMMIT');
       
       // Clear any cached data for this application
-      await redisClient.del(`application_${id}`);
-      await redisClient.del(`application_staff_view_${id}`);
-      await redisClient.del(`pending_applications_agency_${agencyid}`);
-      if (nextAgencyId) {
-        await redisClient.del(`pending_applications_agency_${nextAgencyId}`);
+      try {
+        await redisClient.del(`application_${id}`);
+        await redisClient.del(`application_staff_view_${id}`);
+        await redisClient.del(`pending_applications_agency_${agencyid}`);
+        if (nextAgencyId) {
+          await redisClient.del(`pending_applications_agency_${nextAgencyId}`);
+        }
+        console.log('Cache cleared for application ID:', id);
+      } catch (cacheError) {
+        console.error('Error clearing cache:', cacheError);
+        // Continue without failing - cache errors shouldn't cause the whole operation to fail
       }
       
+      console.log('Application status updated successfully');
       res.status(200).json({
         status: 'success',
         message: `Application status updated to ${status}`,
@@ -703,9 +707,11 @@ const applicationsController = {
       });
     } catch (error) {
       await client.query('ROLLBACK');
+      console.error('Error updating application status:', error.message, error.stack);
       res.status(500).json({ 
         status: 'error',
-        message: 'Failed to update application status' 
+        message: 'Failed to update application status',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined 
       });
     } finally {
       client.release();

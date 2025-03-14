@@ -114,7 +114,7 @@ export default function AgencySelector({ value, onChange, className = '', requir
       <Select.Trigger className="w-full">
         <Select.Value placeholder="Chọn cơ quan" />
       </Select.Trigger>
-      <Select.Content>
+      <Select.Content className='z-50'>
         {agencies.map((agency) => (
           <Select.Item key={agency.agencyid} value={agency.agencyid.toString()}>
             {agency.name || `${agency.agencyid}`}

@@ -4,22 +4,22 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { 
-  Container, 
-  Heading, 
-  Text, 
-  Button, 
-  Badge, 
-  Table, 
+import {
+  Container,
+  Heading,
+  Text,
+  Button,
+  Badge,
+  Table,
   Textarea,
   Label,
   Select
 } from '@medusajs/ui';
-import { 
-  ChevronLeft, 
-  Calendar, 
-  Clock, 
-  ExclamationCircle, 
+import {
+  ChevronLeft,
+  Calendar,
+  Clock,
+  ExclamationCircle,
   ArrowPath,
   Check,
   XMark,
@@ -34,6 +34,7 @@ import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import { getAuthHeaders } from '@/lib/api';
 import ApplicationDetailModal from '@/components/ApplicationDetailModal';
 import Modal from '@/components/Modal';
+import AgencySelector from '@/components/AgencySelector';
 
 // Application status component
 const ApplicationStatus = ({ status }: { status: string }) => {
@@ -105,18 +106,67 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
   const [comments, setComments] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorDetail, setErrorDetail] = useState('');
+  const [nextAgencyId, setNextAgencyId] = useState<number>(0);
+
+  // Define status options with proper display values and backend values
+  const statusOptions = [
+    { value: 'in_review', label: 'Đang xem xét' },
+    { value: 'approved', label: 'Duyệt đơn' },
+    { value: 'rejected', label: 'Từ chối' },
+    { value: 'pending_additional_info', label: 'Yêu cầu bổ sung thông tin' },
+    { value: 'forwarded', label: 'Chuyển tiếp' }
+  ];
+
+  // Get display value for the current status
+  const getStatusDisplayValue = (statusValue: string) => {
+    const option = statusOptions.find(opt => opt.value === statusValue);
+    return option ? option.label : statusValue;
+  };
+
+  // Reset error state when status or comments change
+  useEffect(() => {
+    if (error) {
+      setError('');
+      setErrorDetail('');
+    }
+  }, [status, comments, nextAgencyId]);
 
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
+    setErrorDetail('');
     
     try {
-      await updateApplicationStatus(applicationId, status, comments);
+      console.log(`Updating application ${applicationId} with status: ${status}`);
+      if (status === 'forwarded' && !nextAgencyId) {
+        throw new Error('Vui lòng chọn cơ quan để chuyển tiếp');
+      }
+      await updateApplicationStatus(
+        applicationId, 
+        status, 
+        comments, 
+        status === 'forwarded' ? nextAgencyId : undefined
+      );
+      console.log('Update successful');
       onSuccess();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Error updating application status:', err);
       setError('Cập nhật trạng thái thất bại. Vui lòng thử lại.');
-      console.error(err);
+      
+      // Extract more detailed error information
+      if (err && err.message) {
+        if (err.message.includes('Next agency ID is required')) {
+          setErrorDetail('Cần chọn cơ quan để chuyển tiếp đơn.');
+        } else if (err.message.includes('500')) {
+          setErrorDetail('Lỗi máy chủ nội bộ. Hệ thống đang gặp sự cố, vui lòng thử lại sau hoặc liên hệ quản trị viên.');
+        } else if (err.message.includes('timeout')) {
+          setErrorDetail('Yêu cầu đã hết thời gian chờ. Vui lòng kiểm tra kết nối mạng và thử lại.');
+        } else {
+          setErrorDetail(err.message);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -137,32 +187,55 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
       <Modal.Body className="flex flex-col py-6 px-8 gap-y-8">
         {error && (
           <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded">
-            {error}
+            <div className="font-semibold text-red-600">{error}</div>
+            {errorDetail && <div className="mt-2 text-sm">{errorDetail}</div>}
+            <div className="mt-3 text-sm">
+              <span className="font-medium">Hướng dẫn:</span> Vui lòng thử lại sau vài phút. Nếu lỗi vẫn tiếp tục xảy ra, hãy liên hệ với bộ phận hỗ trợ kỹ thuật.
+            </div>
           </div>
         )}
         
         <div>
-          <Label className="mb-2">Trạng thái mới</Label>
-          <Select 
-            value={status}
-            onValueChange={setStatus}
-            size="base"
-          >
-            <Select.Trigger>
-              <Select.Value placeholder="Chọn trạng thái" />
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="in_review">Đang xem xét</Select.Item>
-              <Select.Item value="approved">Duyệt đơn</Select.Item>
-              <Select.Item value="rejected">Từ chối</Select.Item>
-              <Select.Item value="pending_additional_info">Yêu cầu bổ sung thông tin</Select.Item>
-              <Select.Item value="forwarded">Chuyển tiếp</Select.Item>
-            </Select.Content>
-          </Select>
+          <Label className="mb-2 block">Trạng thái mới</Label>
+          <div className="relative">
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                console.log(`Status changed to: ${value}`);
+                setStatus(value);
+              }}
+            >
+              <Select.Trigger className="w-full z-20 relative">
+                <Select.Value placeholder="Chọn trạng thái">
+                  {getStatusDisplayValue(status)}
+                </Select.Value>
+              </Select.Trigger>
+              <Select.Content position="popper" className="z-[100]">
+                {statusOptions.map((option) => (
+                  <Select.Item key={option.value} value={option.value} className="cursor-pointer hover:bg-gray-100">
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
         </div>
+
+        {status === 'forwarded' && (
+          <div>
+            <Label className="mb-2 block">Chọn cơ quan muốn chuyển tiếp</Label>
+            <div className="relative">
+              <AgencySelector
+                value={nextAgencyId}
+                onChange={setNextAgencyId}
+                required={true}
+              />
+            </div>
+          </div>
+        )}
         
         <div>
-          <Label className="mb-2">Ghi chú/Ý kiến</Label>
+          <Label className="mb-2 block">Ghi chú/Ý kiến</Label>
           <Textarea
             value={comments}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComments(e.target.value)}
@@ -187,18 +260,18 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
 };
 
 // Custom collapsible section component
-const CollapsibleSection = ({ 
-  title, 
-  children 
-}: { 
-  title: string; 
-  children: React.ReactNode 
+const CollapsibleSection = ({
+  title,
+  children
+}: {
+  title: string;
+  children: React.ReactNode
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   return (
     <div className="border border-gray-200 rounded-md mb-4">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full py-3 px-4 bg-gray-50 rounded-t-md text-left"
       >
@@ -307,20 +380,34 @@ export default function PendingApplicationsPage() {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedApplicationDetailId, setSelectedApplicationDetailId] = useState<number | null>(null);
-  
+
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
       return;
     }
-    
+
     loadApplications();
   }, [authLoading, isAuthenticated, router]);
-  
+
+  useEffect(() => {
+    // Calculate total pages whenever applications array changes
+    if (applications.length > 0) {
+      setTotalPages(Math.ceil(applications.length / itemsPerPage));
+    } else {
+      setTotalPages(1);
+    }
+  }, [applications, itemsPerPage]);
+
   const loadApplications = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await fetchPendingApplications();
       // Handle the response data structure properly
@@ -336,7 +423,7 @@ export default function PendingApplicationsPage() {
       }
     } catch (err: any) {
       console.error('Error loading applications:', err);
-      
+
       // Check if it's an authentication error and provide helpful instructions
       if (err.message && (err.message.includes('đăng nhập') || err.message.includes('quyền truy cập'))) {
         setError(err.message);
@@ -345,45 +432,58 @@ export default function PendingApplicationsPage() {
       }
     } finally {
       setLoading(false);
+      // Reset to first page when reloading data
+      setCurrentPage(1);
     }
   };
-  
+
   // Function to handle re-login
   const handleReLogin = () => {
     // Clear current session and redirect to login
     router.push('/login');
   };
-  
+
   const handleViewDetail = (id: number) => {
     setSelectedApplicationDetailId(id);
     setIsDetailModalOpen(true);
   };
-  
+
   const handleUpdateStatus = (id: number) => {
     setSelectedApplicationId(id.toString());
     setIsStatusModalOpen(true);
   };
-  
+
   const handleStatusUpdateSuccess = () => {
     loadApplications();
   };
-  
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Get current page items
+  const getCurrentPageItems = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return applications.slice(startIndex, endIndex);
+  };
+
   if (authLoading) {
     return <Spinner />;
   }
-  
+
   return (
     <Container className="py-6 max-w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <div className="flex items-center mb-1">
-            <Link href="/dashboard">
-              <Button variant="secondary" className="mr-2">
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Dashboard
-              </Button>
-            </Link>
-          </div>
           <Heading level="h1" className="text-2xl font-bold">
             Đơn cần xử lý
           </Heading>
@@ -396,16 +496,16 @@ export default function PendingApplicationsPage() {
           Làm mới
         </Button>
       </div>
-      
+
       {error && (
         <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded flex items-center">
           <ExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           <div className="flex-1">
             <p>{error}</p>
             {(error.includes('đăng nhập') || error.includes('quyền truy cập')) && (
-              <Button 
-                variant="secondary" 
-                className="mt-2" 
+              <Button
+                variant="secondary"
+                className="mt-2"
                 onClick={handleReLogin}
               >
                 Đăng nhập lại
@@ -414,7 +514,7 @@ export default function PendingApplicationsPage() {
           </div>
         </div>
       )}
-      
+
       {loading ? (
         <Spinner />
       ) : applications.length === 0 ? (
@@ -427,107 +527,169 @@ export default function PendingApplicationsPage() {
           </Text>
         </div>
       ) : (
-        <div className="overflow-auto h-[calc(100vh-250px)]">
-          <Table>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>ID</Table.HeaderCell>
-                <Table.HeaderCell>Tiêu đề</Table.HeaderCell>
-                <Table.HeaderCell>Loại đơn</Table.HeaderCell>
-                <Table.HeaderCell>Người nộp</Table.HeaderCell>
-                <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
-                <Table.HeaderCell>Hạn xử lý</Table.HeaderCell>
-                <Table.HeaderCell>Trạng thái</Table.HeaderCell>
-                <Table.HeaderCell>Quá hạn</Table.HeaderCell>
-                <Table.HeaderCell className="text-right">Hành động</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {applications.map((app) => (
-                <Table.Row key={app.applicationid} className="cursor-pointer hover:bg-gray-50">
-                  <Table.Cell>{app.applicationid}</Table.Cell>
-                  <Table.Cell className="max-w-[200px] truncate">{app.title}</Table.Cell>
-                  <Table.Cell>{app.applicationtypename || 'N/A'}</Table.Cell>
-                  <Table.Cell>
-                    <div className="flex items-center">
-                      <User className="w-4 h-4 mr-1 text-gray-500" />
-                      {app.citizenname || 'N/A'}
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell>{app.submissiondate ? formatDate(app.submissiondate) : 'N/A'}</Table.Cell>
-                  <Table.Cell>
-                    <div className="flex items-center">
-                      {app.duedate ? (
-                        <>
-                          <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                          {formatDate(app.duedate)}
-                        </>
-                      ) : (
-                        'N/A'
-                      )}
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <ApplicationStatus status={app.status} />
-                  </Table.Cell>
-                  <Table.Cell>
-                    {app.isoverdue ? (
-                      <Badge className="bg-gray-200 text-gray-800">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Quá hạn
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-gray-100 text-gray-700">
-                        <Check className="w-3 h-3 mr-1" />
-                        Trong hạn
-                      </Badge>
-                    )}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={() => handleViewDetail(app.applicationid)}
-                      >
-                        <Eye className="w-3.5 h-3.5 mr-1" />
-                        Chi tiết
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdateStatus(app.applicationid);
-                        }}
-                      >
-                        <PencilSquare className="w-3.5 h-3.5 mr-1" />
-                        Cập nhật
-                      </Button>
-                    </div>
-                  </Table.Cell>
+        <div className="relative flex flex-col" style={{ height: 'calc(100vh - 250px)' }}>
+          <div className="overflow-auto flex-grow">
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>ID</Table.HeaderCell>
+                  <Table.HeaderCell>Tiêu đề</Table.HeaderCell>
+                  <Table.HeaderCell>Loại đơn</Table.HeaderCell>
+                  <Table.HeaderCell>Người nộp</Table.HeaderCell>
+                  <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
+                  <Table.HeaderCell>Hạn xử lý</Table.HeaderCell>
+                  <Table.HeaderCell>Trạng thái</Table.HeaderCell>
+                  <Table.HeaderCell>Quá hạn</Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">Hành động</Table.HeaderCell>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
+              </Table.Header>
+              <Table.Body>
+                {getCurrentPageItems().map((app) => (
+                  <Table.Row key={app.applicationid} className="cursor-pointer hover:bg-gray-50">
+                    <Table.Cell>{app.applicationid}</Table.Cell>
+                    <Table.Cell className="max-w-[200px] truncate">{app.title}</Table.Cell>
+                    <Table.Cell>{app.applicationtypename || 'N/A'}</Table.Cell>
+                    <Table.Cell>
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 mr-1 text-gray-500" />
+                        {app.citizenname || 'N/A'}
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>{app.submissiondate ? formatDate(app.submissiondate) : 'N/A'}</Table.Cell>
+                    <Table.Cell>
+                      <div className="flex items-center">
+                        {app.duedate ? (
+                          <>
+                            <Calendar className="w-4 h-4 mr-1 text-gray-500" />
+                            {formatDate(app.duedate)}
+                          </>
+                        ) : (
+                          'N/A'
+                        )}
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <ApplicationStatus status={app.status} />
+                    </Table.Cell>
+                    <Table.Cell>
+                      {app.isoverdue ? (
+                        <Badge className="bg-gray-200 text-gray-800">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Quá hạn
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-gray-100 text-gray-700">
+                          <Check className="w-3 h-3 mr-1" />
+                          Trong hạn
+                        </Badge>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => handleViewDetail(app.applicationid)}
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          Chi tiết
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUpdateStatus(app.applicationid);
+                          }}
+                        >
+                          <PencilSquare className="w-3.5 h-3.5 mr-1" />
+                          Cập nhật
+                        </Button>
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </div>
+
+          {/* Simplified fixed pagination controls */}
+          <div className="border-t border-gray-200 bg-white py-3 px-4 absolute bottom-0 left-0 right-0 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Hiển thị {(currentPage - 1) * itemsPerPage + 1} đến {Math.min(currentPage * itemsPerPage, applications.length)} trong tổng số {applications.length} đơn
+            </div>
+
+            <div className="flex items-center">
+              <div className="mr-4 flex items-center">
+                <Text size="small" className="mr-2">Số dòng mỗi trang:</Text>
+                <Select
+                  size="small"
+                  value={itemsPerPage.toString()}
+                  onValueChange={handleItemsPerPageChange}
+                >
+                  <Select.Trigger className="w-16">
+                    <Select.Value placeholder="Chọn" />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="5">5</Select.Item>
+                    <Select.Item value="10">10</Select.Item>
+                  </Select.Content>
+                </Select>
+              </div>
+
+              <div className="flex items-center">
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="border border-gray-200 px-2 py-1 rounded-l"
+                >
+                  &lsaquo;
+                </Button>
+
+                <Text className="px-3 py-1 border-t border-b border-gray-200 bg-white">
+                  {currentPage}
+                </Text>
+
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="border border-gray-200 px-2 py-1 rounded-r"
+                >
+                  &rsaquo;
+                </Button>
+
+                <Text className="ml-2">
+                  Hiển thị 1 đến {totalPages} trong tổng số {totalPages} trang
+                </Text>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-      
+
+      {/* Fix modal backdrop issue */}
       {selectedApplicationId && (
-        <StatusUpdateModal
-          isOpen={isStatusModalOpen}
-          onClose={() => setIsStatusModalOpen(false)}
-          applicationId={selectedApplicationId}
-          onSuccess={handleStatusUpdateSuccess}
-        />
+        <div className={`${isStatusModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isStatusModalOpen ? 'auto' : 'none' }}>
+          <StatusUpdateModal
+            isOpen={isStatusModalOpen}
+            onClose={() => setIsStatusModalOpen(false)}
+            applicationId={selectedApplicationId}
+            onSuccess={handleStatusUpdateSuccess}
+          />
+        </div>
       )}
 
-      <ApplicationDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        applicationId={selectedApplicationDetailId}
-        onUpdateStatus={handleUpdateStatus}
-      />
+      <div className={`${isDetailModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isDetailModalOpen ? 'auto' : 'none' }}>
+        <ApplicationDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          applicationId={selectedApplicationDetailId}
+        />
+      </div>
     </Container>
   );
-} 
+}
