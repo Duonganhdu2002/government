@@ -40,6 +40,9 @@ import {
   updateApplicationStatus,
 } from "@/services/applicationService";
 
+// Import ApplicationDetailModal component
+import ApplicationDetailModal from '@/components/ApplicationDetailModal';
+
 /**
  * ProgressBar (grayscale)
  */
@@ -550,7 +553,7 @@ const RecentActivityItem = ({ activity }: { activity: ActivityData }) => {
 /**
  * ApplicationDetailModal - Modal hiển thị chi tiết đơn
  */
-const ApplicationDetailModal = ({
+const DashboardApplicationModal = ({
   isOpen,
   onClose,
   application,
@@ -700,6 +703,7 @@ export default function DashboardPage() {
 
   // State cho modal chi tiết đơn
   const [selectedApplication, setSelectedApplication] = useState<ApplicationData | null>(null);
+  const [selectedApplicationDetailId, setSelectedApplicationDetailId] = useState<number | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   
   // State cho đơn cần xử lý hôm nay
@@ -895,13 +899,14 @@ export default function DashboardPage() {
   // View detail
   const handleViewApplicationDetail = (application: ApplicationData) => {
     setSelectedApplication(application);
+    setSelectedApplicationDetailId(application.applicationid);
     setIsDetailModalOpen(true);
   };
 
   // Đóng modal chi tiết
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
-    setSelectedApplication(null);
+    setSelectedApplicationDetailId(null);
   };
 
   // Mark notification as read
@@ -938,12 +943,12 @@ export default function DashboardPage() {
 
   return (
     <div className="py-6 max-w-full">
-      {/* Modal chi tiết đơn */}
-      <ApplicationDetailModal
+      {/* Modal chi tiết đơn (phiên bản cũ) - đã bị ẩn vì dùng component mới thay thế */}
+      {/* <DashboardApplicationModal
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
         application={selectedApplication}
-      />
+      /> */}
       
       {/* Welcome Banner - grayscale */}
       <div className="px-4 mb-6 rounded-lg shadow-lg bg-gray-800">
@@ -1657,6 +1662,15 @@ export default function DashboardPage() {
             </Drawer.Content>
           </Drawer>
         </div>
+      </div>
+
+      {/* Hiển thị modal chi tiết đơn sử dụng external component */}
+      <div className={`${isDetailModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isDetailModalOpen ? 'auto' : 'none' }}>
+        <ApplicationDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={handleCloseDetailModal}
+          applicationId={selectedApplicationDetailId}
+        />
       </div>
     </div>
   );
