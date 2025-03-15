@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/hooks/useAuth';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
 import {
   Container,
   Heading,
@@ -15,7 +15,8 @@ import {
   Select,
   Tabs,
   Input
-} from '@medusajs/ui';
+} from "@medusajs/ui";
+
 import {
   ChevronLeft,
   Calendar,
@@ -29,48 +30,64 @@ import {
   PencilSquare,
   ChevronDown,
   MapPin
-} from '@medusajs/icons';
-import { fetchAllApplications, updateApplicationStatus, fetchApplicationDetailForStaff } from '@/services/applicationService';
-import { formatDate, formatDateTime } from '@/utils/dateUtils';
-import ApplicationDetailModal from '@/components/ApplicationDetailModal';
-import Modal from '@/components/Modal';
+} from "@medusajs/icons";
 
-// Application Status Component
+import {
+  fetchAllApplications,
+  updateApplicationStatus,
+  fetchApplicationDetailForStaff
+} from "@/services/applicationService";
+
+import { formatDate, formatDateTime } from "@/utils/dateUtils";
+import ApplicationDetailModal from "@/components/ApplicationDetailModal";
+import Modal from "@/components/Modal";
+
+/** 
+ * CHỈ DÙNG TRẮNG, ĐEN, XÁM – KHÔNG DÙNG CÁC MÀU SẶC SỠ
+ */
+
+/**
+ * Application Status Component (Chỉ màu xám/đen/trắng)
+ */
 const ApplicationStatus = ({ status }: { status: string }) => {
+  const statusLower = status?.toLowerCase() || "";
+
+  // Chuyển đổi mọi trạng thái thành class xám
+  // Có thể chỉnh cho approved/rejected khác chút, nhưng vẫn trong tông xám
   const getStatusClass = () => {
-    switch (status?.toLowerCase()) {
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'in_review':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending_additional_info':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'submitted':
-      case 'pending':
-        return 'bg-gray-100 text-gray-800';
+    switch (statusLower) {
+      case "approved":
+        return "bg-gray-200 text-gray-700"; // phê duyệt
+      case "rejected":
+        return "bg-gray-300 text-gray-800"; // từ chối
+      case "in_review":
+        return "bg-gray-200 text-gray-700"; // đang xem xét
+      case "pending_additional_info":
+        return "bg-gray-200 text-gray-700"; // cần bổ sung
+      case "submitted":
+      case "pending":
+        return "bg-gray-100 text-gray-800"; // trạng thái chờ
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusText = () => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'Đang chờ';
-      case 'in_review':
-        return 'Đang xem xét';
-      case 'submitted':
-        return 'Đã nộp';
-      case 'approved':
-        return 'Đã duyệt';
-      case 'rejected':
-        return 'Từ chối';
-      case 'pending_additional_info':
-        return 'Cần bổ sung';
+    switch (statusLower) {
+      case "pending":
+        return "Đang chờ";
+      case "in_review":
+        return "Đang xem xét";
+      case "submitted":
+        return "Đã nộp";
+      case "approved":
+        return "Đã duyệt";
+      case "rejected":
+        return "Từ chối";
+      case "pending_additional_info":
+        return "Cần bổ sung";
       default:
-        return status || 'Không xác định';
+        return status || "Không xác định";
     }
   };
 
@@ -81,14 +98,18 @@ const ApplicationStatus = ({ status }: { status: string }) => {
   );
 };
 
-// Loading Spinner component
+/**
+ * Loading Spinner (chỉ xám)
+ */
 const Spinner = () => (
   <div className="flex justify-center items-center py-8">
     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-500"></div>
   </div>
 );
 
-// Status update modal component (giống với trong pending-applications/page.tsx)
+/**
+ * StatusUpdateModal – Modal cập nhật trạng thái (tông xám)
+ */
 type StatusUpdateModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -96,60 +117,58 @@ type StatusUpdateModalProps = {
   onSuccess: () => void;
 };
 
-const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: StatusUpdateModalProps) => {
-  const [status, setStatus] = useState('in_review');
-  const [comments, setComments] = useState('');
+const StatusUpdateModal = ({
+  isOpen,
+  onClose,
+  applicationId,
+  onSuccess
+}: StatusUpdateModalProps) => {
+  const [status, setStatus] = useState("in_review");
+  const [comments, setComments] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [errorDetail, setErrorDetail] = useState('');
+  const [error, setError] = useState("");
+  const [errorDetail, setErrorDetail] = useState("");
 
-  // Define status options with proper display values and backend values
+  // Tùy chọn trạng thái (hiển thị xám)
   const statusOptions = [
-    { value: 'in_review', label: 'Đang xem xét' },
-    { value: 'approved', label: 'Duyệt đơn' },
-    { value: 'rejected', label: 'Từ chối' },
-    { value: 'pending_additional_info', label: 'Yêu cầu bổ sung thông tin' }
+    { value: "in_review", label: "Đang xem xét" },
+    { value: "approved", label: "Duyệt đơn" },
+    { value: "rejected", label: "Từ chối" },
+    { value: "pending_additional_info", label: "Yêu cầu bổ sung thông tin" }
   ];
 
-  // Get display value for the current status
-  const getStatusDisplayValue = (statusValue: string) => {
-    const option = statusOptions.find(opt => opt.value === statusValue);
-    return option ? option.label : statusValue;
+  const getStatusDisplayValue = (value: string) => {
+    const option = statusOptions.find(opt => opt.value === value);
+    return option ? option.label : value;
   };
 
-  // Reset error state when status or comments change
   useEffect(() => {
     if (error) {
-      setError('');
-      setErrorDetail('');
+      setError("");
+      setErrorDetail("");
     }
   }, [status, comments]);
 
   const handleSubmit = async () => {
     setLoading(true);
-    setError('');
-    setErrorDetail('');
-    
+    setError("");
+    setErrorDetail("");
+
     try {
-      console.log(`Updating application ${applicationId} with status: ${status}`);
-      await updateApplicationStatus(
-        applicationId, 
-        status, 
-        comments
-      );
-      console.log('Update successful');
+      await updateApplicationStatus(applicationId, status, comments);
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating application status:', err);
-      setError('Cập nhật trạng thái thất bại. Vui lòng thử lại.');
-      
-      // Extract more detailed error information
+      setError("Cập nhật trạng thái thất bại. Vui lòng thử lại.");
       if (err && err.message) {
-        if (err.message.includes('500')) {
-          setErrorDetail('Lỗi máy chủ nội bộ. Hệ thống đang gặp sự cố, vui lòng thử lại sau hoặc liên hệ quản trị viên.');
-        } else if (err.message.includes('timeout')) {
-          setErrorDetail('Yêu cầu đã hết thời gian chờ. Vui lòng kiểm tra kết nối mạng và thử lại.');
+        if (err.message.includes("500")) {
+          setErrorDetail(
+            "Lỗi máy chủ nội bộ. Hệ thống đang gặp sự cố, vui lòng thử lại sau hoặc liên hệ quản trị viên."
+          );
+        } else if (err.message.includes("timeout")) {
+          setErrorDetail(
+            "Yêu cầu đã hết thời gian chờ. Vui lòng kiểm tra kết nối mạng và thử lại."
+          );
         } else {
           setErrorDetail(err.message);
         }
@@ -174,24 +193,25 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
         </Modal.Header>
         <Modal.Body className="flex flex-col py-6 px-8 gap-y-8">
           {error && (
-            <div className="p-4 mb-4 bg-gray-100 border border-gray-300 text-gray-700 rounded">
-              <div className="font-semibold text-red-600">{error}</div>
-              {errorDetail && <div className="mt-2 text-sm">{errorDetail}</div>}
-              <div className="mt-3 text-sm">
-                <span className="font-medium">Hướng dẫn:</span> Vui lòng thử lại sau vài phút. Nếu lỗi vẫn tiếp tục xảy ra, hãy liên hệ với bộ phận hỗ trợ kỹ thuật.
+            <div className="p-4 mb-4 bg-gray-50 border border-gray-300 text-gray-700 rounded">
+              <div className="font-semibold text-gray-800">{error}</div>
+              {errorDetail && (
+                <div className="mt-2 text-sm text-gray-600">{errorDetail}</div>
+              )}
+              <div className="mt-3 text-sm text-gray-600">
+                <span className="font-medium text-gray-800">Hướng dẫn:</span>{" "}
+                Vui lòng thử lại sau vài phút. Nếu lỗi vẫn tiếp tục, hãy liên hệ
+                với bộ phận hỗ trợ kỹ thuật.
               </div>
             </div>
           )}
-          
+
           <div>
             <Label className="mb-2 block">Trạng thái mới</Label>
             <div className="relative">
               <Select
                 value={status}
-                onValueChange={(value) => {
-                  console.log(`Status changed to: ${value}`);
-                  setStatus(value);
-                }}
+                onValueChange={value => setStatus(value)}
               >
                 <Select.Trigger className="w-full z-20 relative">
                   <Select.Value placeholder="Chọn trạng thái">
@@ -199,8 +219,12 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
                   </Select.Value>
                 </Select.Trigger>
                 <Select.Content position="popper" className="z-[10000]">
-                  {statusOptions.map((option) => (
-                    <Select.Item key={option.value} value={option.value} className="cursor-pointer hover:bg-gray-100">
+                  {statusOptions.map(option => (
+                    <Select.Item
+                      key={option.value}
+                      value={option.value}
+                      className="cursor-pointer hover:bg-gray-100"
+                    >
                       {option.label}
                     </Select.Item>
                   ))}
@@ -208,12 +232,14 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
               </Select>
             </div>
           </div>
-          
+
           <div>
             <Label className="mb-2 block">Ghi chú/Ý kiến</Label>
             <Textarea
               value={comments}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setComments(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setComments(e.target.value)
+              }
               placeholder="Nhập ghi chú hoặc ý kiến về đơn này..."
               rows={4}
               className="w-full"
@@ -235,116 +261,117 @@ const StatusUpdateModal = ({ isOpen, onClose, applicationId, onSuccess }: Status
   );
 };
 
+/**
+ * Trang hiển thị tất cả đơn (chỉ tông xám, trắng, đen)
+ */
 export default function AllApplicationsPage() {
   const router = useRouter();
   const { isAuthenticated, loading: authLoading } = useAuth();
+
   const [applications, setApplications] = useState<any[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [selectedApplicationId, setSelectedApplicationId] =
+    useState<string | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedApplicationDetailId, setSelectedApplicationDetailId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedApplicationDetailId, setSelectedApplicationDetailId] =
+    useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Pagination state
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
-
     loadApplications();
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    // Filter applications based on active tab and search term
+    // Lọc dữ liệu theo tab, status, search
     let filtered = [...applications];
-    
-    // Filter by tab
-    if (activeTab === 'pending') {
-      filtered = filtered.filter(app => 
-        ['pending', 'submitted', 'in_review'].includes(app.status?.toLowerCase())
+
+    // Tab logic
+    if (activeTab === "pending") {
+      filtered = filtered.filter(app =>
+        ["pending", "submitted", "in_review"].includes(
+          app.status?.toLowerCase()
+        )
       );
-    } else if (activeTab === 'completed') {
-      filtered = filtered.filter(app => 
-        ['approved', 'rejected'].includes(app.status?.toLowerCase())
+    } else if (activeTab === "completed") {
+      filtered = filtered.filter(app =>
+        ["approved", "rejected"].includes(app.status?.toLowerCase())
       );
     }
-    
-    // Apply status filter if not 'all'
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(app => app.status?.toLowerCase() === statusFilter.toLowerCase());
+
+    // Status filter (nếu != 'all')
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(
+        app => app.status?.toLowerCase() === statusFilter.toLowerCase()
+      );
     }
-    
-    // Apply search term
+
+    // Search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(app => 
-        app.title?.toLowerCase().includes(term) || 
-        app.citizenname?.toLowerCase().includes(term) ||
-        app.applicationid?.toString().includes(term)
+      filtered = filtered.filter(
+        app =>
+          app.title?.toLowerCase().includes(term) ||
+          app.citizenname?.toLowerCase().includes(term) ||
+          app.applicationid?.toString().includes(term)
       );
     }
-    
+
     setFilteredApplications(filtered);
-    
-    // Reset to first page when filters change
-    setCurrentPage(1);
-    
-    // Calculate total pages
+    setCurrentPage(1); // reset page
+
+    // Tính total pages
     setTotalPages(Math.ceil(filtered.length / itemsPerPage));
   }, [applications, activeTab, searchTerm, statusFilter, itemsPerPage]);
 
   const loadApplications = async () => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      console.log('Đang gọi API để lấy tất cả đơn...');
-      
       const response = await fetchAllApplications();
-      console.log('Kết quả API:', response);
-      
-      // Kiểm tra cấu trúc response
-      if (response && response.status === 'success' && Array.isArray(response.data)) {
+
+      if (response && response.status === "success" && Array.isArray(response.data)) {
         setApplications(response.data);
         setFilteredApplications(response.data);
-        console.log(`Đã tải thành công ${response.data.length} đơn`);
-      } else if (response && Array.isArray(response)) {
-        // Trường hợp API trả về mảng trực tiếp (backward compatibility)
+      } else if (Array.isArray(response)) {
+        // API trả mảng trực tiếp
         setApplications(response);
         setFilteredApplications(response);
-        console.log(`Đã tải thành công ${response.length} đơn (dạng mảng)`);
       } else {
-        console.error('Dữ liệu không đúng định dạng:', response);
         setApplications([]);
         setFilteredApplications([]);
-        setError('Dữ liệu không đúng định dạng. Vui lòng thử lại sau.');
+        setError("Dữ liệu không đúng định dạng. Vui lòng thử lại sau.");
       }
     } catch (err: any) {
-      console.error('Lỗi khi tải danh sách đơn:', err);
-      
-      // Xử lý các loại lỗi cụ thể
-      if (err.message?.includes('401') || err.message?.includes('đăng nhập')) {
-        setError('Phiên làm việc hết hạn. Vui lòng đăng nhập lại.');
-      } else if (err.message?.includes('403') || err.message?.includes('quyền truy cập')) {
-        setError('Bạn không có quyền truy cập vào tài nguyên này.');
-      } else if (err.message?.includes('timeout') || err.message?.includes('quá thời gian')) {
-        setError('Máy chủ không phản hồi. Vui lòng thử lại sau.');
-      } else if (err.message?.includes('404')) {
-        setError('Không tìm thấy dữ liệu hoặc endpoint API không tồn tại.');
-      } else if (err.message?.includes('400')) {
-        setError('Yêu cầu không hợp lệ. Vui lòng kiểm tra cấu hình API và thử lại.');
+      if (err.message?.includes("401") || err.message?.includes("đăng nhập")) {
+        setError("Phiên làm việc hết hạn. Vui lòng đăng nhập lại.");
+      } else if (
+        err.message?.includes("403") ||
+        err.message?.includes("quyền truy cập")
+      ) {
+        setError("Bạn không có quyền truy cập vào tài nguyên này.");
+      } else if (err.message?.includes("timeout") || err.message?.includes("quá thời gian")) {
+        setError("Máy chủ không phản hồi. Vui lòng thử lại sau.");
+      } else if (err.message?.includes("404")) {
+        setError("Không tìm thấy dữ liệu hoặc endpoint API không tồn tại.");
+      } else if (err.message?.includes("400")) {
+        setError("Yêu cầu không hợp lệ. Vui lòng kiểm tra cấu hình API và thử lại.");
       } else {
-        setError(err.message || 'Không thể tải danh sách đơn. Vui lòng thử lại sau.');
+        setError(err.message || "Không thể tải danh sách đơn. Vui lòng thử lại sau.");
       }
     } finally {
       setLoading(false);
@@ -365,7 +392,7 @@ export default function AllApplicationsPage() {
     loadApplications();
   };
 
-  // Pagination handlers
+  // Pagination
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -377,7 +404,7 @@ export default function AllApplicationsPage() {
     setCurrentPage(1);
   };
 
-  // Get current page items
+  // Lấy các items theo page
   const getCurrentPageItems = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -388,24 +415,25 @@ export default function AllApplicationsPage() {
     return <Spinner />;
   }
 
-  // Status options for filter
+  // Options cho dropdown trạng thái
   const statusOptions = [
-    { value: 'all', label: 'Tất cả trạng thái' },
-    { value: 'submitted', label: 'Đã nộp' },
-    { value: 'in_review', label: 'Đang xem xét' },
-    { value: 'approved', label: 'Đã duyệt' },
-    { value: 'rejected', label: 'Từ chối' },
-    { value: 'pending_additional_info', label: 'Cần bổ sung thông tin' }
+    { value: "all", label: "Tất cả trạng thái" },
+    { value: "submitted", label: "Đã nộp" },
+    { value: "in_review", label: "Đang xem xét" },
+    { value: "approved", label: "Đã duyệt" },
+    { value: "rejected", label: "Từ chối" },
+    { value: "pending_additional_info", label: "Cần bổ sung thông tin" }
   ];
 
   return (
     <Container className="py-6 max-w-full">
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <Heading level="h1" className="text-2xl font-bold">
             Quản lý tất cả đơn
           </Heading>
-          <Text className="text-ui-fg-subtle mt-1">
+          <Text className="text-gray-500 mt-1">
             Tất cả đơn trong hệ thống được gán cho đơn vị của bạn.
           </Text>
         </div>
@@ -416,38 +444,41 @@ export default function AllApplicationsPage() {
       </div>
 
       {error && (
-        <div className="p-4 mb-4 bg-red-50 border border-red-200 text-red-700 rounded flex items-center">
-          <ExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+        <div className="p-4 mb-4 bg-gray-50 border border-gray-300 text-gray-700 rounded flex items-center">
+          <ExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0 text-gray-600" />
           <div className="flex-1">
             <p>{error}</p>
           </div>
         </div>
       )}
 
-      {/* Filtering and Search Section */}
+      {/* Filter + Search */}
       <div className="mb-6 bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="flex-1">
-            <Label htmlFor="search" className="mb-2 block">Tìm kiếm đơn</Label>
-            <Input 
+            <Label htmlFor="search" className="mb-2 block">
+              Tìm kiếm đơn
+            </Label>
+            <Input
               id="search"
               placeholder="Tìm theo tiêu đề, ID, người nộp..."
               value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setSearchTerm(e.target.value)
+              }
               className="w-full"
             />
           </div>
           <div className="w-full md:w-64">
-            <Label htmlFor="statusFilter" className="mb-2 block">Lọc theo trạng thái</Label>
-            <Select
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-            >
+            <Label htmlFor="statusFilter" className="mb-2 block">
+              Lọc theo trạng thái
+            </Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <Select.Trigger className="w-full">
                 <Select.Value placeholder="Chọn trạng thái" />
               </Select.Trigger>
               <Select.Content position="popper" className="z-[100]">
-                {statusOptions.map((option) => (
+                {statusOptions.map(option => (
                   <Select.Item key={option.value} value={option.value}>
                     {option.label}
                   </Select.Item>
@@ -457,9 +488,9 @@ export default function AllApplicationsPage() {
           </div>
         </div>
 
-        {/* Tabs for different application states */}
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <Tabs.List className="border-b border-gray-200">
+          <Tabs.List>
             <Tabs.Trigger value="all" className="px-4 py-2">
               Tất cả đơn
             </Tabs.Trigger>
@@ -473,6 +504,7 @@ export default function AllApplicationsPage() {
         </Tabs>
       </div>
 
+      {/* Table hiển thị đơn */}
       {loading ? (
         <Spinner />
       ) : filteredApplications.length === 0 ? (
@@ -480,12 +512,15 @@ export default function AllApplicationsPage() {
           <Heading level="h2" className="text-xl mb-2">
             Không tìm thấy đơn nào
           </Heading>
-          <Text className="text-ui-fg-subtle">
+          <Text className="text-gray-500">
             Không có đơn nào phù hợp với điều kiện tìm kiếm.
           </Text>
         </div>
       ) : (
-        <div className="relative flex flex-col" style={{ height: 'calc(100vh - 300px)' }}>
+        <div
+          className="relative flex flex-col"
+          style={{ height: "calc(100vh - 300px)" }}
+        >
           <div className="overflow-auto flex-grow">
             <Table>
               <Table.Header>
@@ -497,25 +532,36 @@ export default function AllApplicationsPage() {
                   <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
                   <Table.HeaderCell>Cơ quan hiện tại</Table.HeaderCell>
                   <Table.HeaderCell>Trạng thái</Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">Hành động</Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">
+                    Hành động
+                  </Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {getCurrentPageItems().map((app) => (
-                  <Table.Row key={app.applicationid} className="cursor-pointer hover:bg-gray-50">
+                {getCurrentPageItems().map(app => (
+                  <Table.Row
+                    key={app.applicationid}
+                    className="cursor-pointer hover:bg-gray-50"
+                  >
                     <Table.Cell>{app.applicationid}</Table.Cell>
-                    <Table.Cell className="max-w-[200px] truncate">{app.title}</Table.Cell>
-                    <Table.Cell>{app.applicationtypename || 'N/A'}</Table.Cell>
+                    <Table.Cell className="max-w-[200px] truncate">
+                      {app.title}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {app.applicationtypename || "N/A"}
+                    </Table.Cell>
                     <Table.Cell>
                       <div className="flex items-center">
                         <User className="w-4 h-4 mr-1 text-gray-500" />
-                        {app.citizenname || 'N/A'}
+                        {app.citizenname || "N/A"}
                       </div>
                     </Table.Cell>
-                    <Table.Cell>{app.submissiondate ? formatDate(app.submissiondate) : 'N/A'}</Table.Cell>
                     <Table.Cell>
-                      {app.agencyname || 'N/A'}
+                      {app.submissiondate
+                        ? formatDate(app.submissiondate)
+                        : "N/A"}
                     </Table.Cell>
+                    <Table.Cell>{app.agencyname || "N/A"}</Table.Cell>
                     <Table.Cell>
                       <ApplicationStatus status={app.status} />
                     </Table.Cell>
@@ -529,12 +575,10 @@ export default function AllApplicationsPage() {
                           <Eye className="w-3.5 h-3.5 mr-1" />
                           Chi tiết
                         </Button>
-                        
-                        {/* Nút Cập nhật trạng thái */}
                         <Button
                           variant="secondary"
                           size="small"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             handleUpdateStatus(app.applicationid);
                           }}
@@ -550,15 +594,26 @@ export default function AllApplicationsPage() {
             </Table>
           </div>
 
-          {/* Pagination controls */}
+          {/* Pagination */}
           <div className="border-t border-gray-200 bg-white py-3 px-4 absolute bottom-0 left-0 right-0 flex justify-between items-center">
             <div className="text-sm text-gray-600">
-              Hiển thị {filteredApplications.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} đến {Math.min(currentPage * itemsPerPage, filteredApplications.length)} trong tổng số {filteredApplications.length} đơn
+              Hiển thị{" "}
+              {filteredApplications.length > 0
+                ? (currentPage - 1) * itemsPerPage + 1
+                : 0}{" "}
+              đến{" "}
+              {Math.min(
+                currentPage * itemsPerPage,
+                filteredApplications.length
+              )}{" "}
+              trong tổng số {filteredApplications.length} đơn
             </div>
 
             <div className="flex items-center">
               <div className="mr-4 flex items-center">
-                <Text size="small" className="mr-2">Số dòng mỗi trang:</Text>
+                <Text size="small" className="mr-2 text-gray-600">
+                  Số dòng mỗi trang:
+                </Text>
                 <Select
                   size="small"
                   value={itemsPerPage.toString()}
@@ -587,7 +642,7 @@ export default function AllApplicationsPage() {
                   &lsaquo;
                 </Button>
 
-                <Text className="px-3 py-1 border-t border-b border-gray-200 bg-white">
+                <Text className="px-3 py-1 border-t border-b border-gray-200 bg-white text-gray-600">
                   {currentPage}
                 </Text>
 
@@ -601,7 +656,7 @@ export default function AllApplicationsPage() {
                   &rsaquo;
                 </Button>
 
-                <Text className="ml-2">
+                <Text className="ml-2 text-gray-600">
                   Trang {currentPage} / {totalPages}
                 </Text>
               </div>
@@ -613,7 +668,12 @@ export default function AllApplicationsPage() {
       {/* Modals */}
       {selectedApplicationId && (
         <>
-          <div className={`${isStatusModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isStatusModalOpen ? 'auto' : 'none' }}>
+          <div
+            className={`${
+              isStatusModalOpen ? "fixed inset-0 bg-black/60 z-50" : "hidden"
+            }`}
+            style={{ pointerEvents: isStatusModalOpen ? "auto" : "none" }}
+          >
             <StatusUpdateModal
               isOpen={isStatusModalOpen}
               onClose={() => setIsStatusModalOpen(false)}
@@ -624,7 +684,12 @@ export default function AllApplicationsPage() {
         </>
       )}
 
-      <div className={`${isDetailModalOpen ? 'fixed inset-0 bg-black/60 z-50' : 'hidden'}`} style={{ pointerEvents: isDetailModalOpen ? 'auto' : 'none' }}>
+      <div
+        className={`${
+          isDetailModalOpen ? "fixed inset-0 bg-black/60 z-50" : "hidden"
+        }`}
+        style={{ pointerEvents: isDetailModalOpen ? "auto" : "none" }}
+      >
         <ApplicationDetailModal
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
@@ -633,4 +698,4 @@ export default function AllApplicationsPage() {
       </div>
     </Container>
   );
-} 
+}
