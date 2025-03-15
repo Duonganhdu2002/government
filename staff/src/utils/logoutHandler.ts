@@ -25,7 +25,7 @@ export const useLogoutHandler = () => {
   const handleLogout = async (redirectPath = '/login') => {
     try {
       // Use the logout function from useAuth
-      await logout(redirectPath);
+      logout();
       
       // The redirection is handled by useAuth.logout
     } catch (error) {
