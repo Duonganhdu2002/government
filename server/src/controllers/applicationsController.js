@@ -1166,12 +1166,22 @@ const applicationsController = {
       const todayProcessedResult = await pool.query(todayProcessedQuery, [req.userId, todayStr]);
       const todayProcessed = parseInt(todayProcessedResult.rows[0]?.processed_today || 0);
       
-      // Task 1: Process new applications - Tổng số đơn của hôm nay
-      const todaysApplicationsCount = parseInt(statsResult.rows[0]?.today || 0);
-      // Đặt mục tiêu là tổng số đơn của hôm nay (hoặc ít nhất 1 nếu không có đơn nào)
-      const newAppsTarget = Math.max(1, todaysApplicationsCount);
+      // Đếm chính xác số đơn mới được nộp HOẶC có hạn xử lý là hôm nay
+      const actualTodayApplicationsQuery = `
+        SELECT COUNT(*) as actual_today_count
+        FROM applications
+        WHERE agencyid = $1
+        AND (LOWER(status) IN ('submitted', 'pending', 'in_review'))
+        AND (
+          (DATE(submissiondate) = $2) OR 
+          (DATE(duedate) = $2)
+        );
+      `;
       
-      // Truy vấn đơn cần xử lý hôm nay (dựa trên hạn xử lý là hôm nay hoặc quá hạn)
+      const actualTodayApplicationsResult = await pool.query(actualTodayApplicationsQuery, [agencyid, todayStr]);
+      const actualTodayCount = parseInt(actualTodayApplicationsResult.rows[0]?.actual_today_count || 0);
+      
+      // Truy vấn đơn cần xử lý hôm nay (CHỈ những đơn mới nộp hoặc có hạn là NGÀY HÔM NAY)
       const todaysTasksQuery = `
         SELECT a.*, 
           at.typename as applicationtypename, 
@@ -1184,27 +1194,26 @@ const applicationsController = {
         WHERE a.agencyid = $1
         AND (a.status = 'Submitted' OR LOWER(a.status) IN ('pending', 'in_review'))
         AND (
-          (a.duedate::date = CURRENT_DATE) OR
-          (a.isoverdue = true) OR
-          (a.submissiondate::date = CURRENT_DATE)
+          (DATE(a.submissiondate) = $2) OR
+          (DATE(a.duedate) = $2)
         )
         ORDER BY 
-          CASE WHEN a.isoverdue = true THEN 0 ELSE 1 END,
           a.duedate ASC,
           a.submissiondate DESC
         LIMIT 10;
       `;
       
-      const todaysTasksResult = await pool.query(todaysTasksQuery, [agencyid]);
+      const todaysTasksResult = await pool.query(todaysTasksQuery, [agencyid, todayStr]);
       const todaysTasksCount = todaysTasksResult.rows.length;
       
+      // Task 1: Xử lý các đơn thực sự của ngày hôm nay (mới nộp hoặc đến hạn hôm nay)
       dailyTasks.push({
         taskId: 1,
-        title: 'Xử lý các hồ sơ đến hạn hôm nay',
-        status: todayProcessed >= todaysTasksCount ? 'completed' : todaysTasksCount > 0 ? 'in-progress' : 'completed',
-        progress: todaysTasksCount > 0 ? (todayProcessed / todaysTasksCount) * 100 : 100,
-        target: todaysTasksCount > 0 ? todaysTasksCount : 1,
-        current: Math.min(todayProcessed, todaysTasksCount > 0 ? todaysTasksCount : 1)
+        title: 'Xử lý các đơn mới nộp hoặc đến hạn hôm nay',
+        status: todayProcessed >= actualTodayCount ? 'completed' : actualTodayCount > 0 ? 'in-progress' : 'completed',
+        progress: actualTodayCount > 0 ? (todayProcessed / actualTodayCount) * 100 : 100,
+        target: actualTodayCount > 0 ? actualTodayCount : 1,
+        current: Math.min(todayProcessed, actualTodayCount > 0 ? actualTodayCount : 1)
       });
       
       // Task 2: Handle overdue applications
@@ -1247,7 +1256,7 @@ const applicationsController = {
         applications: applicationsResult.rows || [],
         recentActivity: processingHistoryResult.rows || [],
         dailyTasks: dailyTasks,
-        todaysTasks: todaysTasksResult.rows || [], // Thêm danh sách đơn cần xử lý hôm nay
+        todaysTasks: todaysTasksResult.rows || [], // Danh sách đơn cần xử lý hôm nay theo định nghĩa mới
         performance: {
           avgProcessingTime: parseFloat(performanceResult.rows[0]?.avg_processing_time || 0),
           processedApplications: parseInt(performanceResult.rows[0]?.processed_applications || 0),

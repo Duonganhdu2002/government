@@ -17,6 +17,21 @@ interface MediaFile {
   [key: string]: any;
 }
 
+// Định nghĩa kiểu dữ liệu cho ApplicationData
+interface ApplicationData {
+  applicationid: number;
+  title?: string;
+  applicationtypename?: string;
+  specialapplicationtypename?: string;
+  submissiondate?: string;
+  duedate?: string;
+  status?: string;
+  citizenname?: string;
+  applicantname?: string;
+  isoverdue?: boolean;
+  [key: string]: any;
+}
+
 /**
  * Lấy danh sách loại đơn
  */
@@ -554,6 +569,7 @@ export const fetchDashboardData = async (): Promise<{
     target: number;
     current: number;
   }>;
+  todaysTasks?: ApplicationData[];
   performance?: {
     avgProcessingTime: number;
     processedApplications: number;
@@ -596,6 +612,7 @@ export const fetchDashboardData = async (): Promise<{
         },
         recentActivity: dashboardData.recentActivity || [],
         dailyTasks: dashboardData.dailyTasks || [],
+        todaysTasks: dashboardData.todaysTasks || [],
         performance: dashboardData.performance || {
           avgProcessingTime: 0,
           processedApplications: 0,
@@ -623,6 +640,7 @@ export const fetchDashboardData = async (): Promise<{
       },
       recentActivity: [],
       dailyTasks: [],
+      todaysTasks: [],
       performance: {
         avgProcessingTime: 0,
         processedApplications: 0,

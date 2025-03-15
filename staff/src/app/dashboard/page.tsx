@@ -263,7 +263,7 @@ const ApplicationToProcessItem = ({
   onProcess,
 }: {
   application: any;
-  onViewDetail: (id: number) => void;
+  onViewDetail: (application: ApplicationData) => void;
   onProcess: (id: number) => void;
 }) => {
   // Calculate days since submission
@@ -333,7 +333,7 @@ const ApplicationToProcessItem = ({
           variant="secondary"
           size="small"
           className="mr-2"
-          onClick={() => onViewDetail(application.applicationid)}
+          onClick={() => onViewDetail(application)}
         >
           <MagnifyingGlass className="w-4 h-4 mr-1" />
           Xem chi tiết
@@ -683,6 +683,13 @@ const ApplicationDetailModal = ({
 
 /**
  * DashboardPage (grayscale)
+ * 
+ * Chức năng:
+ * - Hiển thị tổng quan về hồ sơ: tổng số, đang chờ, phê duyệt, từ chối, mới, quá hạn
+ * - Hiển thị danh sách hồ sơ cần xử lý
+ * - Hiển thị nhiệm vụ hôm nay dựa trên hồ sơ đến hạn trong ngày
+ * - Khi click vào hồ sơ sẽ hiển thị modal chi tiết
+ * - Hiển thị hiệu suất làm việc từ dữ liệu thực
  */
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -690,6 +697,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [applicationsToProcess, setApplicationsToProcess] = useState<ApplicationData[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityData[]>([]);
+
+  // State cho modal chi tiết đơn
+  const [selectedApplication, setSelectedApplication] = useState<ApplicationData | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  
+  // State cho đơn cần xử lý hôm nay
+  const [todaysTasks, setTodaysTasks] = useState<ApplicationData[]>([]);
 
   const [stats, setStats] = useState<DashboardStats>({
     total: 0,
@@ -736,7 +750,6 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Application detail
-  const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -783,6 +796,11 @@ export default function DashboardPage() {
       if (dashboardData.recentActivity) {
         setRecentActivity(dashboardData.recentActivity);
       }
+      
+      // Lấy danh sách đơn cần xử lý hôm nay
+      if (dashboardData.todaysTasks) {
+        setTodaysTasks(dashboardData.todaysTasks);
+      }
 
       if (dashboardData.dailyTasks) {
         setDailyTasks(dashboardData.dailyTasks);
@@ -792,16 +810,6 @@ export default function DashboardPage() {
         const totalTasks = dashboardData.dailyTasks.length;
         setDailyTasksCompleted(completedTasks);
         setTotalDailyTasks(totalTasks);
-      } else {
-        // Nếu không có dailyTasks từ backend, sử dụng số hồ sơ hôm nay làm tổng nhiệm vụ
-        const todaysApplications = dashboardData.stats?.today || 0;
-        setTotalDailyTasks(todaysApplications > 0 ? todaysApplications : 5); // Mặc định là 5 nếu không có hồ sơ nào hôm nay
-        // Số nhiệm vụ đã hoàn thành dựa trên số hồ sơ đã xử lý (từ recentActivity ngày hôm nay)
-        const todayStr = new Date().toISOString().split('T')[0]; // Lấy ngày hôm nay dưới dạng YYYY-MM-DD
-        const todaysCompletedTasks = (dashboardData.recentActivity || []).filter(
-          (activity: ActivityData) => activity.actiondate.includes(todayStr)
-        ).length;
-        setDailyTasksCompleted(Math.min(todaysCompletedTasks, totalDailyTasks));
       }
 
       if (dashboardData.performance) {
@@ -885,8 +893,15 @@ export default function DashboardPage() {
   };
 
   // View detail
-  const handleViewDetail = (id: number) => {
-    router.push(`/dashboard/applications/${id}`);
+  const handleViewApplicationDetail = (application: ApplicationData) => {
+    setSelectedApplication(application);
+    setIsDetailModalOpen(true);
+  };
+
+  // Đóng modal chi tiết
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedApplication(null);
   };
 
   // Mark notification as read
@@ -923,6 +938,13 @@ export default function DashboardPage() {
 
   return (
     <div className="py-6 max-w-full">
+      {/* Modal chi tiết đơn */}
+      <ApplicationDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        application={selectedApplication}
+      />
+      
       {/* Welcome Banner - grayscale */}
       <div className="px-4 mb-6 rounded-lg shadow-lg bg-gray-800">
         <div className="py-6 px-4">
@@ -1307,7 +1329,7 @@ export default function DashboardPage() {
                     <ApplicationToProcessItem
                       key={application.applicationid}
                       application={application}
-                      onViewDetail={handleViewDetail}
+                      onViewDetail={handleViewApplicationDetail}
                       onProcess={handleProcessApplication}
                     />
                   ))}
@@ -1366,94 +1388,100 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="p-4 space-y-3">
-              {dailyTasks && dailyTasks.length > 0 ? (
-                dailyTasks.map((task) => (
-                  <div key={task.taskId} className="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 mr-3">
-                      {task.status === 'completed' ? (
-                        <CheckCircle className="w-4 h-4" />
-                      ) : task.status === 'priority' ? (
-                        <ExclamationCircle className="w-4 h-4" />
-                      ) : (
-                        <Clock className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <Text size="small" weight="plus" className="text-gray-800">
-                        {task.title}
-                      </Text>
-                      <Text size="xsmall" className="text-gray-500">
-                        {task.current} / {task.target} hồ sơ
-                      </Text>
-                    </div>
-                    <div>
-                      {task.status === 'completed' ? (
-                        <Badge className="bg-gray-200 text-gray-700">
-                          Hoàn thành
-                        </Badge>
-                      ) : task.status === 'priority' ? (
-                        <Badge className="bg-gray-300 text-gray-800">
-                          Ưu tiên
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-gray-300 text-gray-800">
-                          Đang xử lý
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                // Nếu không có dữ liệu từ backend, hiển thị các nhiệm vụ mặc định
+              {loading ? (
+                <div className="p-8 flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                </div>
+              ) : todaysTasks && todaysTasks.length > 0 ? (
                 <>
-                  {/* Example Task 1 */}
-                  <div className="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 mr-3">
-                      <CheckCircle className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <Text size="small" weight="plus" className="text-gray-800">
-                        Xử lý các hồ sơ mới
-                      </Text>
-                      <Text size="xsmall" className="text-gray-500">
-                        {Math.min(2, stats.today)} / 2 hồ sơ
-                      </Text>
-                    </div>
-                    <div>
-                      {stats.today >= 2 ? (
-                        <Badge className="bg-gray-200 text-gray-700">
-                          Hoàn thành
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-gray-300 text-gray-800">
-                          Đang xử lý
-                        </Badge>
-                      )}
-                    </div>
+                  <div className="mb-3">
+                    <Text size="small" className="text-gray-600">
+                      Các hồ sơ cần được xử lý hôm nay ({todaysTasks.length})
+                    </Text>
                   </div>
-
-                  {/* Example Task 2 */}
-                  <div className="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 mr-3">
-                      <ExclamationCircle className="w-4 h-4" />
+                  {todaysTasks.slice(0, 5).map((application) => (
+                    <div 
+                      key={application.applicationid} 
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleViewApplicationDetail(application)}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 mr-3">
+                          {application.isoverdue ? (
+                            <ExclamationCircle className="w-4 h-4" />
+                          ) : (
+                            <Clock className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div>
+                          <Text size="small" weight="plus" className="text-gray-800 line-clamp-1">
+                            {application.title || application.applicationtypename || "Hồ sơ không xác định"}
+                          </Text>
+                          <Text size="xsmall" className="text-gray-500">
+                            {application.citizenname || application.applicantname || "Chưa có tên người nộp"}
+                          </Text>
+                        </div>
+                      </div>
+                      <Badge className={`${application.isoverdue ? "bg-gray-300 text-gray-800" : "bg-gray-200 text-gray-700"}`}>
+                        {application.isoverdue ? "Quá hạn" : "Đến hạn"}
+                      </Badge>
                     </div>
-                    <div className="flex-1">
-                      <Text size="small" weight="plus" className="text-gray-800">
-                        Xử lý hồ sơ quá hạn
-                      </Text>
-                      <Text size="xsmall" className="text-gray-500">
-                        {Math.min(stats.overdue, 3)} / 3 hồ sơ
-                      </Text>
-                    </div>
-                    <div>
-                      {stats.overdue === 0 ? (
-                        <Badge className="bg-gray-200 text-gray-700">Hoàn thành</Badge>
-                      ) : (
-                        <Badge className="bg-gray-300 text-gray-800">Ưu tiên</Badge>
-                      )}
-                    </div>
-                  </div>
+                  ))}
+                  {todaysTasks.length > 5 && (
+                    <Button 
+                      variant="secondary" 
+                      className="w-full mt-2"
+                      onClick={() => router.push("/dashboard/pending-applications")}
+                    >
+                      Xem tất cả {todaysTasks.length} hồ sơ
+                    </Button>
+                  )}
                 </>
+              ) : (
+                dailyTasks && dailyTasks.length > 0 ? (
+                  dailyTasks.map((task) => (
+                    <div key={task.taskId} className="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 mr-3">
+                        {task.status === 'completed' ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : task.status === 'priority' ? (
+                          <ExclamationCircle className="w-4 h-4" />
+                        ) : (
+                          <Clock className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <Text size="small" weight="plus" className="text-gray-800">
+                          {task.title}
+                        </Text>
+                        <Text size="xsmall" className="text-gray-500">
+                          {task.current} / {task.target} hồ sơ
+                        </Text>
+                      </div>
+                      <div>
+                        {task.status === 'completed' ? (
+                          <Badge className="bg-gray-200 text-gray-700">
+                            Hoàn thành
+                          </Badge>
+                        ) : task.status === 'priority' ? (
+                          <Badge className="bg-gray-300 text-gray-800">
+                            Ưu tiên
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gray-300 text-gray-800">
+                            Đang xử lý
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center">
+                    <Text className="text-gray-500">
+                      Không có hồ sơ nào cần xử lý hôm nay
+                    </Text>
+                  </div>
+                )
               )}
             </div>
           </div>

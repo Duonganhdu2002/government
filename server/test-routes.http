@@ -40,6 +40,7 @@ Content-Type: application/json
 # - applications: Danh sách hồ sơ đang chờ xử lý
 # - recentActivity: Lịch sử xử lý gần đây
 # - dailyTasks: Nhiệm vụ hôm nay (dựa trên tổng số đơn của hôm nay và số đã xử lý)
+# - todaysTasks: Danh sách đơn cần xử lý hôm nay (dựa trên hạn xử lý và ngày nộp)
 # - performance: Hiệu suất làm việc trong tháng (thời gian xử lý, số lượng hồ sơ)
 GET http://localhost:3001/api/applications/dashboard
 Content-Type: application/json
