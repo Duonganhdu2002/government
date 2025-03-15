@@ -993,6 +993,295 @@ const applicationsController = {
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
+  },
+
+  // GET STAFF DASHBOARD DATA
+  getStaffDashboardData: async (req, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({ 
+          status: 'error',
+          message: 'Authentication failed - no user ID found'
+        });
+      }
+      
+      // Get the staff's agency ID
+      const staffResult = await pool.query(
+        'SELECT agencyid, role, fullname FROM staff WHERE staffid = $1',
+        [req.userId]
+      );
+      
+      if (staffResult.rows.length === 0) {
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Staff not found',
+          userId: req.userId
+        });
+      }
+      
+      const { agencyid, role, fullname } = staffResult.rows[0];
+      
+      // Check if agencyId is null or undefined
+      if (!agencyid) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Staff does not have an agency assigned',
+          staffId: req.userId
+        });
+      }
+
+      // Check if we have cached results for this agency's dashboard
+      const redisKey = `dashboard_agency_${agencyid}_staff_${req.userId}`;
+      let cached;
+      try {
+        cached = await redisClient.get(redisKey);
+        if (cached) {
+          const parsedData = JSON.parse(cached);
+          return res.status(200).json({
+            status: 'success',
+            data: parsedData
+          });
+        }
+      } catch (redisError) {
+        console.error('Redis error:', redisError);
+        // Continue without cache on Redis error
+      }
+      
+      // Get today's date for today's submissions
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      
+      // Format dates for PostgreSQL
+      const todayStartFormatted = todayStart.toISOString().split('T')[0];
+      const todayEndFormatted = todayEnd.toISOString().split('T')[0];
+      
+      // Get all statistics in a single query
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status IN ('Submitted', 'pending', 'in_review') THEN 1 ELSE 0 END) as pending,
+          SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+          SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+          SUM(CASE WHEN submissiondate >= $1 AND submissiondate < $2 THEN 1 ELSE 0 END) as today,
+          SUM(CASE WHEN isoverdue = true THEN 1 ELSE 0 END) as overdue
+        FROM applications
+        WHERE agencyid = $3;
+      `;
+      
+      const statsResult = await pool.query(statsQuery, [todayStartFormatted, todayEndFormatted, agencyid]);
+      
+      // Get pending applications for this agency
+      const applicationsQuery = `
+        SELECT a.*, 
+          at.typename as applicationtypename, 
+          sat.typename as specialapplicationtypename,
+          c.fullname as citizenname,
+          ag.agencyname as agencyname
+        FROM applications a
+        LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+        LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+        LEFT JOIN citizens c ON a.citizenid = c.citizenid
+        LEFT JOIN agencies ag ON a.agencyid = ag.agencyid
+        WHERE a.agencyid = $1
+        AND (LOWER(a.status) IN ('submitted', 'pending', 'in_review'))
+        ORDER BY 
+          CASE WHEN a.isoverdue = true THEN 0 ELSE 1 END,
+          a.duedate ASC,
+          a.submissiondate DESC
+        LIMIT 20;
+      `;
+      
+      const applicationsResult = await pool.query(applicationsQuery, [agencyid]);
+      
+      // Get recent processing history for analytics
+      const processingHistoryQuery = `
+        SELECT ph.*, a.title as application_title
+        FROM processinghistory ph
+        JOIN applications a ON ph.applicationid = a.applicationid
+        WHERE ph.staffid = $1
+        ORDER BY ph.actiondate DESC
+        LIMIT 10;
+      `;
+      
+      const processingHistoryResult = await pool.query(processingHistoryQuery, [req.userId]);
+      
+      // Get staff performance metrics
+      const performanceQuery = `
+        SELECT 
+          COUNT(*) as processed_applications,
+          AVG(EXTRACT(DAY FROM (ph.actiondate - a.submissiondate))) as avg_processing_time
+        FROM processinghistory ph
+        JOIN applications a ON ph.applicationid = a.applicationid
+        WHERE ph.staffid = $1
+        AND ph.actiondate >= NOW() - INTERVAL '30 days';
+      `;
+      
+      const performanceResult = await pool.query(performanceQuery, [req.userId]);
+      
+      // Calculate efficiency based on average processing time compared to the agency average
+      const agencyAvgQuery = `
+        SELECT 
+          AVG(EXTRACT(DAY FROM (ph.actiondate - a.submissiondate))) as agency_avg_time
+        FROM processinghistory ph
+        JOIN applications a ON ph.applicationid = a.applicationid
+        JOIN staff s ON ph.staffid = s.staffid
+        WHERE s.agencyid = $1
+        AND ph.actiondate >= NOW() - INTERVAL '30 days';
+      `;
+      
+      const agencyAvgResult = await pool.query(agencyAvgQuery, [agencyid]);
+      
+      const staffAvgTime = parseFloat(performanceResult.rows[0]?.avg_processing_time || 0);
+      const agencyAvgTime = parseFloat(agencyAvgResult.rows[0]?.agency_avg_time || 0);
+      
+      // Higher efficiency if staff is faster than agency average
+      let efficiency = 50; // Default medium efficiency
+      if (agencyAvgTime > 0) {
+        if (staffAvgTime <= agencyAvgTime) {
+          // Staff is faster than agency average
+          efficiency = 80 - (staffAvgTime / agencyAvgTime * 20);
+        } else {
+          // Staff is slower than agency average
+          efficiency = 60 - (staffAvgTime / agencyAvgTime * 20);
+        }
+        // Keep efficiency between 0-100
+        efficiency = Math.max(0, Math.min(100, efficiency));
+      }
+      
+      // Generate daily tasks based on current applications and statistics
+      const dailyTasks = [];
+      
+      // Lấy ngày hôm nay để tính số hồ sơ đã xử lý ngày hôm nay
+      const todayStr = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+      
+      // Đếm số hồ sơ đã xử lý trong ngày hôm nay
+      const todayProcessedQuery = `
+        SELECT COUNT(*) as processed_today
+        FROM processinghistory
+        WHERE staffid = $1
+        AND DATE(actiondate) = $2;
+      `;
+      
+      const todayProcessedResult = await pool.query(todayProcessedQuery, [req.userId, todayStr]);
+      const todayProcessed = parseInt(todayProcessedResult.rows[0]?.processed_today || 0);
+      
+      // Task 1: Process new applications - Tổng số đơn của hôm nay
+      const todaysApplicationsCount = parseInt(statsResult.rows[0]?.today || 0);
+      // Đặt mục tiêu là tổng số đơn của hôm nay (hoặc ít nhất 1 nếu không có đơn nào)
+      const newAppsTarget = Math.max(1, todaysApplicationsCount);
+      
+      // Truy vấn đơn cần xử lý hôm nay (dựa trên hạn xử lý là hôm nay hoặc quá hạn)
+      const todaysTasksQuery = `
+        SELECT a.*, 
+          at.typename as applicationtypename, 
+          sat.typename as specialapplicationtypename,
+          c.fullname as citizenname
+        FROM applications a
+        LEFT JOIN applicationtypes at ON a.applicationtypeid = at.applicationtypeid
+        LEFT JOIN specialapplicationtypes sat ON a.specialapplicationtypeid = sat.specialapplicationtypeid
+        LEFT JOIN citizens c ON a.citizenid = c.citizenid
+        WHERE a.agencyid = $1
+        AND (a.status = 'Submitted' OR LOWER(a.status) IN ('pending', 'in_review'))
+        AND (
+          (a.duedate::date = CURRENT_DATE) OR
+          (a.isoverdue = true) OR
+          (a.submissiondate::date = CURRENT_DATE)
+        )
+        ORDER BY 
+          CASE WHEN a.isoverdue = true THEN 0 ELSE 1 END,
+          a.duedate ASC,
+          a.submissiondate DESC
+        LIMIT 10;
+      `;
+      
+      const todaysTasksResult = await pool.query(todaysTasksQuery, [agencyid]);
+      const todaysTasksCount = todaysTasksResult.rows.length;
+      
+      dailyTasks.push({
+        taskId: 1,
+        title: 'Xử lý các hồ sơ đến hạn hôm nay',
+        status: todayProcessed >= todaysTasksCount ? 'completed' : todaysTasksCount > 0 ? 'in-progress' : 'completed',
+        progress: todaysTasksCount > 0 ? (todayProcessed / todaysTasksCount) * 100 : 100,
+        target: todaysTasksCount > 0 ? todaysTasksCount : 1,
+        current: Math.min(todayProcessed, todaysTasksCount > 0 ? todaysTasksCount : 1)
+      });
+      
+      // Task 2: Handle overdue applications
+      const overdueAppsTarget = 3;
+      const overdueCount = parseInt(statsResult.rows[0]?.overdue || 0);
+      const overdueStatus = overdueCount === 0 ? 'completed' : 'priority';
+      
+      dailyTasks.push({
+        taskId: 2,
+        title: 'Xử lý hồ sơ quá hạn',
+        status: overdueStatus,
+        progress: overdueCount === 0 ? 100 : 0,
+        target: overdueAppsTarget,
+        current: Math.min(overdueAppsTarget - overdueCount, overdueAppsTarget)
+      });
+      
+      // Task 3: Review pending applications
+      const pendingReviewTarget = 5;
+      const pendingReviewProgress = (processingHistoryResult.rows.length / pendingReviewTarget) * 100;
+      
+      dailyTasks.push({
+        taskId: 3,
+        title: 'Xem xét hồ sơ đang chờ',
+        status: pendingReviewProgress >= 100 ? 'completed' : 'in-progress',
+        progress: pendingReviewProgress,
+        target: pendingReviewTarget,
+        current: Math.min(processingHistoryResult.rows.length, pendingReviewTarget)
+      });
+      
+      // Combine all data
+      const dashboardData = {
+        stats: statsResult.rows[0] || {
+          total: 0,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          today: 0,
+          overdue: 0
+        },
+        applications: applicationsResult.rows || [],
+        recentActivity: processingHistoryResult.rows || [],
+        dailyTasks: dailyTasks,
+        todaysTasks: todaysTasksResult.rows || [], // Thêm danh sách đơn cần xử lý hôm nay
+        performance: {
+          avgProcessingTime: parseFloat(performanceResult.rows[0]?.avg_processing_time || 0),
+          processedApplications: parseInt(performanceResult.rows[0]?.processed_applications || 0),
+          efficiency: efficiency
+        },
+        staffInfo: {
+          id: req.userId,
+          name: fullname,
+          role: role,
+          agencyId: agencyid
+        }
+      };
+      
+      // Cache the dashboard data
+      try {
+        await redisClient.set(redisKey, JSON.stringify(dashboardData), { EX: 300 }); // Cache for 5 minutes
+      } catch (redisCacheError) {
+        console.error('Redis cache error:', redisCacheError);
+        // Continue without caching
+      }
+      
+      return res.status(200).json({
+        status: 'success',
+        data: dashboardData
+      });
+      
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to fetch dashboard data',
+        error: error.message
+      });
+    }
   }
 };
 

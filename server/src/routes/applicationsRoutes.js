@@ -27,6 +27,9 @@ router.get('/current-user', verifyToken, isCitizen, applicationsController.getCu
 router.get('/citizen/:citizenId', applicationsController.getApplicationsByCitizenId);
 
 // --- Các route dành cho nhân viên (staff) ---
+// Lấy dữ liệu dashboard cho staff
+router.get('/dashboard', verifyToken, isStaff, applicationsController.getStaffDashboardData);
+
 // Lấy danh sách đơn ứng dụng cần duyệt tại cơ quan của nhân viên
 router.get('/pending-approval', verifyToken, isStaff, applicationsController.getPendingApplicationsForStaffAgency);
 

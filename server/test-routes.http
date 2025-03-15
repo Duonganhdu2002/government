@@ -32,4 +32,15 @@ Content-Type: application/json
 
 {
   "refreshToken": "your_refresh_token_here"
-} 
+}
+
+### Test dashboard API
+# API này trả về các dữ liệu cho dashboard của cán bộ, bao gồm:
+# - stats: Thống kê về tổng số hồ sơ, đang chờ, phê duyệt, từ chối, hôm nay, quá hạn
+# - applications: Danh sách hồ sơ đang chờ xử lý
+# - recentActivity: Lịch sử xử lý gần đây
+# - dailyTasks: Nhiệm vụ hôm nay (dựa trên tổng số đơn của hôm nay và số đã xử lý)
+# - performance: Hiệu suất làm việc trong tháng (thời gian xử lý, số lượng hồ sơ)
+GET http://localhost:3001/api/applications/dashboard
+Content-Type: application/json
+Authorization: Bearer your_access_token_here 

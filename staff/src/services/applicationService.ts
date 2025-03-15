@@ -542,36 +542,71 @@ export const fetchDashboardData = async (): Promise<{
     pending: number;
     approved: number;
     rejected: number;
+    today: number;
+    overdue: number;
+  };
+  recentActivity?: any[];
+  dailyTasks?: Array<{
+    taskId: number;
+    title: string;
+    status: 'completed' | 'in-progress' | 'priority';
+    progress: number;
+    target: number;
+    current: number;
+  }>;
+  performance?: {
+    avgProcessingTime: number;
+    processedApplications: number;
+    efficiency: number;
+  };
+  staffInfo?: {
+    id: number;
+    name: string;
+    role: string;
+    agencyId: number;
   };
 }> => {
   try {
-    // Không sử dụng fetchUserApplications nữa vì gọi API citizen
-    // Thay vào đó, sử dụng fetchPendingApplications dành cho staff
-    const response = await fetchPendingApplications();
-    const applications = response?.data || [];
-    
-    // Tính toán số liệu thống kê dựa trên pending applications
-    const stats = {
-      total: applications.length,
-      pending: applications.length, // Tất cả đều là pending
-      approved: 0,  // Staff dashboard chỉ hiển thị pending applications
-      rejected: 0,  // Staff dashboard chỉ hiển thị pending applications
-    };
-    
-    // Sắp xếp đơn hàng theo thời gian nộp mới nhất
-    const sortedApplications = [...applications].sort((a: any, b: any) => {
-      const dateA = new Date(a.submissiondate || 0).getTime();
-      const dateB = new Date(b.submissiondate || 0).getTime();
-      return dateB - dateA; // Sắp xếp giảm dần (mới nhất lên đầu)
+    // Sử dụng endpoint dashboard mới
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/applications/dashboard`, {
+      headers: headers,
+      credentials: 'include' // Include cookies with request
     });
     
-    // Chỉ trả về 5 đơn gần nhất
-    const recentApplications = sortedApplications.slice(0, 5);
+    if (!response.ok) {
+      throw new Error(`Dashboard API error: ${response.status}`);
+    }
     
-    return {
-      applications: recentApplications,
-      stats,
-    };
+    const responseData = await response.json();
+    
+    // Kiểm tra cấu trúc phản hồi
+    if (responseData?.status === 'success' && responseData?.data) {
+      const dashboardData = responseData.data;
+      
+      return {
+        applications: dashboardData.applications || [],
+        stats: {
+          total: Number(dashboardData.stats?.total) || 0,
+          pending: Number(dashboardData.stats?.pending) || 0,
+          approved: Number(dashboardData.stats?.approved) || 0,
+          rejected: Number(dashboardData.stats?.rejected) || 0,
+          today: Number(dashboardData.stats?.today) || 0,
+          overdue: Number(dashboardData.stats?.overdue) || 0
+        },
+        recentActivity: dashboardData.recentActivity || [],
+        dailyTasks: dashboardData.dailyTasks || [],
+        performance: dashboardData.performance || {
+          avgProcessingTime: 0,
+          processedApplications: 0,
+          efficiency: 0
+        },
+        staffInfo: dashboardData.staffInfo || undefined
+      };
+    } else {
+      console.error('Invalid dashboard response structure:', responseData);
+      throw new Error('Invalid dashboard response structure');
+    }
   } catch (error) {
     console.error('Error in fetchDashboardData:', error);
     
@@ -583,7 +618,17 @@ export const fetchDashboardData = async (): Promise<{
         pending: 0,
         approved: 0,
         rejected: 0,
-      }
+        today: 0,
+        overdue: 0
+      },
+      recentActivity: [],
+      dailyTasks: [],
+      performance: {
+        avgProcessingTime: 0,
+        processedApplications: 0,
+        efficiency: 0
+      },
+      staffInfo: undefined
     };
   }
 };
