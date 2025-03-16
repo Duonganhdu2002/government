@@ -1173,4 +1173,65 @@ export const deleteSpecialApplicationType = async (id: number): Promise<void> =>
     console.error('Error deleting special application type:', error);
     throw new Error(error.message || 'Failed to delete special application type');
   }
-}; 
+};
+
+// Add this function to export mock analytics data
+export const fetchAnalyticsData = async () => {
+  // In a real implementation, this would fetch data from the API
+  // Here we're just returning mock data for demonstration
+  return {
+    applicationsByType: [
+      { type: "Đăng ký kinh doanh", count: 240, percentage: 42 },
+      { type: "Giấy phép xây dựng", count: 150, percentage: 26 },
+      { type: "Đất đai", count: 95, percentage: 17 },
+      { type: "Hộ tịch", count: 65, percentage: 11 },
+      { type: "Khác", count: 25, percentage: 4 },
+    ],
+    processingTimeByType: [
+      { type: "Đăng ký kinh doanh", avgTime: 5.2 },
+      { type: "Giấy phép xây dựng", avgTime: 8.7 },
+      { type: "Đất đai", avgTime: 12.3 },
+      { type: "Hộ tịch", avgTime: 3.1 },
+      { type: "Khác", avgTime: 5.5 },
+    ],
+    applicationsByStatus: [
+      { status: "pending", count: 145 },
+      { status: "approved", count: 280 },
+      { status: "rejected", count: 58 },
+      { status: "processing", count: 96 },
+    ],
+    applicationTrend: generateMockTrendData(30),
+    staffPerformance: [
+      { staffId: 1, staffName: "Nguyễn Văn A", processed: 52, avgTime: 4.3, efficiency: 89 },
+      { staffId: 2, staffName: "Trần Thị B", processed: 45, avgTime: 5.1, efficiency: 84 },
+      { staffId: 3, staffName: "Lê Văn C", processed: 38, avgTime: 6.2, efficiency: 76 },
+      { staffId: 4, staffName: "Phạm Thị D", processed: 48, avgTime: 4.8, efficiency: 82 },
+      { staffId: 5, staffName: "Hoàng Văn E", processed: 35, avgTime: 7.0, efficiency: 72 },
+    ],
+  };
+};
+
+// Helper function to generate mock trend data for the past n days
+function generateMockTrendData(days: number) {
+  const result = [];
+  const today = new Date();
+  
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    
+    // Generate some pseudo-random but somewhat realistic looking data
+    const submitted = Math.floor(Math.random() * 10) + 5; // 5-15 submissions per day
+    const approved = Math.floor(Math.random() * 8) + 3;  // 3-11 approvals per day
+    const rejected = Math.floor(Math.random() * 4) + 1;  // 1-5 rejections per day
+    
+    result.push({
+      date: date.toISOString().split('T')[0],
+      submitted,
+      approved,
+      rejected
+    });
+  }
+  
+  return result;
+} 
