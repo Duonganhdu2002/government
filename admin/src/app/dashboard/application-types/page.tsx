@@ -26,7 +26,9 @@ import {
     ExclamationCircle
 } from "@medusajs/icons";
 
-import Modal from "@/components/Modal";
+import ApplicationTypeModal from "@/components/ApplicationTypeModal";
+import SpecialApplicationTypeModal from "@/components/SpecialApplicationTypeModal";
+import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
 
 import {
     ApplicationType,
@@ -517,6 +519,15 @@ export default function ApplicationTypesPage() {
                 </div>
             )}
 
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+                <Tabs.List>
+                    <Tabs.Trigger value="application-types" className="flex-1">
+                        Hồ sơ
+                    </Tabs.Trigger>
+                </Tabs.List>
+            </Tabs>
+
             {/* Search and Add button */}
             <div className="flex justify-between items-center mb-4">
                 <div className="w-1/3">
@@ -595,253 +606,47 @@ export default function ApplicationTypesPage() {
                 </Table>
             </div>
 
-            {/* Special Application Types Tab Content */}
-            {/* Removed */}
-
             {/* Application Type Modal */}
-            <Modal
+            <ApplicationTypeModal
                 isOpen={isAppTypeModalOpen}
                 onClose={handleCloseAppTypeModal}
-            >
-                <Modal.Header>
-                    <Heading level="h3">
-                        {selectedAppType ? "Chỉnh sửa hồ sơ" : "Thêm hồ sơ mới"}
-                    </Heading>
-                </Modal.Header>
-                <Modal.Body className="p-6">
-                    <div className="mb-4">
-                        <Text className="text-ui-fg-subtle">
-                            {selectedAppType
-                                ? "Chỉnh sửa thông tin hồ sơ"
-                                : "Điền thông tin để thêm hồ sơ mới"}
-                        </Text>
-                    </div>
-
-                    <form onSubmit={handleSubmitAppTypeForm}>
-                        <div className="grid grid-cols-1 gap-4 mt-4">
-                            <div>
-                                <Label htmlFor="typename">Tên hồ sơ</Label>
-                                <Input
-                                    id="typename"
-                                    required
-                                    value={appTypeFormData.typename}
-                                    onChange={(e) => handleAppTypeFormChange("typename", e.target.value)}
-                                    placeholder="Nhập tên hồ sơ"
-                                />
-                            </div>
-
-                            {/* Hidden field for description to maintain data structure */}
-                            <input
-                                type="hidden"
-                                id="description"
-                                value={appTypeFormData.description}
-                                onChange={(e) => handleAppTypeFormChange("description", e.target.value)}
-                            />
-
-                            <div>
-                                <Label htmlFor="processingtimelimit">Thời hạn xử lý (ngày)</Label>
-                                <Input
-                                    id="processingtimelimit"
-                                    type="number"
-                                    min={1}
-                                    max={365}
-                                    required
-                                    value={appTypeFormData.processingtimelimit.toString()}
-                                    onChange={(e) => handleAppTypeFormChange("processingtimelimit", parseInt(e.target.value))}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2 mt-6">
-                            <Button
-                                variant="secondary"
-                                type="button"
-                                onClick={handleCloseAppTypeModal}
-                            >
-                                Hủy
-                            </Button>
-                            <Button
-                                variant="primary"
-                                type="submit"
-                            >
-                                {selectedAppType ? "Cập nhật" : "Thêm mới"}
-                            </Button>
-                        </div>
-                    </form>
-                </Modal.Body>
-            </Modal>
+                selectedAppType={selectedAppType}
+                formData={appTypeFormData}
+                onChange={handleAppTypeFormChange}
+                onSubmit={handleSubmitAppTypeForm}
+            />
 
             {/* Special Application Type Modal */}
-            <Modal
+            <SpecialApplicationTypeModal
                 isOpen={isSpecialAppTypeModalOpen}
                 onClose={handleCloseSpecialAppTypeModal}
-            >
-                <Modal.Header>
-                    <Heading level="h3">
-                        {selectedSpecialAppType ? "Chỉnh sửa hồ sơ đặc biệt" : "Thêm hồ sơ đặc biệt mới"}
-                    </Heading>
-                </Modal.Header>
-                <Modal.Body className="p-6">
-                    <div className="mb-4">
-                        <Text className="text-ui-fg-subtle">
-                            {selectedSpecialAppType
-                                ? "Chỉnh sửa thông tin hồ sơ đặc biệt"
-                                : "Điền thông tin để thêm hồ sơ đặc biệt mới"}
-                        </Text>
-                    </div>
-
-                    <form onSubmit={handleSubmitSpecialAppTypeForm}>
-                        <div className="grid grid-cols-1 gap-4 mt-4">
-                            <div>
-                                <Label htmlFor="applicationtypeid">Thuộc hồ sơ</Label>
-                                <Select
-                                    onValueChange={(value) => handleSpecialAppTypeFormChange("applicationtypeid", parseInt(value))}
-                                    value={safeToString(specialAppTypeFormData.applicationtypeid)}
-                                    required
-                                >
-                                    <Select.Trigger>
-                                        <Select.Value placeholder="Chọn hồ sơ" />
-                                    </Select.Trigger>
-                                    <Select.Content>
-                                        {applicationTypes.map((appType) => (
-                                            <Select.Item
-                                                key={appType.applicationtypeid}
-                                                value={appType.applicationtypeid.toString()}
-                                            >
-                                                {appType.typename}
-                                            </Select.Item>
-                                        ))}
-                                    </Select.Content>
-                                </Select>
-                            </div>
-
-                            {/* Hidden fields for typename and description to maintain data structure */}
-                            <input
-                                type="hidden"
-                                id="specialtypename"
-                                value={specialAppTypeFormData.typename}
-                                onChange={(e) => handleSpecialAppTypeFormChange("typename", e.target.value)}
-                            />
-
-                            <input
-                                type="hidden"
-                                id="specialdescription"
-                                value={specialAppTypeFormData.description}
-                                onChange={(e) => handleSpecialAppTypeFormChange("description", e.target.value)}
-                            />
-
-                            <div>
-                                <Label htmlFor="processingtimelimit">Thời hạn xử lý (ngày)</Label>
-                                <Input
-                                    id="processingtimelimit"
-                                    type="number"
-                                    min={1}
-                                    max={365}
-                                    required
-                                    value={specialAppTypeFormData.processingtimelimit.toString()}
-                                    onChange={(e) => handleSpecialAppTypeFormChange("processingtimelimit", parseInt(e.target.value))}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2 mt-6">
-                            <Button
-                                variant="secondary"
-                                type="button"
-                                onClick={handleCloseSpecialAppTypeModal}
-                            >
-                                Hủy
-                            </Button>
-                            <Button
-                                variant="primary"
-                                type="submit"
-                            >
-                                {selectedSpecialAppType ? "Cập nhật" : "Thêm mới"}
-                            </Button>
-                        </div>
-                    </form>
-                </Modal.Body>
-            </Modal>
+                selectedSpecialAppType={selectedSpecialAppType}
+                formData={specialAppTypeFormData}
+                applicationTypes={applicationTypes}
+                onChange={handleSpecialAppTypeFormChange}
+                onSubmit={handleSubmitSpecialAppTypeForm}
+                safeToString={safeToString}
+            />
 
             {/* Delete Application Type Confirmation Modal */}
-            <Modal
+            <DeleteConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
-            >
-                <Modal.Header>
-                    <Heading level="h3">Xác nhận xóa</Heading>
-                </Modal.Header>
-                <Modal.Body className="p-6">
-                    <div className="mb-4">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="flex-shrink-0 bg-red-50 p-2 rounded-full">
-                                <ExclamationCircle className="w-5 h-5 text-red-500" />
-                            </div>
-                            <Text className="text-gray-700">
-                                Bạn có chắc chắn muốn xóa "<strong>{selectedAppType?.typename}</strong>"?
-                            </Text>
-                        </div>
-                        <Text className="text-gray-500 text-sm">
-                            Lưu ý: Việc xóa sẽ xóa tất cả các hồ sơ đặc biệt thuộc loại này.
-                            Các hồ sơ đã tồn tại thuộc loại này sẽ không bị xóa, nhưng có thể gây ra lỗi khi truy cập.
-                        </Text>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setIsDeleteModalOpen(false)}
-                        >
-                            Hủy
-                        </Button>
-                        <Button
-                            variant="danger"
-                            onClick={confirmDeleteAppType}
-                        >
-                            Xóa
-                        </Button>
-                    </div>
-                </Modal.Body>
-            </Modal>
+                title="Xác nhận xóa"
+                itemName={selectedAppType?.typename}
+                description="Lưu ý: Việc xóa sẽ xóa tất cả các hồ sơ đặc biệt thuộc loại này. Các hồ sơ đã tồn tại thuộc loại này sẽ không bị xóa, nhưng có thể gây ra lỗi khi truy cập."
+                onConfirm={confirmDeleteAppType}
+            />
 
             {/* Delete Special Application Type Confirmation Modal */}
-            <Modal
+            <DeleteConfirmationModal
                 isOpen={isSpecialTypeDeleteModalOpen}
                 onClose={() => setIsSpecialTypeDeleteModalOpen(false)}
-            >
-                <Modal.Header>
-                    <Heading level="h3">Xác nhận xóa hồ sơ đặc biệt</Heading>
-                </Modal.Header>
-                <Modal.Body className="p-6">
-                    <div className="mb-4">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="flex-shrink-0 bg-red-50 p-2 rounded-full">
-                                <ExclamationCircle className="w-5 h-5 text-red-500" />
-                            </div>
-                            <Text className="text-gray-700">
-                                Bạn có chắc chắn muốn xóa hồ sơ đặc biệt "<strong>{selectedSpecialAppType?.typename}</strong>"?
-                            </Text>
-                        </div>
-                        <Text className="text-gray-500 text-sm">
-                            Lưu ý: Các hồ sơ đã tồn tại thuộc loại đặc biệt này sẽ không bị xóa,
-                            nhưng có thể gây ra lỗi khi truy cập.
-                        </Text>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setIsSpecialTypeDeleteModalOpen(false)}
-                        >
-                            Hủy
-                        </Button>
-                        <Button
-                            variant="danger"
-                            onClick={confirmDeleteSpecialAppType}
-                        >
-                            Xóa
-                        </Button>
-                    </div>
-                </Modal.Body>
-            </Modal>
+                title="Xác nhận xóa hồ sơ đặc biệt"
+                itemName={selectedSpecialAppType?.typename}
+                description="Lưu ý: Các hồ sơ đã tồn tại thuộc loại đặc biệt này sẽ không bị xóa, nhưng có thể gây ra lỗi khi truy cập."
+                onConfirm={confirmDeleteSpecialAppType}
+            />
         </Container>
     );
 } 
