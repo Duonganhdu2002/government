@@ -301,6 +301,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     Tài khoản cán bộ
                   </SidebarNavItem>
                 )}
+                {(user?.role === 'admin' || user?.role === 'manager') && (
+                  <SidebarNavItem
+                    href="/dashboard/citizen-accounts"
+                    icon={<User />}
+                    active={isActive('/dashboard/citizen-accounts')}
+                  >
+                    Tài khoản người dân
+                  </SidebarNavItem>
+                )}
                 <SidebarNavItem
                   href="/dashboard/profile"
                   icon={<User />}
@@ -366,6 +375,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   active={isActive('/dashboard/staff-accounts')}
                 >
                   Tài khoản cán bộ
+                </SidebarNavItem>
+              )}
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <SidebarNavItem
+                  href="/dashboard/citizen-accounts"
+                  icon={<User />}
+                  active={isActive('/dashboard/citizen-accounts')}
+                >
+                  Tài khoản người dân
                 </SidebarNavItem>
               )}
               <SidebarNavItem
