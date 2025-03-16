@@ -330,6 +330,116 @@ const staffController = {
         message: error.message
       });
     }
+  },
+
+  // GET PROCESSING HISTORY (for admin)
+  getProcessingHistory: async (req, res) => {
+    const { agencyId, staffId, startDate, endDate, limit = 50, offset = 0 } = req.query;
+    
+    try {
+      let query = `
+        SELECT 
+          ph.historyid, 
+          ph.applicationid, 
+          ph.staffid, 
+          ph.actiontaken, 
+          ph.actiondate, 
+          ph.notes, 
+          ph.isdelayed,
+          s.fullname AS staff_name,
+          a.agencyid,
+          a.agencyname AS agency_name,
+          app.title AS application_title,
+          app.status AS application_status
+        FROM 
+          processinghistory ph
+        JOIN 
+          staff s ON ph.staffid = s.staffid
+        JOIN 
+          agencies a ON s.agencyid = a.agencyid
+        JOIN 
+          applications app ON ph.applicationid = app.applicationid
+        WHERE 1=1
+      `;
+      
+      const queryParams = [];
+      let paramIndex = 1;
+      
+      // Apply filters
+      if (agencyId) {
+        query += ` AND a.agencyid = $${paramIndex++}`;
+        queryParams.push(agencyId);
+      }
+      
+      if (staffId) {
+        query += ` AND ph.staffid = $${paramIndex++}`;
+        queryParams.push(staffId);
+      }
+      
+      if (startDate) {
+        query += ` AND ph.actiondate >= $${paramIndex++}`;
+        queryParams.push(startDate);
+      }
+      
+      if (endDate) {
+        query += ` AND ph.actiondate <= $${paramIndex++}`;
+        queryParams.push(endDate);
+      }
+      
+      // Add ordering and pagination
+      query += ` ORDER BY ph.actiondate DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+      queryParams.push(limit);
+      queryParams.push(offset);
+      
+      // Get count of total records (for pagination)
+      let countQuery = `
+        SELECT COUNT(*) 
+        FROM processinghistory ph
+        JOIN staff s ON ph.staffid = s.staffid
+        JOIN agencies a ON s.agencyid = a.agencyid
+        WHERE 1=1
+      `;
+      
+      const countParams = [];
+      let countParamIndex = 1;
+      
+      if (agencyId) {
+        countQuery += ` AND a.agencyid = $${countParamIndex++}`;
+        countParams.push(agencyId);
+      }
+      
+      if (staffId) {
+        countQuery += ` AND ph.staffid = $${countParamIndex++}`;
+        countParams.push(staffId);
+      }
+      
+      if (startDate) {
+        countQuery += ` AND ph.actiondate >= $${countParamIndex++}`;
+        countParams.push(startDate);
+      }
+      
+      if (endDate) {
+        countQuery += ` AND ph.actiondate <= $${countParamIndex++}`;
+        countParams.push(endDate);
+      }
+      
+      // Execute both queries
+      const [historyResult, countResult] = await Promise.all([
+        pool.query(query, queryParams),
+        pool.query(countQuery, countParams)
+      ]);
+      
+      // Return the data with pagination info
+      res.status(200).json({
+        total: parseInt(countResult.rows[0].count, 10),
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+        data: historyResult.rows
+      });
+    } catch (error) {
+      console.error('Error getting processing history:', error.message);
+      res.status(500).json({ error: 'Failed to retrieve processing history' });
+    }
   }
 };
 

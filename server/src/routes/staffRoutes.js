@@ -22,6 +22,9 @@ router.get('/admin/dashboard-stats/:userId', staffController.getAdminDashboardSt
 // Lấy lịch sử đăng nhập của nhân viên
 router.get('/admin/login-history/:id', staffController.getStaffLoginHistory);
 
+// Lấy lịch sử xử lý hồ sơ (cho admin)
+router.get('/processing-history', staffController.getProcessingHistory);
+
 // GET single staff, UPDATE staff, DELETE staff
 router.route('/:id')
   .get(staffController.getStaffById)

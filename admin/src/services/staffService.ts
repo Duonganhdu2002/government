@@ -17,6 +17,24 @@ export interface StaffMember {
 }
 
 /**
+ * Interface cho lịch sử xử lý hồ sơ
+ */
+export interface ProcessingHistoryItem {
+  historyid: number;
+  applicationid: number;
+  staffid: number;
+  actiontaken: string;
+  actiondate: string;
+  notes?: string;
+  isdelayed: boolean;
+  staff_name: string;
+  agencyid: number;
+  agency_name: string;
+  application_title: string;
+  application_status: string;
+}
+
+/**
  * Lấy danh sách tất cả nhân viên từ API
  */
 export const fetchAllStaff = async (): Promise<StaffMember[]> => {
@@ -362,5 +380,56 @@ export const fetchStaffWithAgencyDetails = async (): Promise<StaffMember[]> => {
   } catch (error) {
     console.error('Error in fetchStaffWithAgencyDetails:', error);
     return [];
+  }
+};
+
+/**
+ * Lấy lịch sử xử lý hồ sơ
+ */
+export const fetchProcessingHistory = async (
+  filters: {
+    agencyId?: number;
+    staffId?: number;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<{ total: number; data: ProcessingHistoryItem[] }> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    // Xây dựng query params
+    const params = new URLSearchParams();
+    if (filters.agencyId) params.append('agencyId', filters.agencyId.toString());
+    if (filters.staffId) params.append('staffId', filters.staffId.toString());
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.offset) params.append('offset', filters.offset.toString());
+
+    const url = `${API_BASE_URL}/api/staff/processing-history?${params.toString()}`;
+    
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: getAuthHeaders(),
+      credentials: 'include'
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch processing history: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return {
+      total: data.total || 0,
+      data: Array.isArray(data.data) ? data.data : []
+    };
+  } catch (error) {
+    console.error('Error in fetchProcessingHistory:', error);
+    throw error;
   }
 }; 
