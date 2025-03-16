@@ -22,16 +22,13 @@ router.get('/admin/dashboard-stats/:userId', staffController.getAdminDashboardSt
 // Lấy lịch sử đăng nhập của nhân viên
 router.get('/admin/login-history/:id', staffController.getStaffLoginHistory);
 
-// Lấy thông tin chi tiết của nhân viên theo ID
-router.get('/:id', staffController.getStaffById);
+// GET single staff, UPDATE staff, DELETE staff
+router.route('/:id')
+  .get(staffController.getStaffById)
+  .patch(staffController.updateStaff)
+  .delete(staffController.deleteStaff);
 
 // Tạo mới một nhân viên
 router.post('/', staffController.createStaff);
-
-// Cập nhật thông tin của nhân viên theo ID
-router.put('/:id', staffController.updateStaff);
-
-// Xóa nhân viên theo ID
-router.delete('/:id', staffController.deleteStaff);
 
 module.exports = router;

@@ -17,6 +17,7 @@ import {
 } from "@medusajs/ui";
 
 import Modal from "@/components/Modal";
+import StaffModal from "@/components/StaffModal";
 
 import {
   User,
@@ -41,6 +42,7 @@ import {
 } from "@/services/staffService";
 
 import { fetchAllAgencies } from "@/services/agencyService";
+import { apiClient } from '@/lib/api';
 
 /**
  * Spinner component for loading states
@@ -82,228 +84,6 @@ const RoleBadge = ({ role }: { role: string }) => {
     <Badge className={getRoleClass()}>
       {getRoleText()}
     </Badge>
-  );
-};
-
-/**
- * Staff Edit Modal Component
- */
-type StaffModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  staff?: StaffMember | null;
-  agencyList: any[];
-  onSave: (data: StaffMember) => Promise<void>;
-  isCreating: boolean;
-};
-
-const StaffModal = ({
-  isOpen,
-  onClose,
-  staff,
-  agencyList,
-  onSave,
-  isCreating
-}: StaffModalProps) => {
-  const [formData, setFormData] = useState<StaffMember>({
-    fullname: "",
-    role: "staff",
-    agencyid: 0,
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Populate form when editing existing staff
-  useEffect(() => {
-    if (staff) {
-      setFormData({
-        fullname: staff.fullname || "",
-        role: staff.role || "staff",
-        agencyid: staff.agencyid || 0,
-        // For existing staff, include ID
-        ...(staff.staffid ? { staffid: staff.staffid } : {})
-      });
-    } else {
-      // Reset form for new staff
-      setFormData({
-        fullname: "",
-        role: "staff",
-        agencyid: agencyList.length > 0 ? agencyList[0].agencyid || agencyList[0].id || 0 : 0,
-      });
-    }
-  }, [staff, agencyList]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    if (name === "agencyid") {
-      setFormData(prev => ({ ...prev, [name]: parseInt(value, 10) }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      // Validate form
-      if (!formData.fullname.trim()) {
-        setError("Vui lòng nhập họ tên cán bộ");
-        return;
-      }
-
-      if (!formData.agencyid) {
-        setError("Vui lòng chọn cơ quan");
-        return;
-      }
-      
-      // If creating new staff and password is not provided
-      if (isCreating && !formData.password) {
-        setError("Vui lòng nhập mật khẩu");
-        return;
-      }
-
-      await onSave(formData);
-      onClose();
-    } catch (err: any) {
-      console.error("Error saving staff:", err);
-      setError(err.message || "Có lỗi xảy ra khi lưu thông tin cán bộ");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const roleOptions = [
-    { value: "staff", label: "Cán bộ" },
-    { value: "admin", label: "Quản trị viên" }
-  ];
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <Modal.Header>
-        <Heading level="h3" className="font-medium">
-          {isCreating ? "Thêm tài khoản cán bộ mới" : "Cập nhật thông tin cán bộ"}
-        </Heading>
-        <Text className="text-gray-500 mt-1">
-          {isCreating 
-            ? "Điền thông tin để tạo tài khoản mới cho cán bộ" 
-            : "Chỉnh sửa thông tin cán bộ"}
-        </Text>
-      </Modal.Header>
-      
-      <Modal.Body className="py-4 space-y-4">
-        {error && (
-          <div className="p-3 bg-gray-50 border border-gray-200 text-gray-700 rounded flex items-center">
-            <ExclamationCircle className="w-4 h-4 mr-2 text-gray-500" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div>
-          <Label htmlFor="fullname">Họ và tên <span className="text-gray-500">*</span></Label>
-          <Input
-            id="fullname"
-            name="fullname"
-            value={formData.fullname}
-            onChange={handleChange}
-            placeholder="Nhập họ và tên cán bộ"
-            className="mt-1"
-            required
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="agencyid">Cơ quan <span className="text-gray-500">*</span></Label>
-          <div className="mt-1">
-            <Select 
-              value={formData.agencyid?.toString()} 
-              onValueChange={(value) => handleSelectChange("agencyid", value)}
-            >
-              <Select.Trigger>
-                <Select.Value placeholder="Chọn cơ quan" />
-              </Select.Trigger>
-              <Select.Content>
-                {agencyList.map(agency => {
-                  const id = agency.agencyid || agency.id;
-                  const name = agency.agencyname || agency.name;
-                  
-                  if (!id) return null;
-                  
-                  return (
-                    <Select.Item key={id} value={id.toString()}>
-                      {name || `Cơ quan #${id}`}
-                    </Select.Item>
-                  );
-                })}
-              </Select.Content>
-            </Select>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="role">Vai trò <span className="text-gray-500">*</span></Label>
-          <div className="mt-1">
-            <Select 
-              value={formData.role} 
-              onValueChange={(value) => handleSelectChange("role", value)}
-            >
-              <Select.Trigger>
-                <Select.Value placeholder="Chọn vai trò" />
-              </Select.Trigger>
-              <Select.Content>
-                {roleOptions.map(option => (
-                  <Select.Item key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select>
-          </div>
-        </div>
-
-        {isCreating && (
-          <div>
-            <Label htmlFor="password">Mật khẩu <span className="text-gray-500">*</span></Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password || ""}
-              onChange={handleChange}
-              placeholder="Nhập mật khẩu"
-              className="mt-1"
-              required
-            />
-          </div>
-        )}
-      </Modal.Body>
-
-      <Modal.Footer>
-        <div className="flex justify-end gap-x-2">
-          <Button 
-            variant="secondary" 
-            onClick={onClose} 
-            disabled={loading}
-            className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
-          >
-            Hủy
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSubmit} 
-            isLoading={loading}
-            className="bg-gray-700 text-white hover:bg-gray-800"
-          >
-            {isCreating ? "Tạo tài khoản" : "Lưu thay đổi"}
-          </Button>
-        </div>
-      </Modal.Footer>
-    </Modal>
   );
 };
 
@@ -534,7 +314,31 @@ export default function StaffAccountsPage() {
       if (isCreating) {
         await createStaff(data);
       } else if (selectedStaff?.staffid) {
-        await updateStaff(selectedStaff.staffid, data);
+        // Check if this is a password update
+        if (data.password) {
+          console.log(`Updating password for staff ${selectedStaff.staffid} using the dedicated password API endpoint`);
+          try {
+            // Use the dedicated staff password update endpoint
+            await apiClient.post('/api/auth/staff-change-password', {
+              staffId: selectedStaff.staffid,
+              newPassword: data.password,
+              isAdminUpdate: true // Flag to indicate this is an admin update, so old password is not required
+            });
+            console.log('Password update successful');
+            
+            // Remove password from data before calling updateStaff
+            const { password, passwordhash, ...staffDataWithoutPassword } = data;
+            await updateStaff(selectedStaff.staffid, staffDataWithoutPassword);
+          } catch (passwordError) {
+            console.error('Error updating password via dedicated endpoint:', passwordError);
+            // If the dedicated endpoint fails, try the regular update
+            console.log('Falling back to regular staff update with password');
+            await updateStaff(selectedStaff.staffid, data);
+          }
+        } else {
+          // Regular staff update
+          await updateStaff(selectedStaff.staffid, data);
+        }
       }
       
       // Reload staff list after successful operation

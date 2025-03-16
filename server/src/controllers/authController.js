@@ -850,17 +850,16 @@ const authController = {
   /**
    * Thay đổi mật khẩu cho tài khoản staff.
    * Yêu cầu cung cấp staffId, mật khẩu cũ và mật khẩu mới.
-   * Sau khi đổi mật khẩu thành công, sẽ xóa refresh token hiện tại,
-   * buộc người dùng đăng nhập lại.
+   * Admin có thể thay đổi mật khẩu cho staff mà không cần mật khẩu cũ.
    */
   staffChangePassword: async (req, res) => {
     try {
-      const { staffId, oldPassword, newPassword } = req.body;
+      const { staffId, oldPassword, newPassword, isAdminUpdate } = req.body;
 
-      // Validate input: staffId, oldPassword, and newPassword must be provided
-      if (!staffId || !oldPassword || !newPassword) {
+      // Validate input
+      if (!staffId || !newPassword) {
         return res.status(400).json({
-          error: "Staff ID, old password, and new password are required.",
+          error: "Staff ID and new password are required.",
         });
       }
 
@@ -874,13 +873,23 @@ const authController = {
       }
       const staff = result.rows[0];
 
-      // Verify that the provided old password matches the stored password hash
-      const passwordMatch = await bcrypt.compare(
-        oldPassword,
-        staff.passwordhash
-      );
-      if (!passwordMatch) {
-        return res.status(400).json({ error: "Old password is incorrect." });
+      // Verify old password if this is not an admin update
+      if (!isAdminUpdate) {
+        // If not an admin update, oldPassword is required
+        if (!oldPassword) {
+          return res.status(400).json({
+            error: "Old password is required.",
+          });
+        }
+        
+        // Verify that the provided old password matches the stored password hash
+        const passwordMatch = await bcrypt.compare(
+          oldPassword,
+          staff.passwordhash
+        );
+        if (!passwordMatch) {
+          return res.status(400).json({ error: "Old password is incorrect." });
+        }
       }
 
       // Optionally check the strength of the new password (e.g., minimum 6 characters)

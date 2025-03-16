@@ -12,6 +12,7 @@ export interface StaffMember {
   status?: string;
   agencyname?: string; // Populated when joined with agency data
   password?: string; // Only used for creation
+  passwordhash?: string; // Used for API requests
   [key: string]: any;
 }
 
@@ -108,13 +109,26 @@ export const createStaff = async (staffData: StaffMember): Promise<StaffMember> 
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   
   try {
+    // Prepare data for the API (camelCase to PascalCase for DB columns)
+    const apiData = {
+      agencyid: staffData.agencyid,
+      fullname: staffData.fullname,
+      role: staffData.role || 'staff',
+      ...(staffData.password && { passwordhash: staffData.password })
+    };
+
+    console.log('Creating staff with data:', JSON.stringify({
+      ...apiData,
+      passwordhash: '[REDACTED]'
+    }));
+    
     const response = await fetch(`${API_BASE_URL}/api/staff`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(staffData),
+      body: JSON.stringify(apiData),
       signal: controller.signal,
       credentials: 'include'
     });
@@ -150,25 +164,68 @@ export const updateStaff = async (id: number, staffData: Partial<StaffMember>): 
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   
   try {
+    // Check if this is a password update
+    const isPasswordUpdate = !!staffData.password || !!staffData.passwordhash;
+    
+    // Prepare data for the API ensuring it has all required fields
+    const apiData = {
+      agencyid: staffData.agencyid,
+      fullname: staffData.fullname,
+      role: staffData.role || 'staff',
+      // Only include password fields if they are provided
+      ...(staffData.passwordhash && { passwordhash: staffData.passwordhash })
+    };
+    
+    console.log('Updating staff with data:', JSON.stringify({
+      ...apiData,
+      passwordhash: isPasswordUpdate ? '[REDACTED]' : undefined
+    })); // Debug: log request payload with redacted password
+    
     const response = await fetch(`${API_BASE_URL}/api/staff/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(staffData),
+      body: JSON.stringify(apiData),
       signal: controller.signal,
       credentials: 'include'
     });
     
     clearTimeout(timeoutId);
     
+    // Get response as text first to properly log errors
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to update staff: ${response.status} ${response.statusText} - ${errorText}`);
+      console.error('Error response from server:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseText
+      });
+      
+      // Try to parse as JSON if possible
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (e) {
+        // If not JSON, use the text as is
+        errorData = { error: responseText };
+      }
+      
+      throw new Error(`Failed to update staff: ${response.status} ${response.statusText} - ${errorData.error || responseText}`);
     }
     
-    const data = await response.json();
+    // Parse the response if it's not already parsed
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Error parsing response as JSON:', e);
+      throw new Error('Invalid response format from server');
+    }
+    
+    console.log('Staff update successful:', data); // Debug: log response
     
     if (data && typeof data === 'object') {
       if (data.status === 'success' && data.data) {

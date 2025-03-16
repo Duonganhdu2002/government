@@ -51,16 +51,20 @@ const staffController = {
 
   // CREATE STAFF
   createStaff: async (req, res) => {
-    const { agencyid, fullname, employeecode, role, username, passwordhash } = req.body;
-    if (!agencyid || !fullname) {
-      return res.status(400).json({ error: 'agencyid and fullname are required' });
+    const { agencyid, fullname, role, passwordhash } = req.body;
+    
+    if (!agencyid || !fullname || !role || !passwordhash) {
+      return res.status(400).json({ error: 'Missing required fields for staff creation' });
     }
+    
     try {
+      // Create new staff member
       const result = await pool.query(
-        `INSERT INTO staff (agencyid, fullname, employeecode, role, username, passwordhash)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`,
-        [agencyid, fullname, employeecode, role, username, passwordhash]
+        `INSERT INTO staff(agencyid, fullname, role, passwordhash)
+         VALUES($1, $2, $3, $4) RETURNING *`,
+        [agencyid, fullname, role, passwordhash]
       );
+      
       await redisClient.del('all_staff');
       res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -72,20 +76,62 @@ const staffController = {
   // UPDATE STAFF
   updateStaff: async (req, res) => {
     const { id } = req.params;
-    const { agencyid, fullname, employeecode, role, username, passwordhash } = req.body;
+    const { agencyid, fullname, role, passwordhash } = req.body;
+    
     if (!id || isNaN(id)) {
       return res.status(400).json({ error: 'Invalid staff ID' });
     }
+    
     try {
-      const result = await pool.query(
-        `UPDATE staff
-         SET agencyid = $1, fullname = $2, employeecode = $3, role = $4, username = $5, passwordhash = $6
-         WHERE staffid = $7 RETURNING *;`,
-        [agencyid, fullname, employeecode, role, username, passwordhash, id]
-      );
+      // Build update query dynamically based on provided fields
+      let updateFields = [];
+      let queryParams = [];
+      let paramIndex = 1;
+      
+      if (agencyid !== undefined) {
+        updateFields.push(`agencyid = $${paramIndex++}`);
+        queryParams.push(agencyid);
+      }
+      
+      if (fullname !== undefined) {
+        updateFields.push(`fullname = $${paramIndex++}`);
+        queryParams.push(fullname);
+      }
+      
+      if (role !== undefined) {
+        updateFields.push(`role = $${paramIndex++}`);
+        queryParams.push(role);
+      }
+      
+      if (passwordhash !== undefined) {
+        updateFields.push(`passwordhash = $${paramIndex++}`);
+        queryParams.push(passwordhash);
+      }
+      
+      // If no fields to update
+      if (updateFields.length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+      
+      // Add the ID parameter
+      queryParams.push(id);
+      
+      const updateQuery = `
+        UPDATE staff
+        SET ${updateFields.join(', ')}
+        WHERE staffid = $${paramIndex}
+        RETURNING *;
+      `;
+      
+      console.log('Update Query:', updateQuery);
+      console.log('Query Params:', queryParams);
+      
+      const result = await pool.query(updateQuery, queryParams);
+      
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Staff member not found' });
       }
+      
       await redisClient.del('all_staff');
       const redisKey = `staff_${id}`;
       await redisClient.set(redisKey, JSON.stringify(result.rows[0]), { EX: 60 });
