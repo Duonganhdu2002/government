@@ -1,0 +1,410 @@
+"use client";
+import React, { useState, useEffect, Suspense } from "react";
+import { Geist, Geist_Mono } from "next/font/google";
+import "../globals.css";
+import Loading from "../loading";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/lib/hooks/useAuth";
+import Image from "next/image";
+import { apiClient } from "@/lib/api";
+import { fetchPendingApplications } from '@/services/applicationService';
+import Cookies from "js-cookie";
+
+// Import Medusa UI components
+import {
+  Button,
+  Text,
+  Heading,
+  IconButton,
+  Avatar,
+  Drawer,
+  Kbd,
+  Badge
+} from "@medusajs/ui";
+
+// Import Medusa Icons
+import {
+  House,
+  Plus,
+  Clock,
+  User,
+  Book,
+} from "@medusajs/icons";
+
+/**
+ * Font configurations using Geist fonts.
+ */
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// Mảng chứa các ảnh đại diện mẫu (sử dụng SVG có sẵn trong public)
+const sampleAvatars = [
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jasmine',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Max'
+];
+
+// Màu nền ngẫu nhiên cho avatar khi không có hình ảnh
+const avatarBgColors = [
+  'bg-blue-500',
+  'bg-green-500',
+  'bg-purple-500',
+  'bg-amber-500',
+  'bg-rose-500',
+  'bg-emerald-500',
+  'bg-cyan-500',
+  'bg-violet-500',
+];
+
+// Custom Sidebar nav components
+const SidebarNav = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-col space-y-1 py-4">{children}</div>
+);
+
+const SidebarNavItem = ({
+  children,
+  href,
+  icon,
+  active = false,
+  badge
+}: {
+  children: React.ReactNode;
+  href: string;
+  icon?: React.ReactNode;
+  active?: boolean;
+  badge?: number;
+}) => (
+  <Link href={href} className="no-underline">
+    <div className={`flex items-center justify-between px-4 py-2 text-sm rounded-md ${active
+      ? 'bg-ui-bg-base-hover text-ui-fg-base'
+      : 'text-ui-fg-subtle hover:bg-ui-bg-base-hover hover:text-ui-fg-base'
+      }`}>
+      <div className="flex items-center">
+        {icon && <span className="mr-3">{icon}</span>}
+        {children}
+      </div>
+      {badge !== undefined && badge > 0 && (
+        <Badge>{badge}</Badge>
+      )}
+    </div>
+  </Link>
+);
+
+/**
+ * Dashboard Layout component
+ * 
+ * Acts as the main application layout for authenticated users.
+ * This layout checks for authentication status before rendering protected pages.
+ * If not authenticated, it redirects to "/login".
+ */
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isAuthenticated, loading: authLoading, user, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Thêm trạng thái cho ảnh đại diện
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBgColor, setAvatarBgColor] = useState<string>('');
+
+  // Thêm trạng thái cho số lượng hồ sơ
+  const [applicationCount, setApplicationCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // Chọn một ảnh đại diện và màu nền ngẫu nhiên khi component được mount
+  useEffect(() => {
+    if (user) {
+      // Giả lập chọn avatar dựa trên id user (nếu có) hoặc một số ngẫu nhiên
+      const userId = user.id || Math.floor(Math.random() * 100);
+
+      // Sử dụng userId để tạo seed cố định cho mỗi user
+      const avatarIndex = userId % sampleAvatars.length;
+      const colorIndex = userId % avatarBgColors.length;
+
+      // Chọn avatar và màu nền
+      setAvatarUrl(sampleAvatars[avatarIndex]);
+      setAvatarBgColor(avatarBgColors[colorIndex]);
+    }
+  }, [user]);
+
+  // Fetch application count (MODIFIED TO AVOID CITIZEN API)
+  useEffect(() => {
+    // Không gọi API /api/applications/current-user cho staff
+    // Chỉ hiển thị các pending applications của agency
+    if (user && user.role === 'staff') {
+      // Sử dụng API dành cho staff
+      fetchPendingApplicationsCount();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      // Fetch pending applications count
+      fetchPendingApplicationsCount();
+    }
+  }, [isAuthenticated]);
+
+  const fetchPendingApplicationsCount = async () => {
+    try {
+      // Store auth info for debugging purposes
+      try {
+        const authToken = Cookies.get('accessToken');
+        localStorage.setItem('last_token_check', JSON.stringify({
+          hasToken: !!authToken,
+          tokenTime: new Date().toISOString(),
+          role: user?.role || 'unknown'
+        }));
+      } catch (e) {
+        console.error('Error saving token debug info:', e);
+      }
+
+      const response = await fetchPendingApplications();
+      setPendingCount(response?.data?.length || 0);
+      // Sử dụng cùng giá trị này cho applicationCount vì staff chỉ cần biết pending applications
+      setApplicationCount(response?.data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching pending applications count:', error);
+      // Don't update count, but keep current value
+    }
+  };
+
+  useEffect(() => {
+    // If authentication check is complete and user is not authenticated
+    if (!authLoading && !isAuthenticated) {
+      // Redirect to login page
+      router.push("/login");
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return <Loading />;
+  }
+
+  // Don't render dashboard layout for unauthenticated users
+  if (!isAuthenticated) {
+    return <Loading />;
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  // Close mobile sidebar when clicking outside of it
+  const handleCloseSidebar = () => {
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  };
+
+  // Helper function to check if a path is active
+  const isActive = (path: string) => {
+    // Exact match for dashboard
+    if (path === '/dashboard' && pathname === '/dashboard') {
+      return true;
+    }
+
+    // For other routes, check if the pathname starts with the path
+    // This ensures that subroutes are also highlighted
+    if (path !== '/dashboard') {
+      return pathname.startsWith(path);
+    }
+
+    return false;
+  };
+
+  // Hàm render Avatar với ảnh nếu có
+  const renderAvatar = () => {
+    if (avatarUrl) {
+      return (
+        <div className="w-9 h-9 rounded-full overflow-hidden">
+          <img
+            src={avatarUrl}
+            alt={user?.name || 'Staff User'}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      );
+    }
+
+    // Fallback với chữ cái đầu và màu nền ngẫu nhiên
+    return (
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white ${avatarBgColor}`}>
+        {user?.name?.charAt(0).toUpperCase() || 'S'}
+      </div>
+    );
+  };
+
+  return (
+    <div className={`${geistSans.variable} ${geistMono.variable} bg-white min-h-screen flex flex-col`}>
+      {/* Mobile Header */}
+      <div className="md:hidden border-b border-ui-border-base fixed top-0 left-0 right-0 bg-white z-10">
+        <div className="py-3 flex items-center justify-between px-4">
+          <IconButton
+            variant="transparent"
+            size="small"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          </IconButton>
+          <Heading level="h3" className="text-ui-fg-base">Dịch vụ Công</Heading>
+          <div className="w-8"></div> {/* Để cân bằng layout */}
+        </div>
+      </div>
+
+      <div className="flex flex-1 md:pt-0 pt-14"> {/* Added padding top for mobile view to account for fixed header */}
+        {/* Mobile Sidebar Drawer */}
+        <Drawer open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <Drawer.Content className="w-72 max-w-[80vw]">
+            <Drawer.Header>
+              <Drawer.Title>
+                <Heading level="h3" className="text-ui-fg-base">Dịch vụ Công</Heading>
+              </Drawer.Title>
+            </Drawer.Header>
+            <Drawer.Body className="flex flex-col h-full pb-0">
+              <SidebarNav>
+                <SidebarNavItem
+                  href="/dashboard"
+                  icon={<House />}
+                  active={isActive('/dashboard')}
+                >
+                  Dashboard
+                </SidebarNavItem>
+                <SidebarNavItem
+                  href="/dashboard/pending-applications"
+                  icon={<Clock />}
+                  active={isActive('/dashboard/pending-applications')}
+                  badge={pendingCount}
+                >
+                  Đơn cần xử lý
+                </SidebarNavItem>
+                <SidebarNavItem
+                  href="/dashboard/all-applications"
+                  icon={<Book />}
+                  active={isActive('/dashboard/all-applications')}
+                >
+                  Tất cả đơn
+                </SidebarNavItem>
+                <SidebarNavItem
+                  href="/dashboard/profile"
+                  icon={<User />}
+                  active={isActive('/dashboard/profile')}
+                >
+                  <Link href="/dashboard/profile">
+                    Thông tin cá nhân
+                  </Link>
+                </SidebarNavItem>
+              </SidebarNav>
+
+              <div className="mt-auto p-4 border-t border-ui-border-base">
+                <div className="flex items-center gap-3 mb-4">
+                  {renderAvatar()}
+                  <div>
+                    <Text size="small" weight="plus" className="text-ui-fg-base">
+                      {user?.name || 'Cán bộ'}
+                    </Text>
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      {user?.role === 'admin' ? 'Quản trị viên' : 'Cán bộ'}
+                    </Text>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  className="w-full"
+                  onClick={handleLogout}
+                >
+                  Đăng xuất
+                </Button>
+              </div>
+            </Drawer.Body>
+          </Drawer.Content>
+        </Drawer>
+
+        {/* Desktop Sidebar */}
+        <div className="hidden md:flex md:fixed md:h-screen md:w-64 border-r border-ui-border-base bg-white px-4 top-0 left-0 overflow-y-auto flex-col">
+          <div className="flex flex-col flex-grow">
+            <div className="h-16 flex items-center px-4 border-b border-ui-border-base">
+              <Heading level="h3" className="text-ui-fg-base">Dịch vụ Công</Heading>
+            </div>
+
+            <SidebarNav>
+              <SidebarNavItem
+                href="/dashboard"
+                icon={<House />}
+                active={isActive('/dashboard')}
+              >
+                Dashboard
+              </SidebarNavItem>
+              <SidebarNavItem
+                href="/dashboard/pending-applications"
+                icon={<Clock />}
+                active={isActive('/dashboard/pending-applications')}
+                badge={pendingCount}
+              >
+                Đơn cần xử lý
+              </SidebarNavItem>
+              <SidebarNavItem
+                href="/dashboard/all-applications"
+                icon={<Book />}
+                active={isActive('/dashboard/all-applications')}
+              >
+                Tất cả đơn
+              </SidebarNavItem>
+              <SidebarNavItem
+                href="/dashboard/profile"
+                icon={<User />}
+                active={isActive('/dashboard/profile')}
+              >
+                Thông tin cá nhân
+              </SidebarNavItem>
+            </SidebarNav>
+            <div className="mt-auto p-4 border-t border-ui-border-base">
+              <div className="flex items-center gap-3 mb-4">
+                {renderAvatar()}
+                <div>
+                  <Text size="small" weight="plus" className="text-ui-fg-base">
+                    {user?.name || 'Cán bộ'}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    {user?.role === 'admin' ? 'Quản trị viên' : 'Cán bộ'}
+                  </Text>
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="small"
+                className="w-full"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden md:ml-64" onClick={handleCloseSidebar}>
+          <div className="px-4">
+            <Suspense fallback={<Loading />}>{children}</Suspense>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
