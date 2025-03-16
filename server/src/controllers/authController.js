@@ -224,56 +224,65 @@ const authController = {
    * All fields are mandatory. If any field is missing, registration fails.
    */
   registerStaff: async (req, res) => {
+    const {
+      fname, lname, email, staffid, agencyid, designation, phone, gender
+    } = req.body;
+    const password = 'password'; // Password will be 'password' by default
+
+    // Create a transaction
+    const client = await pool.connect();
+
     try {
-      let { agencyid, fullname, role = 'staff', password } = req.body;
-      
-      // Validate role is either 'staff' or 'admin'
-      if (role !== 'staff' && role !== 'admin') {
-        role = 'staff'; // Default to staff if invalid role
+      await client.query('BEGIN');
+
+      // Check if required fields are filled
+      if (!fname || !lname || !email || !staffid || !agencyid || !designation) {
+        return res.status(400).json({
+          status: 'error',
+          error: 'Missing required fields',
+          message: 'Please ensure all required fields are filled',
+        });
       }
-      
-      // Convert agencyid to a number if it's a string
-      if (typeof agencyid === 'string') {
-        agencyid = parseInt(agencyid, 10);
+
+      // Check if staff already exists
+      const staffCheck = await executeQuery(
+        'SELECT email FROM staff WHERE email = $1 OR staffid = $2',
+        [email, staffid],
+        client
+      );
+
+      if (staffCheck.rows.length > 0) {
+        return res.status(400).json({
+          status: 'error',
+          error: 'Staff already exists',
+          message: 'A staff with this email or ID already exists in the system',
+        });
       }
-      
-      // Validate that all required fields are provided
-      if (!agencyid) {
-        return sendError(res, "Vui lòng nhập mã cơ quan.", 400);
-      }
-      
-      if (!fullname) {
-        return sendError(res, "Vui lòng nhập họ và tên.", 400);
-      }
-      
-      if (!password) {
-        return sendError(res, "Vui lòng nhập mật khẩu.", 400);
-      }
-      
-      // Validate password length
-      if (password.length < 6) {
-        return sendError(res, "Mật khẩu phải có ít nhất 6 ký tự.", 400);
-      }
-      
-      // Try to check if agency exists - skip if the query fails
+
+      // Check if agency exists
       try {
         const agencyCheck = await executeQuery(
-          'SELECT agencyid FROM agency WHERE agencyid = $1',
-          [agencyid]
+          'SELECT agencyid FROM agencies WHERE agencyid = $1',
+          [agencyid],
+          client
         );
-        
+
         if (agencyCheck.rows.length === 0) {
-          return sendError(res, "Mã cơ quan không tồn tại.", 400);
+          return res.status(400).json({
+            status: 'error',
+            error: 'Agency not found',
+            message: 'The specified agency does not exist in the system',
+          });
         }
-      } catch (agencyErr) {
-        // Log the error but continue with registration
-        logger.warn('Error checking agency existence:', agencyErr);
-        // We'll continue and let the foreign key constraint handle this if necessary
+      } catch (agencyError) {
+        console.error('Error checking agency:', agencyError.message);
+        
+        // Nếu không kiểm tra được agency, vẫn cho phép tiếp tục với warning
+        console.warn(`Warning: Could not verify agency ID: ${agencyid}, proceeding with registration`);
       }
-      
+
       // Hash the password
-      const salt = await bcrypt.genSalt(10);
-      const passwordhash = await bcrypt.hash(password, salt);
+      const hashedPassword = await bcrypt.hash(password, 10);
       
       // Insert new staff into database
       try {
@@ -281,7 +290,7 @@ const authController = {
           `INSERT INTO staff (agencyid, fullname, role, passwordhash) 
            VALUES ($1, $2, $3, $4) 
            RETURNING staffid, agencyid, fullname, role`,
-          [agencyid, fullname, role, passwordhash]
+          [agencyid, fname + ' ' + lname, 'staff', hashedPassword]
         );
         
         if (result.rows.length === 0) {
@@ -1108,6 +1117,54 @@ const authController = {
       
       // Save refresh token to database
       await authUtil.storeTokenInDatabase(user.staffid, refreshToken, 'staff');
+      
+      // Record login history
+      try {
+        // Check if the staff_login_history table exists
+        const tableCheckQuery = `
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'staff_login_history'
+          );
+        `;
+        const tableCheck = await executeQuery(tableCheckQuery);
+        
+        if (!tableCheck.rows[0].exists) {
+          // Create the table if it doesn't exist
+          const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS staff_login_history (
+              id SERIAL PRIMARY KEY,
+              staffid INTEGER NOT NULL REFERENCES staff(staffid),
+              login_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              ip_address VARCHAR(45),
+              user_agent TEXT
+            );
+          `;
+          await executeQuery(createTableQuery);
+          logger.info('Created staff_login_history table');
+        }
+        
+        // Record the login
+        const insertLoginQuery = `
+          INSERT INTO staff_login_history (staffid, ip_address, user_agent)
+          VALUES ($1, $2, $3);
+        `;
+        
+        const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        
+        await executeQuery(insertLoginQuery, [
+          user.staffid,
+          clientIp,
+          userAgent
+        ]);
+        
+        logger.info('Staff login recorded in history', { staffId: user.staffid });
+      } catch (historyError) {
+        // Just log the error but don't fail the login
+        logger.error('Failed to record login history:', historyError);
+      }
       
       // User data to return (excluding password)
       const userData = {

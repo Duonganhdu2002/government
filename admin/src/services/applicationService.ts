@@ -970,4 +970,43 @@ export const fetchAllApplications = async (): Promise<any> => {
     }
     throw error;
   }
+};
+
+/**
+ * Lấy danh sách tất cả nhân viên từ API
+ */
+export const fetchStaffList = async (): Promise<any> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/staff`, {
+      signal: controller.signal,
+      headers: getAuthHeaders(),
+      credentials: 'include' // Include cookies with request
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error('Error response from API:', response.status, response.statusText);
+      throw new Error(`Failed to fetch staff list: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Check if the response has the expected structure
+    if (data && data.status === 'success' && Array.isArray(data.data)) {
+      return data.data;
+    } else if (data && Array.isArray(data)) {
+      // Handle old response format (direct array)
+      return data;
+    } else {
+      console.error('Unexpected response format:', data);
+      throw new Error('Unexpected response format from server');
+    }
+  } catch (error) {
+    console.error('Error in fetchStaffList:', error);
+    throw error;
+  }
 }; 

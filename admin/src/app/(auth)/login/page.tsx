@@ -20,7 +20,7 @@ import {
 import { XMark, EyeSlash, Eye } from '@medusajs/icons';
 
 /**
- * Login page component
+ * Login page component for admin users
  */
 export default function LoginPage() {
   const [staffId, setStaffId] = useState('');
@@ -85,9 +85,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Title Section */}
         <div className="bg-white px-8 py-6">
-          <h2 className="text-xl font-medium text-center">Đăng nhập - Cán bộ</h2>
+          <h2 className="text-xl font-medium text-center">Đăng nhập - Quản trị viên</h2>
           <p className="text-center text-gray-500 text-sm mt-3">
-            Nhập ID nhân viên và mật khẩu để truy cập hệ thống quản lý
+            Nhập ID nhân viên và mật khẩu để truy cập hệ thống quản trị
           </p>
         </div>
 
@@ -177,15 +177,6 @@ export default function LoginPage() {
             >
               Đăng nhập
             </Button>
-            
-            <div className="text-center mt-4">
-              <p className="text-sm text-gray-600">
-                Bạn chưa có tài khoản?{' '}
-                <Link href="/register" className="text-blue-600 hover:underline">
-                  Đăng ký
-                </Link>
-              </p>
-            </div>
           </form>
         </div>
       </div>

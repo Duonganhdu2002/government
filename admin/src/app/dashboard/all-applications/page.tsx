@@ -29,14 +29,19 @@ import {
   Eye,
   PencilSquare,
   ChevronDown,
-  MapPin
+  MapPin,
+  MagnifyingGlass,
+  Buildings
 } from "@medusajs/icons";
 
 import {
   fetchAllApplications,
   updateApplicationStatus,
-  fetchApplicationDetailForStaff
+  fetchApplicationDetailForStaff,
+  fetchStaffList
 } from "@/services/applicationService";
+
+import { fetchAllAgencies } from "@/services/agencyService";
 
 import { formatDate, formatDateTime } from "@/utils/dateUtils";
 import ApplicationDetailModal from "@/components/ApplicationDetailModal";
@@ -281,11 +286,28 @@ export default function AllApplicationsPage() {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Thêm state cho việc lọc theo staff và agency
+  const [staffFilter, setStaffFilter] = useState<number | null>(null);
+  const [agencyFilter, setAgencyFilter] = useState<number | null>(null);
+  const [manualStaffId, setManualStaffId] = useState<string>("");
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [agencyList, setAgencyList] = useState<any[]>([]);
+  const [loadingStaffList, setLoadingStaffList] = useState(false);
+  const [loadingAgencyList, setLoadingAgencyList] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Thêm hook để fetch danh sách staff và agencies
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadStaffList();
+      loadAgencyList();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -296,7 +318,7 @@ export default function AllApplicationsPage() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    // Lọc dữ liệu theo tab, status, search
+    // Lọc dữ liệu theo tab, status, search, staff, agency
     let filtered = [...applications];
 
     // Tab logic
@@ -319,6 +341,20 @@ export default function AllApplicationsPage() {
       );
     }
 
+    // Staff filter
+    if (staffFilter !== null) {
+      filtered = filtered.filter(app => app.staffid === staffFilter);
+    }
+
+    // Agency filter
+    if (agencyFilter !== null) {
+      filtered = filtered.filter(app => {
+        // Handle different property names
+        const appAgencyId = app.agencyid || app.agency_id || app.agency;
+        return appAgencyId === agencyFilter;
+      });
+    }
+
     // Search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -335,7 +371,65 @@ export default function AllApplicationsPage() {
 
     // Tính total pages
     setTotalPages(Math.ceil(filtered.length / itemsPerPage));
-  }, [applications, activeTab, searchTerm, statusFilter, itemsPerPage]);
+  }, [applications, activeTab, searchTerm, statusFilter, staffFilter, agencyFilter, itemsPerPage]);
+
+  // Thêm function để load danh sách nhân viên
+  const loadStaffList = async () => {
+    setLoadingStaffList(true);
+    try {
+      const staff = await fetchStaffList();
+      setStaffList(Array.isArray(staff) ? staff : []);
+    } catch (err) {
+      console.error("Lỗi khi tải danh sách nhân viên:", err);
+    } finally {
+      setLoadingStaffList(false);
+    }
+  };
+
+  // Thêm function để load danh sách cơ quan
+  const loadAgencyList = async (retryCount = 0) => {
+    setLoadingAgencyList(true);
+    try {
+      console.log('Fetching agencies from server...');
+      const agencies = await fetchAllAgencies();
+      
+      console.log('Agency data received:', agencies);
+      
+      // Ensure agencies is always an array even if the API returns unexpected data
+      if (Array.isArray(agencies)) {
+        // Filter out invalid agencies without an ID
+        const validAgencies = agencies.filter(agency => 
+          agency && (agency.agencyid || agency.id)
+        );
+        
+        console.log('Valid agencies:', validAgencies.length);
+        setAgencyList(validAgencies);
+        
+        if (validAgencies.length === 0 && retryCount < 2) {
+          console.warn(`No valid agencies found, retry attempt ${retryCount + 1}`);
+          setTimeout(() => loadAgencyList(retryCount + 1), 3000);
+        }
+      } else {
+        console.warn('Received non-array agency data');
+        setAgencyList([]);
+        
+        if (retryCount < 2) {
+          setTimeout(() => loadAgencyList(retryCount + 1), 3000);
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải danh sách cơ quan:", err);
+      // Set empty array as fallback
+      setAgencyList([]);
+      
+      // Retry up to 2 times with delay
+      if (retryCount < 2) {
+        setTimeout(() => loadAgencyList(retryCount + 1), 3000);
+      }
+    } finally {
+      setLoadingAgencyList(false);
+    }
+  };
 
   const loadApplications = async () => {
     setLoading(true);
@@ -376,6 +470,69 @@ export default function AllApplicationsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Hàm xử lý khi thay đổi lọc theo staff
+  const handleStaffFilterChange = (value: string) => {
+    if (value === "all") {
+      setStaffFilter(null);
+      setManualStaffId("");
+    } else {
+      const staffId = parseInt(value, 10);
+      if (!isNaN(staffId)) {
+        setStaffFilter(staffId);
+        setManualStaffId(staffId.toString());
+      }
+    }
+  };
+
+  // Hàm xử lý khi thay đổi lọc theo cơ quan
+  const handleAgencyFilterChange = (value: string) => {
+    try {
+      if (value === "all") {
+        setAgencyFilter(null);
+      } else {
+        const agencyId = parseInt(value, 10);
+        if (!isNaN(agencyId)) {
+          setAgencyFilter(agencyId);
+        } else {
+          setAgencyFilter(null);
+          console.warn("Invalid agency ID format");
+        }
+      }
+    } catch (error) {
+      console.error("Error handling agency filter change:", error);
+      setAgencyFilter(null);
+    }
+  };
+
+  // Hàm xử lý khi nhập trực tiếp ID nhân viên
+  const handleManualStaffIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setManualStaffId(e.target.value);
+  };
+
+  // Hàm xử lý khi tìm kiếm theo ID nhân viên
+  const handleSearchByStaffId = () => {
+    if (manualStaffId) {
+      const staffId = parseInt(manualStaffId, 10);
+      if (!isNaN(staffId) && staffId > 0) {
+        setStaffFilter(staffId);
+      } else {
+        alert("Vui lòng nhập ID nhân viên hợp lệ");
+      }
+    } else {
+      setStaffFilter(null);
+    }
+  };
+
+  // Hàm xử lý khi reset tất cả bộ lọc
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setStaffFilter(null);
+    setAgencyFilter(null);
+    setManualStaffId("");
+    setActiveTab("all");
   };
 
   const handleViewDetail = (id: number) => {
@@ -434,13 +591,18 @@ export default function AllApplicationsPage() {
             Quản lý tất cả đơn
           </Heading>
           <Text className="text-gray-500 mt-1">
-            Tất cả đơn trong hệ thống được gán cho đơn vị của bạn.
+            Tất cả đơn trong hệ thống và các bộ lọc để quản lý hiệu quả.
           </Text>
         </div>
-        <Button variant="secondary" onClick={loadApplications}>
-          <ArrowPath className="w-4 h-4 mr-2" />
-          Làm mới
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleResetFilters}>
+            Xóa bộ lọc
+          </Button>
+          <Button variant="secondary" onClick={loadApplications}>
+            <ArrowPath className="w-4 h-4 mr-2" />
+            Làm mới
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -454,6 +616,24 @@ export default function AllApplicationsPage() {
 
       {/* Filter + Search */}
       <div className="mb-6 bg-white p-4 rounded-lg border border-gray-200">
+        {loadingAgencyList && (
+          <div className="mb-4 p-2 bg-gray-50 text-gray-600 text-sm rounded">
+            Đang tải dữ liệu cơ quan...
+          </div>
+        )}
+        
+        {agencyList.length === 0 && !loadingAgencyList && (
+          <div className="mb-4 p-2 bg-gray-50 text-gray-600 text-sm rounded flex items-center">
+            <ExclamationCircle className="w-4 h-4 mr-2 text-gray-500" />
+            <span>
+              Không thể tải danh sách cơ quan. Một số bộ lọc có thể không khả dụng.
+              <Button variant="transparent" onClick={() => loadAgencyList()} className="ml-2 text-gray-700 underline">
+                Thử lại
+              </Button>
+            </span>
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="flex-1">
             <Label htmlFor="search" className="mb-2 block">
@@ -488,6 +668,99 @@ export default function AllApplicationsPage() {
           </div>
         </div>
 
+        {/* Staff và Agency Filter */}
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="w-full md:w-1/3">
+            <Label htmlFor="agencyFilter" className="mb-2 block">
+              <div className="flex items-center">
+                <Buildings className="w-4 h-4 mr-1 text-gray-500" />
+                Lọc theo cơ quan
+              </div>
+            </Label>
+            <Select 
+              value={agencyFilter?.toString() || "all"} 
+              onValueChange={handleAgencyFilterChange}
+              disabled={loadingAgencyList}
+            >
+              <Select.Trigger className="w-full">
+                <Select.Value placeholder={loadingAgencyList ? "Đang tải..." : "Chọn cơ quan"} />
+              </Select.Trigger>
+              <Select.Content position="popper" className="z-[100]">
+                <Select.Item value="all">Tất cả cơ quan</Select.Item>
+                {agencyList.length > 0 ? (
+                  agencyList.map(agency => {
+                    // Handle different property names from the backend
+                    const id = agency.agencyid || agency.id;
+                    const name = agency.agencyname || agency.name;
+                    
+                    if (!id) return null; // Skip if no valid ID
+                    
+                    return (
+                      <Select.Item key={id} value={id.toString()}>
+                        {name || `Cơ quan #${id}`}
+                      </Select.Item>
+                    );
+                  })
+                ) : !loadingAgencyList ? (
+                  <Select.Item value="all" disabled>
+                    Không thể tải danh sách cơ quan
+                  </Select.Item>
+                ) : null}
+              </Select.Content>
+            </Select>
+          </div>
+          
+          <div className="w-full md:w-1/3">
+            <Label htmlFor="staffFilter" className="mb-2 block">
+              <div className="flex items-center">
+                <User className="w-4 h-4 mr-1 text-gray-500" />
+                Lọc theo nhân viên
+              </div>
+            </Label>
+            <Select 
+              value={staffFilter?.toString() || "all"} 
+              onValueChange={handleStaffFilterChange}
+            >
+              <Select.Trigger className="w-full">
+                <Select.Value placeholder="Chọn nhân viên" />
+              </Select.Trigger>
+              <Select.Content position="popper" className="z-[100]">
+                <Select.Item value="all">Tất cả nhân viên</Select.Item>
+                {staffList.map(staff => (
+                  <Select.Item key={staff.staffid} value={staff.staffid.toString()}>
+                    {staff.fullname || `Nhân viên #${staff.staffid}`}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select>
+          </div>
+          
+          <div className="w-full md:w-1/3">
+            <Label className="mb-2 block">
+              <div className="flex items-center">
+                <MagnifyingGlass className="w-4 h-4 mr-1 text-gray-500" />
+                Tìm theo mã nhân viên
+              </div>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nhập ID nhân viên"
+                value={manualStaffId}
+                onChange={handleManualStaffIdChange}
+                className="flex-1"
+                type="number"
+                min="1"
+              />
+              <Button 
+                variant="secondary" 
+                onClick={handleSearchByStaffId}
+              >
+                Tìm
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <Tabs.List>
@@ -519,7 +792,7 @@ export default function AllApplicationsPage() {
       ) : (
         <div
           className="relative flex flex-col"
-          style={{ height: "calc(100vh - 300px)" }}
+          style={{ height: "calc(100vh - 400px)" }}
         >
           <div className="overflow-auto flex-grow">
             <Table>
@@ -530,7 +803,8 @@ export default function AllApplicationsPage() {
                   <Table.HeaderCell>Loại đơn</Table.HeaderCell>
                   <Table.HeaderCell>Người nộp</Table.HeaderCell>
                   <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
-                  <Table.HeaderCell>Cơ quan hiện tại</Table.HeaderCell>
+                  <Table.HeaderCell>Cơ quan</Table.HeaderCell>
+                  <Table.HeaderCell>Nhân viên</Table.HeaderCell>
                   <Table.HeaderCell>Trạng thái</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">
                     Hành động
@@ -562,6 +836,7 @@ export default function AllApplicationsPage() {
                         : "N/A"}
                     </Table.Cell>
                     <Table.Cell>{app.agencyname || "N/A"}</Table.Cell>
+                    <Table.Cell>{app.staffname || "Chưa phân công"}</Table.Cell>
                     <Table.Cell>
                       <ApplicationStatus status={app.status} />
                     </Table.Cell>

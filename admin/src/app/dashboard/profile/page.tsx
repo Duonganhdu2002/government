@@ -9,13 +9,18 @@ import {
   Input,
   Tabs,
   Skeleton,
-  Alert
+  Alert,
+  Badge,
+  Container,
+  IconButton,
+  Table
 } from '@medusajs/ui';
-import { Check, Key, XMark } from '@medusajs/icons';
+import { Check, Key, XMark, Users, DocumentText, Buildings, Calendar } from '@medusajs/icons';
 import { apiClient } from '@/lib/api';
 
 /**
- * Profile page for staff users - Read-only personal info with password change functionality
+ * Profile page for admin users - Read-only personal info with password change functionality
+ * and admin dashboard stats
  */
 export default function ProfilePage() {
   // Get user from auth state
@@ -27,6 +32,17 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState("personal");
   const [agencyName, setAgencyName] = useState('Đang tải...');
+  
+  // Admin stats
+  const [stats, setStats] = useState({
+    totalStaff: 0,
+    totalApplications: 0,
+    totalAgencies: 0,
+    lastLogin: ''
+  });
+  
+  // Login history
+  const [loginHistory, setLoginHistory] = useState([]);
 
   // State for password change
   const [passwordForm, setPasswordForm] = useState({
@@ -37,12 +53,76 @@ export default function ProfilePage() {
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  // Load agency info on component mount
+  // Load agency info, admin stats, and login history on component mount
   useEffect(() => {
-    if (user?.agencyId) {
+    if (user?.id) {
       fetchAgencyInfo(user.agencyId);
+      fetchAdminStats();
+      fetchLoginHistory(user.id);
     }
-  }, [user?.agencyId]);
+  }, [user?.id, user?.agencyId]);
+
+  // Fetch admin dashboard statistics
+  const fetchAdminStats = async () => {
+    try {
+      // Call the backend API for admin stats
+      let statsUrl = '/api/staff/admin/dashboard-stats';
+      
+      // Add user ID if available to get personalized last login time
+      if (user?.id) {
+        statsUrl = `/api/staff/admin/dashboard-stats/${user.id}`;
+      }
+      
+      // Fetch data from backend
+      const response = await apiClient.get(statsUrl);
+      console.log('Admin stats response:', response);
+      
+      // Handle API response
+      if (response?.status === 'success' && response?.data) {
+        setStats({
+          totalStaff: response.data.totalStaff || 0,
+          totalApplications: response.data.totalApplications || 0,
+          totalAgencies: response.data.totalAgencies || 0,
+          lastLogin: response.data.lastLogin 
+            ? new Date(response.data.lastLogin).toLocaleString('vi-VN')
+            : new Date().toLocaleString('vi-VN')
+        });
+      } else {
+        // Fallback to default values if API fails
+        console.error('Invalid stats response format:', response);
+        setStats({
+          totalStaff: 0,
+          totalApplications: 0,
+          totalAgencies: 0,
+          lastLogin: new Date().toLocaleString('vi-VN')
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+      // Set default values on error
+      setStats({
+        totalStaff: 0,
+        totalApplications: 0,
+        totalAgencies: 0,
+        lastLogin: new Date().toLocaleString('vi-VN')
+      });
+    }
+  };
+  
+  // Fetch login history for current user
+  const fetchLoginHistory = async (userId: number) => {
+    try {
+      const response = await apiClient.get(`/api/staff/admin/login-history/${userId}`);
+      console.log('Login history response:', response);
+      
+      if (response?.status === 'success' && response?.data?.history) {
+        setLoginHistory(response.data.history);
+      }
+    } catch (error) {
+      console.error('Error fetching login history:', error);
+      setLoginHistory([]);
+    }
+  };
 
   // Fetch agency information
   const fetchAgencyInfo = async (agencyId: number) => {
@@ -73,7 +153,7 @@ export default function ProfilePage() {
         // Nested data response
         console.log('Nested data response:', response.data);
         if (Array.isArray(response.data)) {
-          const agency = response.data.find(a => Number(a.agencyid) === Number(agencyId));
+          const agency = response.data.find((a: any) => Number(a.agencyid) === Number(agencyId));
           if (agency) {
             console.log('Found agency in nested array:', agency);
             setAgencyName(agency.agencyname || agency.name || 'Không xác định');
@@ -215,10 +295,86 @@ export default function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <Heading level="h1" className="text-ui-fg-base mb-2">Thông tin cá nhân</Heading>
+        <Heading level="h1" className="text-ui-fg-base mb-2">Trang quản trị viên</Heading>
         <Text className="text-ui-fg-subtle">
-          Xem thông tin cá nhân và đổi mật khẩu tài khoản của bạn
+          Xem thông tin cá nhân, thống kê hệ thống và quản lý tài khoản của bạn
         </Text>
+      </div>
+
+      {/* Admin Dashboard Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-lg border border-ui-border-base p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center mb-2">
+            <Users className="text-gray-700 mr-2" />
+            <Text className="text-ui-fg-subtle">Nhân viên</Text>
+          </div>
+          <Heading level="h3" className="text-2xl font-bold">{stats.totalStaff}</Heading>
+        </div>
+        
+        <div className="bg-white rounded-lg border border-ui-border-base p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center mb-2">
+            <DocumentText className="text-gray-700 mr-2" />
+            <Text className="text-ui-fg-subtle">Hồ sơ</Text>
+          </div>
+          <Heading level="h3" className="text-2xl font-bold">{stats.totalApplications}</Heading>
+        </div>
+        
+        <div className="bg-white rounded-lg border border-ui-border-base p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center mb-2">
+            <Buildings className="text-gray-700 mr-2" />
+            <Text className="text-ui-fg-subtle">Cơ quan</Text>
+          </div>
+          <Heading level="h3" className="text-2xl font-bold">{stats.totalAgencies}</Heading>
+        </div>
+        
+        <div className="bg-white rounded-lg border border-ui-border-base p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center mb-2">
+            <Calendar className="text-gray-700 mr-2" />
+            <Text className="text-ui-fg-subtle">Đăng nhập</Text>
+          </div>
+          <Text className="text-sm mt-1">{stats.lastLogin}</Text>
+        </div>
+      </div>
+      
+      {/* Login History Section */}
+      <div className="bg-white rounded-lg border border-ui-border-base p-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <Heading level="h2" className="text-lg text-ui-fg-base">
+              Lịch sử đăng nhập
+            </Heading>
+            <Text size="small" className="text-ui-fg-subtle mt-1">
+              Các lần đăng nhập gần đây vào hệ thống
+            </Text>
+          </div>
+        </div>
+        
+        {loginHistory.length > 0 ? (
+          <Table className="border border-ui-border-base">
+            <Table.Header className="bg-gray-50">
+              <Table.Row>
+                <Table.HeaderCell className="w-1/4">Thời gian</Table.HeaderCell>
+                <Table.HeaderCell className="w-1/4">Địa chỉ IP</Table.HeaderCell>
+                <Table.HeaderCell className="w-2/4">Trình duyệt</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {loginHistory.map((entry: any) => (
+                <Table.Row key={entry.id}>
+                  <Table.Cell>
+                    {new Date(entry.login_time).toLocaleString('vi-VN')}
+                  </Table.Cell>
+                  <Table.Cell>{entry.ip_address}</Table.Cell>
+                  <Table.Cell className="truncate max-w-xs">{entry.user_agent}</Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        ) : (
+          <div className="text-center py-4 bg-gray-50 rounded">
+            <Text className="text-ui-fg-subtle">Không có lịch sử đăng nhập</Text>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -233,13 +389,16 @@ export default function ProfilePage() {
           <div className="bg-white rounded-lg border border-ui-border-base overflow-hidden">
             {/* Header */}
             <div className="px-6 py-5 border-b border-ui-border-base">
-              <div>
-                <Heading level="h2" className="text-lg text-ui-fg-base">
-                  Thông tin cán bộ
-                </Heading>
-                <Text size="small" className="text-ui-fg-subtle mt-1">
-                  Thông tin cơ bản của bạn được hiển thị cho các bộ phận liên quan
-                </Text>
+              <div className="flex items-center">
+                <div>
+                  <Heading level="h2" className="text-lg text-ui-fg-base">
+                    Thông tin quản trị viên
+                  </Heading>
+                  <Text size="small" className="text-ui-fg-subtle mt-1">
+                    Thông tin cá nhân và quyền hạn của bạn trong hệ thống
+                  </Text>
+                </div>
+                <Badge className="ml-auto bg-gray-200 text-gray-800">Quản trị viên</Badge>
               </div>
             </div>
             
@@ -249,7 +408,7 @@ export default function ProfilePage() {
                 {/* Staff ID */}
                 <div>
                   <label htmlFor="staffId" className="block text-ui-fg-subtle mb-1">
-                    Mã cán bộ
+                    Mã quản trị viên
                   </label>
                   <Input
                     id="staffId"
@@ -318,11 +477,15 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              <div className="mt-6 p-4 bg-blue-50 rounded-md">
-                <Text size="small" className="text-blue-700">
-                  Các thông tin cá nhân chỉ có thể được cập nhật bởi quản trị viên hệ thống. 
-                  Nếu cần thay đổi, vui lòng liên hệ với quản trị viên.
-                </Text>
+              {/* Admin privileges info */}
+              <div className="mt-6 p-4 bg-gray-100 rounded-md">
+                <Heading level="h3" className="text-sm text-gray-700 mb-2">Quyền hạn quản trị viên</Heading>
+                <ul className="list-disc list-inside text-gray-700">
+                  <li className="text-sm">Quản lý người dùng và nhân viên</li>
+                  <li className="text-sm">Phân quyền và phê duyệt</li>
+                  <li className="text-sm">Truy cập báo cáo và thống kê hệ thống</li>
+                  <li className="text-sm">Cấu hình và quản lý cơ quan</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -345,7 +508,7 @@ export default function ProfilePage() {
             {passwordErrors.general && (
               <Alert className="mx-6 mt-4" variant="error">
                 <div className="flex items-start gap-3">
-                  <XMark className="text-ui-tag-red-icon" />
+                  <XMark className="text-gray-700" />
                   <Text size="small">{passwordErrors.general}</Text>
                 </div>
               </Alert>
@@ -354,7 +517,7 @@ export default function ProfilePage() {
             {passwordSuccess && (
               <Alert className="mx-6 mt-4" variant="success">
                 <div className="flex items-start gap-3">
-                  <Check className="text-ui-tag-green-icon" />
+                  <Check className="text-gray-700" />
                   <Text size="small">{passwordSuccess}</Text>
                 </div>
               </Alert>

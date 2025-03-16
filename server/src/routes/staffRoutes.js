@@ -13,6 +13,15 @@ const staffController = require('../controllers/staffController');
 // Lấy danh sách tất cả nhân viên
 router.get('/', staffController.getAllStaff);
 
+// Lấy thống kê cho trang quản trị viên
+router.get('/admin/dashboard-stats', staffController.getAdminDashboardStats);
+
+// Lấy thống kê cho trang quản trị viên cụ thể
+router.get('/admin/dashboard-stats/:userId', staffController.getAdminDashboardStats);
+
+// Lấy lịch sử đăng nhập của nhân viên
+router.get('/admin/login-history/:id', staffController.getStaffLoginHistory);
+
 // Lấy thông tin chi tiết của nhân viên theo ID
 router.get('/:id', staffController.getStaffById);
 
