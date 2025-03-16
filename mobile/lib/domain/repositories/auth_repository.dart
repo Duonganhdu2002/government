@@ -7,14 +7,20 @@ abstract class AuthRepository {
   Future<bool> isAuthenticated();
 
   Future<Either<Failure, User>> login({
-    required String email,
+    required String username,
     required String password,
+    required String userType,
   });
 
   Future<Either<Failure, User>> register({
     required String fullName,
-    required String email,
+    required String identificationNumber,
+    String address,
+    String phoneNumber,
+    String email,
+    required String username,
     required String password,
+    int areaCode,
   });
 
   Future<Either<Failure, bool>> logout();

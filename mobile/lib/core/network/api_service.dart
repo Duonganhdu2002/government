@@ -2,21 +2,66 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
+import '../constants/api_constants.dart';
 
 class ApiService {
   final Dio _dio;
   final SharedPreferences _preferences;
 
   ApiService(this._preferences) : _dio = Dio() {
-    _dio.options.baseUrl = AppConstants.baseUrl;
+    _configureDio();
+  }
+
+  void _configureDio() {
+    _dio.options.baseUrl = ApiConstants.baseUrl;
+    _dio.options.headers = ApiConstants.headers;
+
+    // Cấu hình timeout
     _dio.options.connectTimeout =
-        Duration(milliseconds: AppConstants.apiTimeoutDuration);
+        Duration(milliseconds: ApiConstants.connectTimeout);
     _dio.options.receiveTimeout =
-        Duration(milliseconds: AppConstants.apiTimeoutDuration);
-    _dio.options.headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+        Duration(milliseconds: ApiConstants.receiveTimeout);
+    _dio.options.sendTimeout = Duration(milliseconds: ApiConstants.sendTimeout);
+
+    // Thêm interceptors để ghi log chi tiết request/response
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        request: true,
+        requestHeader: true,
+        requestBody: true,
+        responseHeader: true,
+        responseBody: true,
+        error: true,
+      ));
+    }
+
+    // Thêm interceptor xử lý lỗi
+    _dio.interceptors.add(InterceptorsWrapper(
+      onError: (DioException error, ErrorInterceptorHandler handler) {
+        print('===== DIO ERROR INTERCEPTOR =====');
+        print('URL: ${error.requestOptions.uri}');
+        print('Method: ${error.requestOptions.method}');
+        print('Status code: ${error.response?.statusCode}');
+        print('Error type: ${error.type}');
+        print('Error message: ${error.message}');
+
+        // Xử lý lỗi kết nối
+        if (error.type == DioExceptionType.connectionTimeout ||
+            error.type == DioExceptionType.receiveTimeout ||
+            error.type == DioExceptionType.sendTimeout) {
+          error = DioException(
+            requestOptions: error.requestOptions,
+            error:
+                'Kết nối tới server thất bại, vui lòng kiểm tra lại internet và thử lại sau',
+            type: error.type,
+          );
+        }
+
+        // Chuyển tiếp lỗi đã được xử lý
+        handler.next(error);
+      },
+    ));
 
     // Add request interceptor for authentication
     _dio.interceptors.add(InterceptorsWrapper(
@@ -95,4 +140,6 @@ class ApiService {
     developer.log('API Error Response: ${e.response?.data}',
         name: 'ApiService');
   }
+
+  Dio get dio => _dio;
 }

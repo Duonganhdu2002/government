@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,18 +12,34 @@ import 'presentation/blocs/user/user_bloc.dart';
 import 'presentation/blocs/application/application_bloc.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Bắt tất cả lỗi không xử lý được để tránh crash app
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+    // Load environment variables
+    await dotenv.load(fileName: ".env");
 
-  // Initialize dependency injection
-  await di.initServiceLocator();
+    // Initialize dependency injection
+    await di.initServiceLocator();
 
-  // Initialize AppRouter
-  await AppRouter.init();
+    // Initialize AppRouter
+    await AppRouter.init();
 
-  runApp(const MyApp());
+    // Bắt lỗi Flutter không xử lý được
+    FlutterError.onError = (FlutterErrorDetails details) {
+      print('=== FLUTTER ERROR ===');
+      print(details.exception);
+      print(details.stack);
+      // Có thể thêm phần gửi log lỗi tới Firebase Crashlytics hoặc service khác
+    };
+
+    runApp(const MyApp());
+  }, (error, stackTrace) {
+    print('=== UNCAUGHT ERROR ===');
+    print(error);
+    print(stackTrace);
+    // Có thể thêm phần gửi log lỗi tới Firebase Crashlytics hoặc service khác
+  });
 }
 
 class MyApp extends StatelessWidget {

@@ -13,13 +13,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _showPassword = false;
+  bool _rememberMe = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -27,14 +29,25 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthenticatedState) {
             context.go(AppConstants.dashboardRoute);
           } else if (state is AuthErrorState) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: 'Đóng',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                ),
+              ),
             );
           }
         },
@@ -57,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Government Services',
+                        'Dịch vụ công',
                         style: Theme.of(context)
                             .textTheme
                             .headlineMedium
@@ -68,23 +81,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Login to your account',
+                        'Đăng nhập',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 32),
 
-                      // Email field
+                      // Username field
                       TextFormField(
-                        controller: _emailController,
+                        controller: _usernameController,
                         decoration: const InputDecoration(
-                          labelText: 'Email',
-                          hintText: 'Enter your email',
-                          prefixIcon: Icon(Icons.email),
+                          labelText: 'Tên đăng nhập',
+                          hintText: 'Nhập tên đăng nhập',
+                          prefixIcon: Icon(Icons.person),
                         ),
-                        keyboardType: TextInputType.emailAddress,
+                        keyboardType: TextInputType.text,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
+                            return 'Vui lòng nhập tên đăng nhập';
                           }
                           return null;
                         },
@@ -94,60 +107,103 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Password field
                       TextFormField(
                         controller: _passwordController,
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          hintText: 'Enter your password',
-                          prefixIcon: Icon(Icons.lock),
+                        decoration: InputDecoration(
+                          labelText: 'Mật khẩu',
+                          hintText: 'Nhập mật khẩu',
+                          prefixIcon: const Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _showPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _showPassword = !_showPassword;
+                              });
+                            },
+                          ),
                         ),
-                        obscureText: true,
+                        obscureText: !_showPassword,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
+                            return 'Vui lòng nhập mật khẩu';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 8),
 
-                      // Forgot password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            // Navigate to forgot password
-                          },
-                          child: const Text('Forgot Password?'),
-                        ),
+                      // Remember me checkbox and forgot password
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _rememberMe,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _rememberMe = value ?? false;
+                                  });
+                                },
+                              ),
+                              const Text('Ghi nhớ đăng nhập'),
+                            ],
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              // Navigate to forgot password
+                            },
+                            child: const Text('Quên mật khẩu?'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 24),
 
                       // Login button
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: state is AuthLoadingState
-                              ? null
-                              : () {
+                        child: state is AuthLoadingState
+                            ? Column(
+                                children: [
+                                  const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () {
+                                      // Tạo state mới để thoát khỏi loading
+                                      context.read<AuthBloc>().add(
+                                            const CancelLoginEvent(),
+                                          );
+                                    },
+                                    child: const Text('Hủy đăng nhập'),
+                                  ),
+                                ],
+                              )
+                            : ElevatedButton(
+                                onPressed: () {
                                   if (_formKey.currentState!.validate()) {
                                     context.read<AuthBloc>().add(
                                           LoginEvent(
-                                            email: _emailController.text,
+                                            username: _usernameController.text,
                                             password: _passwordController.text,
                                           ),
                                         );
                                   }
                                 },
-                          child: state is AuthLoadingState
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Login'),
-                        ),
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                child: const Text('Đăng nhập'),
+                              ),
                       ),
                       const SizedBox(height: 16),
 
@@ -156,14 +212,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "Don't have an account?",
+                            "Chưa có tài khoản?",
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           TextButton(
                             onPressed: () {
                               context.go(AppConstants.registerRoute);
                             },
-                            child: const Text('Register'),
+                            child: const Text('Đăng ký'),
                           ),
                         ],
                       ),

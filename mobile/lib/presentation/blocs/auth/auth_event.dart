@@ -8,31 +8,52 @@ abstract class AuthEvent extends Equatable {
 }
 
 class LoginEvent extends AuthEvent {
-  final String email;
+  final String username;
   final String password;
+  final String userType;
 
   const LoginEvent({
-    required this.email,
+    required this.username,
     required this.password,
+    this.userType = 'citizen',
   });
 
   @override
-  List<Object> get props => [email, password];
+  List<Object> get props => [username, password, userType];
 }
 
 class RegisterEvent extends AuthEvent {
   final String fullName;
+  final String identificationNumber;
+  final String address;
+  final String phoneNumber;
   final String email;
+  final String username;
   final String password;
+  final int areaCode;
 
   const RegisterEvent({
     required this.fullName,
-    required this.email,
+    required this.identificationNumber,
+    this.address = '',
+    this.phoneNumber = '',
+    this.email = '',
+    required this.username,
     required this.password,
+    this.areaCode = 1,
   });
 
   @override
-  List<Object> get props => [fullName, email, password];
+  List<Object> get props => [
+        fullName,
+        identificationNumber,
+        address,
+        phoneNumber,
+        email,
+        username,
+        password,
+        areaCode,
+      ];
 }
 
 class LogoutEvent extends AuthEvent {
@@ -41,4 +62,8 @@ class LogoutEvent extends AuthEvent {
 
 class CheckAuthStatusEvent extends AuthEvent {
   const CheckAuthStatusEvent();
+}
+
+class CancelLoginEvent extends AuthEvent {
+  const CancelLoginEvent();
 }

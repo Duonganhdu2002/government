@@ -16,6 +16,7 @@ class AppConstants {
   static const String applicationsRoute = '/dashboard/applications';
   static const String applicationDetailsRoute = '/dashboard/applications/:id';
   static const String guidesRoute = '/dashboard/guides';
+  static const String notificationsRoute = '/dashboard/notifications';
 
   // Storage Keys
   static const String tokenKey = 'auth_token';

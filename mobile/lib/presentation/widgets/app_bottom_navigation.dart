@@ -78,7 +78,7 @@ class AppBottomNavigation extends StatelessWidget {
       AppConstants.homeRoute,
       AppConstants.applicationsRoute,
       AppConstants.guidesRoute,
-      '/notifications', // Thêm route này vào AppConstants
+      AppConstants.notificationsRoute,
       AppConstants.profileRoute,
     ];
 

@@ -13,6 +13,7 @@ import '../../presentation/screens/dashboard/history/history_screen.dart';
 import '../../presentation/screens/dashboard/applications/applications_screen.dart';
 import '../../presentation/screens/dashboard/applications/application_details_screen.dart';
 import '../../presentation/screens/dashboard/guides/guides_screen.dart';
+import '../../presentation/screens/dashboard/notifications/notifications_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -37,21 +38,22 @@ class AppRouter {
                   state.matchedLocation == AppConstants.registerRoute;
 
           // Các màn hình công khai không cần chuyển hướng
-          if (state.matchedLocation == AppConstants.splashRoute ||
-              state.matchedLocation == AppConstants.homeRoute) {
+          if (state.matchedLocation == AppConstants.splashRoute) {
             return null;
           }
 
           // Nếu người dùng chưa đăng nhập và đang truy cập màn hình cần xác thực
           if (!isAuthenticated &&
               !isAuthRoute &&
-              !state.matchedLocation.startsWith('/dashboard')) {
+              !state.matchedLocation.startsWith('/dashboard') &&
+              state.matchedLocation != AppConstants.homeRoute) {
             return null; // Để họ truy cập các route công khai
           }
 
           // Nếu người dùng chưa đăng nhập và đang truy cập màn hình dashboard
           if (!isAuthenticated &&
-              state.matchedLocation.startsWith('/dashboard')) {
+              (state.matchedLocation.startsWith('/dashboard') ||
+                  state.matchedLocation == AppConstants.homeRoute)) {
             return AppConstants.loginRoute;
           }
 
@@ -69,12 +71,6 @@ class AppRouter {
             builder: (context, state) => const SplashScreen(),
           ),
 
-          // Home Screen
-          GoRoute(
-            path: AppConstants.homeRoute,
-            builder: (context, state) => const HomeScreen(),
-          ),
-
           // Auth Routes
           GoRoute(
             path: AppConstants.loginRoute,
@@ -90,6 +86,12 @@ class AppRouter {
             navigatorKey: _shellNavigatorKey,
             builder: (context, state, child) => DashboardScreen(child: child),
             routes: [
+              // Home Screen (now part of dashboard)
+              GoRoute(
+                path: AppConstants.homeRoute,
+                builder: (context, state) => const HomeScreen(),
+              ),
+
               // Dashboard home
               GoRoute(
                 path: AppConstants.dashboardRoute,
@@ -127,6 +129,12 @@ class AppRouter {
               GoRoute(
                 path: AppConstants.guidesRoute,
                 builder: (context, state) => const GuidesScreen(),
+              ),
+
+              // Notifications
+              GoRoute(
+                path: AppConstants.notificationsRoute,
+                builder: (context, state) => const NotificationsScreen(),
               ),
             ],
           ),

@@ -27,11 +27,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, User>> login({
-    required String email,
+    required String username,
     required String password,
+    required String userType,
   }) async {
     try {
-      final user = await remoteDataSource.login(email, password);
+      final user = await remoteDataSource.login(username, password, userType);
       return Right(user);
     } on Failure catch (failure) {
       return Left(failure);
@@ -43,11 +44,25 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> register({
     required String fullName,
-    required String email,
+    required String identificationNumber,
+    String address = '',
+    String phoneNumber = '',
+    String email = '',
+    required String username,
     required String password,
+    int areaCode = 1,
   }) async {
     try {
-      final user = await remoteDataSource.register(fullName, email, password);
+      final user = await remoteDataSource.register(
+        fullName,
+        identificationNumber,
+        address,
+        phoneNumber,
+        email,
+        username,
+        password,
+        areaCode,
+      );
       return Right(user);
     } on Failure catch (failure) {
       return Left(failure);

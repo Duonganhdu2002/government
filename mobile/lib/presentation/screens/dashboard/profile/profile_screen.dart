@@ -114,12 +114,12 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              user.fullName,
+              user.fullName ?? 'User',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              user.email,
+              user.email ?? 'No email',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             if (user.phoneNumber != null) ...[
@@ -150,8 +150,8 @@ class ProfileScreen extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 16),
-        _buildInfoItem(context, 'Full Name', user.fullName),
-        _buildInfoItem(context, 'Email', user.email),
+        _buildInfoItem(context, 'Full Name', user.fullName ?? 'Not provided'),
+        _buildInfoItem(context, 'Email', user.email ?? 'Not provided'),
         _buildInfoItem(
             context, 'Phone Number', user.phoneNumber ?? 'Not provided'),
       ],
