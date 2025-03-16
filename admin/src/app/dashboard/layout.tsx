@@ -292,6 +292,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   Tất cả đơn
                 </SidebarNavItem>
+                {(user?.role === 'admin' || user?.role === 'manager') && (
+                  <SidebarNavItem
+                    href="/dashboard/staff-accounts"
+                    icon={<User />}
+                    active={isActive('/dashboard/staff-accounts')}
+                  >
+                    Tài khoản cán bộ
+                  </SidebarNavItem>
+                )}
                 <SidebarNavItem
                   href="/dashboard/profile"
                   icon={<User />}
@@ -350,6 +359,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 Tất cả đơn
               </SidebarNavItem>
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <SidebarNavItem
+                  href="/dashboard/staff-accounts"
+                  icon={<User />}
+                  active={isActive('/dashboard/staff-accounts')}
+                >
+                  Tài khoản cán bộ
+                </SidebarNavItem>
+              )}
               <SidebarNavItem
                 href="/dashboard/profile"
                 icon={<User />}
