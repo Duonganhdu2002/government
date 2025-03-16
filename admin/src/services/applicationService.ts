@@ -69,29 +69,35 @@ export const fetchApplicationTypes = async (): Promise<ApplicationType[]> => {
 
 /**
  * Lấy danh sách loại đơn đặc biệt theo loại đơn
+ * Chấp nhận tham số không bắt buộc để lấy tất cả loại hoặc chỉ cho một loại đơn cụ thể
  */
-export const fetchSpecialApplicationTypes = async (applicationTypeId: number): Promise<SpecialApplicationType[]> => {
+export const fetchSpecialApplicationTypes = async (applicationTypeId?: number): Promise<SpecialApplicationType[]> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 giây timeout
   
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/special-application-types/by-application-type/${applicationTypeId}`,
-      {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
+    let url = `${API_BASE_URL}/api/special-application-types`;
+    
+    // If application type ID is provided, get only special types for that type
+    if (applicationTypeId) {
+      url = `${API_BASE_URL}/api/special-application-types/by-application-type/${applicationTypeId}`;
+    }
+    
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        ...getAuthHeaders(),
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
       }
-    );
+    });
     
     clearTimeout(timeoutId);
     
     if (!response.ok) {
       if (response.status === 404) {
         // Không có loại đơn đặc biệt, trả về mảng rỗng
-        console.log(`No special application types found for applicationTypeId: ${applicationTypeId}`);
+        console.log(`No special application types found${applicationTypeId ? ` for applicationTypeId: ${applicationTypeId}` : ''}`);
         return [];
       }
       
@@ -106,7 +112,7 @@ export const fetchSpecialApplicationTypes = async (applicationTypeId: number): P
       throw new Error('API returned unexpected data format for special types');
     }
     
-    console.log(`Successfully fetched ${data.length} special application types for applicationTypeId: ${applicationTypeId}`);
+    console.log(`Successfully fetched ${data.length} special application types${applicationTypeId ? ` for applicationTypeId: ${applicationTypeId}` : ''}`);
     return data;
   } catch (error) {
     console.error('Error in fetchSpecialApplicationTypes:', error);
@@ -1008,5 +1014,163 @@ export const fetchStaffList = async (): Promise<any> => {
   } catch (error) {
     console.error('Error in fetchStaffList:', error);
     throw error;
+  }
+};
+
+/**
+ * Create a new application type
+ */
+export const createApplicationType = async (data: Omit<ApplicationType, 'applicationtypeid'>): Promise<ApplicationType> => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/application-types`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create application type');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error creating application type:', error);
+    throw new Error(error.message || 'Failed to create application type');
+  }
+};
+
+/**
+ * Update an existing application type
+ */
+export const updateApplicationType = async (
+  id: number,
+  data: Partial<Omit<ApplicationType, 'applicationtypeid'>>
+): Promise<ApplicationType> => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/application-types/${id}`, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update application type');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error updating application type:', error);
+    throw new Error(error.message || 'Failed to update application type');
+  }
+};
+
+/**
+ * Delete an application type
+ */
+export const deleteApplicationType = async (id: number): Promise<void> => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/application-types/${id}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete application type');
+    }
+  } catch (error: any) {
+    console.error('Error deleting application type:', error);
+    throw new Error(error.message || 'Failed to delete application type');
+  }
+};
+
+/**
+ * Create a new special application type
+ */
+export const createSpecialApplicationType = async (
+  data: Omit<SpecialApplicationType, 'specialapplicationtypeid'>
+): Promise<SpecialApplicationType> => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/special-application-types`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create special application type');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error creating special application type:', error);
+    throw new Error(error.message || 'Failed to create special application type');
+  }
+};
+
+/**
+ * Update an existing special application type
+ */
+export const updateSpecialApplicationType = async (
+  id: number,
+  data: Partial<Omit<SpecialApplicationType, 'specialapplicationtypeid'>>
+): Promise<SpecialApplicationType> => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/special-application-types/${id}`, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update special application type');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error updating special application type:', error);
+    throw new Error(error.message || 'Failed to update special application type');
+  }
+};
+
+/**
+ * Delete a special application type
+ */
+export const deleteSpecialApplicationType = async (id: number): Promise<void> => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/special-application-types/${id}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete special application type');
+    }
+  } catch (error: any) {
+    console.error('Error deleting special application type:', error);
+    throw new Error(error.message || 'Failed to delete special application type');
   }
 }; 

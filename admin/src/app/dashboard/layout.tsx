@@ -30,7 +30,8 @@ import {
   Clock,
   User,
   Book,
-  History
+  History,
+  DocumentText
 } from "@medusajs/icons";
 
 /**
@@ -304,6 +305,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                   <SidebarNavItem
+                    href="/dashboard/application-types"
+                    icon={<DocumentText />}
+                    active={isActive('/dashboard/application-types')}
+                  >
+                    Quản lý loại hồ sơ
+                  </SidebarNavItem>
+                )}
+                {(user?.role === 'admin' || user?.role === 'manager') && (
+                  <SidebarNavItem
                     href="/dashboard/staff-accounts"
                     icon={<User />}
                     active={isActive('/dashboard/staff-accounts')}
@@ -385,6 +395,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   active={isActive('/dashboard/processing-history')}
                 >
                   Lịch sử xử lý
+                </SidebarNavItem>
+              )}
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <SidebarNavItem
+                  href="/dashboard/application-types"
+                  icon={<DocumentText />}
+                  active={isActive('/dashboard/application-types')}
+                >
+                  Quản lý loại hồ sơ
                 </SidebarNavItem>
               )}
               {(user?.role === 'admin' || user?.role === 'manager') && (
