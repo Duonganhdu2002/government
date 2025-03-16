@@ -12,6 +12,12 @@ const areasController = require('../controllers/areasController');
 // Lấy danh sách tất cả các khu vực
 router.get('/', areasController.getAllAreas);
 
+// Get areas by level (province, district, commune)
+router.get('/level/:level', areasController.getAreasByLevel);
+
+// Get child areas by parent ID
+router.get('/children/:parentId', areasController.getChildAreasByParent);
+
 // Lấy thông tin chi tiết của một khu vực theo ID
 router.get('/:id', areasController.getAreaById);
 

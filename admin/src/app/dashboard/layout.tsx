@@ -314,6 +314,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                   <SidebarNavItem
+                    href="/dashboard/areas"
+                    icon={<DocumentText />}
+                    active={isActive('/dashboard/areas')}
+                  >
+                    Quản lý khu vực
+                  </SidebarNavItem>
+                )}
+                {(user?.role === 'admin' || user?.role === 'manager') && (
+                  <SidebarNavItem
                     href="/dashboard/staff-accounts"
                     icon={<User />}
                     active={isActive('/dashboard/staff-accounts')}
@@ -404,6 +413,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   active={isActive('/dashboard/application-types')}
                 >
                   Quản lý loại hồ sơ
+                </SidebarNavItem>
+              )}
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <SidebarNavItem
+                  href="/dashboard/areas"
+                  icon={<DocumentText />}
+                  active={isActive('/dashboard/areas')}
+                >
+                  Quản lý khu vực
                 </SidebarNavItem>
               )}
               {(user?.role === 'admin' || user?.role === 'manager') && (
