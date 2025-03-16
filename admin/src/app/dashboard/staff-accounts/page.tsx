@@ -36,7 +36,8 @@ import {
   createStaff, 
   updateStaff, 
   deleteStaff, 
-  StaffMember 
+  StaffMember,
+  fetchStaffWithAgencyDetails
 } from "@/services/staffService";
 
 import { fetchAllAgencies } from "@/services/agencyService";
@@ -60,17 +61,26 @@ const RoleBadge = ({ role }: { role: string }) => {
     switch (roleLower) {
       case "admin":
         return "bg-gray-200 text-gray-700";
-      case "manager":
-        return "bg-gray-200 text-gray-700";
       case "staff":
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
+  // Convert role to Vietnamese
+  const getRoleText = () => {
+    switch (roleLower) {
+      case "admin":
+        return "Quản trị viên";
+      case "staff":
+      default:
+        return "Cán bộ";
+    }
+  };
+
   return (
     <Badge className={getRoleClass()}>
-      {role || "Không xác định"}
+      {getRoleText()}
     </Badge>
   );
 };
@@ -99,8 +109,6 @@ const StaffModal = ({
     fullname: "",
     role: "staff",
     agencyid: 0,
-    email: "",
-    phonenumber: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -112,8 +120,6 @@ const StaffModal = ({
         fullname: staff.fullname || "",
         role: staff.role || "staff",
         agencyid: staff.agencyid || 0,
-        email: staff.email || "",
-        phonenumber: staff.phonenumber || "",
         // For existing staff, include ID
         ...(staff.staffid ? { staffid: staff.staffid } : {})
       });
@@ -123,8 +129,6 @@ const StaffModal = ({
         fullname: "",
         role: "staff",
         agencyid: agencyList.length > 0 ? agencyList[0].agencyid || agencyList[0].id || 0 : 0,
-        email: "",
-        phonenumber: ""
       });
     }
   }, [staff, agencyList]);
@@ -176,7 +180,6 @@ const StaffModal = ({
 
   const roleOptions = [
     { value: "staff", label: "Cán bộ" },
-    { value: "manager", label: "Quản lý" },
     { value: "admin", label: "Quản trị viên" }
   ];
 
@@ -211,31 +214,6 @@ const StaffModal = ({
             placeholder="Nhập họ và tên cán bộ"
             className="mt-1"
             required
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email || ""}
-            onChange={handleChange}
-            placeholder="Nhập địa chỉ email"
-            className="mt-1"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="phonenumber">Số điện thoại</Label>
-          <Input
-            id="phonenumber"
-            name="phonenumber"
-            value={formData.phonenumber || ""}
-            onChange={handleChange}
-            placeholder="Nhập số điện thoại"
-            className="mt-1"
           />
         </div>
 
@@ -307,13 +285,19 @@ const StaffModal = ({
 
       <Modal.Footer>
         <div className="flex justify-end gap-x-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <Button 
+            variant="secondary" 
+            onClick={onClose} 
+            disabled={loading}
+            className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+          >
             Hủy
           </Button>
           <Button 
             variant="primary" 
             onClick={handleSubmit} 
             isLoading={loading}
+            className="bg-gray-700 text-white hover:bg-gray-800"
           >
             {isCreating ? "Tạo tài khoản" : "Lưu thay đổi"}
           </Button>
@@ -380,13 +364,19 @@ const DeleteConfirmDialog = ({
 
       <Modal.Footer>
         <div className="flex justify-end gap-x-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <Button 
+            variant="secondary" 
+            onClick={onClose} 
+            disabled={loading}
+            className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+          >
             Hủy
           </Button>
           <Button 
-            variant="danger" 
+            variant="secondary" 
             onClick={handleDelete} 
             isLoading={loading}
+            className="bg-gray-200 text-gray-800 hover:bg-gray-300"
           >
             Xóa
           </Button>
@@ -409,7 +399,6 @@ export default function StaffAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [agencyFilter, setAgencyFilter] = useState<number | null>(null);
   const [agencyList, setAgencyList] = useState<any[]>([]);
   const [loadingAgencyList, setLoadingAgencyList] = useState(false);
@@ -432,20 +421,22 @@ export default function StaffAccountsPage() {
       return;
     }
 
-    loadStaffList();
-    loadAgencyList();
+    // Load agencies first, then staff list
+    const initialize = async () => {
+      try {
+        await loadAgencyList();
+        await loadStaffList();
+      } catch (err) {
+        console.error("Error initializing:", err);
+      }
+    };
+
+    initialize();
   }, [authLoading, isAuthenticated, router]);
 
   // Filter staff list when filters change
   useEffect(() => {
     let filtered = [...staffList];
-
-    // Apply role filter
-    if (roleFilter !== "all") {
-      filtered = filtered.filter(staff => 
-        staff.role?.toLowerCase() === roleFilter.toLowerCase()
-      );
-    }
 
     // Apply agency filter
     if (agencyFilter !== null) {
@@ -460,8 +451,6 @@ export default function StaffAccountsPage() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(staff =>
         staff.fullname?.toLowerCase().includes(term) ||
-        staff.email?.toLowerCase().includes(term) ||
-        staff.phonenumber?.includes(term) ||
         staff.staffid?.toString().includes(term)
       );
     }
@@ -469,7 +458,7 @@ export default function StaffAccountsPage() {
     setFilteredStaff(filtered);
     setCurrentPage(1); // Reset to first page
     setTotalPages(Math.ceil(filtered.length / itemsPerPage));
-  }, [staffList, roleFilter, agencyFilter, searchTerm, itemsPerPage]);
+  }, [staffList, agencyFilter, searchTerm, itemsPerPage]);
 
   // Load staff list
   const loadStaffList = async () => {
@@ -477,18 +466,11 @@ export default function StaffAccountsPage() {
     setError("");
 
     try {
-      const data = await fetchAllStaff();
+      // Use the new combined function that fetches staff with agency details
+      const enrichedData = await fetchStaffWithAgencyDetails();
       
-      if (Array.isArray(data)) {
-        // Enrich staff data with agency names
-        const enrichedData = data.map(staff => {
-          const agency = agencyList.find(a => (a.agencyid || a.id) === staff.agencyid);
-          return {
-            ...staff,
-            agencyname: agency ? (agency.agencyname || agency.name) : `Cơ quan #${staff.agencyid}`
-          };
-        });
-        
+      if (Array.isArray(enrichedData)) {
+        console.log("Staff data with agency details:", enrichedData);
         setStaffList(enrichedData);
         setFilteredStaff(enrichedData);
       } else {
@@ -598,7 +580,6 @@ export default function StaffAccountsPage() {
   // Reset all filters
   const handleResetFilters = () => {
     setSearchTerm("");
-    setRoleFilter("all");
     setAgencyFilter(null);
   };
 
@@ -625,20 +606,12 @@ export default function StaffAccountsPage() {
     return <Spinner />;
   }
 
-  // Options for role filter dropdown
-  const roleOptions = [
-    { value: "all", label: "Tất cả vai trò" },
-    { value: "staff", label: "Cán bộ" },
-    { value: "manager", label: "Quản lý" },
-    { value: "admin", label: "Quản trị viên" }
-  ];
-
   return (
-    <Container className="py-6 max-w-full">
+    <Container className="py-6 max-w-full bg-white">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <Heading level="h1" className="text-2xl font-bold">
+          <Heading level="h1" className="text-2xl font-bold text-gray-800">
             Quản lý Tài khoản Cán bộ
           </Heading>
           <Text className="text-gray-500 mt-1">
@@ -646,14 +619,14 @@ export default function StaffAccountsPage() {
           </Text>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleResetFilters}>
+          <Button variant="secondary" onClick={handleResetFilters} className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200">
             Xóa bộ lọc
           </Button>
-          <Button variant="secondary" onClick={loadStaffList}>
+          <Button variant="secondary" onClick={loadStaffList} className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200">
             <ArrowPath className="w-4 h-4 mr-2" />
             Làm mới
           </Button>
-          <Button variant="primary" onClick={handleCreateStaff}>
+          <Button variant="primary" onClick={handleCreateStaff} className="bg-gray-700 text-white hover:bg-gray-800">
             <Plus className="w-4 h-4 mr-2" />
             Thêm cán bộ
           </Button>
@@ -688,34 +661,13 @@ export default function StaffAccountsPage() {
             </Label>
             <Input
               id="search"
-              placeholder="Tìm theo tên, email, SĐT..."
+              placeholder="Tìm theo tên hoặc mã cán bộ..."
               value={searchTerm}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setSearchTerm(e.target.value)
               }
               className="w-full"
             />
-          </div>
-          
-          <div className="w-full md:w-64">
-            <Label htmlFor="roleFilter" className="mb-2 block">
-              <div className="flex items-center">
-                <User className="w-4 h-4 mr-2 text-gray-500" />
-                Lọc theo vai trò
-              </div>
-            </Label>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <Select.Trigger className="w-full">
-                <Select.Value placeholder="Chọn vai trò" />
-              </Select.Trigger>
-              <Select.Content>
-                {roleOptions.map(option => (
-                  <Select.Item key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select>
           </div>
           
           <div className="w-full md:w-64">
@@ -778,8 +730,6 @@ export default function StaffAccountsPage() {
                 <Table.Row>
                   <Table.HeaderCell>ID</Table.HeaderCell>
                   <Table.HeaderCell>Họ và tên</Table.HeaderCell>
-                  <Table.HeaderCell>Email</Table.HeaderCell>
-                  <Table.HeaderCell>Số điện thoại</Table.HeaderCell>
                   <Table.HeaderCell>Cơ quan</Table.HeaderCell>
                   <Table.HeaderCell>Vai trò</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">
@@ -800,9 +750,9 @@ export default function StaffAccountsPage() {
                         {staff.fullname}
                       </div>
                     </Table.Cell>
-                    <Table.Cell>{staff.email || "—"}</Table.Cell>
-                    <Table.Cell>{staff.phonenumber || "—"}</Table.Cell>
-                    <Table.Cell>{staff.agencyname || `Cơ quan #${staff.agencyid}`}</Table.Cell>
+                    <Table.Cell>
+                      {staff.agencyname || "Không xác định"}
+                    </Table.Cell>
                     <Table.Cell>
                       <RoleBadge role={staff.role} />
                     </Table.Cell>
@@ -812,17 +762,19 @@ export default function StaffAccountsPage() {
                           variant="secondary"
                           size="small"
                           onClick={() => handleEditStaff(staff)}
+                          className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
                         >
                           <PencilSquare className="w-3.5 h-3.5 mr-1" />
                           Sửa
                         </Button>
                         <Button
-                          variant="danger"
+                          variant="secondary"
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteClick(staff);
                           }}
+                          className="bg-gray-200 text-gray-800 hover:bg-gray-300"
                         >
                           <Trash className="w-3.5 h-3.5 mr-1" />
                           Xóa
@@ -878,7 +830,7 @@ export default function StaffAccountsPage() {
                   size="small"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="border border-gray-200 px-2 py-1 rounded-l"
+                  className="border border-gray-200 px-2 py-1 rounded-l bg-gray-100 text-gray-700 hover:bg-gray-200"
                 >
                   &lsaquo;
                 </Button>
@@ -892,7 +844,7 @@ export default function StaffAccountsPage() {
                   size="small"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="border border-gray-200 px-2 py-1 rounded-r"
+                  className="border border-gray-200 px-2 py-1 rounded-r bg-gray-100 text-gray-700 hover:bg-gray-200"
                 >
                   &rsaquo;
                 </Button>

@@ -1,4 +1,5 @@
 import { getAuthHeaders } from '@/lib/api';
+import { fetchAllAgencies } from '@/services/agencyService';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -8,10 +9,9 @@ export interface StaffMember {
   agencyid: number;
   fullname: string;
   role: string;
-  email?: string;
-  phonenumber?: string;
   status?: string;
   agencyname?: string; // Populated when joined with agency data
+  password?: string; // Only used for creation
   [key: string]: any;
 }
 
@@ -244,6 +244,66 @@ export const fetchStaffLoginHistory = async (id: number): Promise<any[]> => {
     return [];
   } catch (error) {
     console.error('Error in fetchStaffLoginHistory:', error);
+    return [];
+  }
+};
+
+/**
+ * Lấy danh sách nhân viên với thông tin chi tiết cơ quan
+ * Kết hợp dữ liệu từ API staff và agencies để có thông tin đầy đủ
+ */
+export const fetchStaffWithAgencyDetails = async (): Promise<StaffMember[]> => {
+  try {
+    // Fetch staff and agencies in parallel
+    const [staffData, agencyData] = await Promise.all([
+      fetchAllStaff(),
+      fetchAllAgencies() // Import fetchAllAgencies from agencyService
+    ]);
+    
+    if (!Array.isArray(staffData) || staffData.length === 0) {
+      console.warn('No staff data found');
+      return [];
+    }
+    
+    // Create a map of agencies by ID for quick lookup
+    const agencyMap = new Map();
+    if (Array.isArray(agencyData)) {
+      agencyData.forEach(agency => {
+        // The ID might be in different properties
+        const agencyId = agency.agencyid || agency.id;
+        if (agencyId) {
+          agencyMap.set(agencyId, agency);
+        }
+      });
+    }
+    
+    console.log(`Created agency map with ${agencyMap.size} agencies`);
+    
+    // Enrich staff data with agency details
+    const enrichedStaffData = staffData.map(staff => {
+      const staffAgencyId = staff.agencyid || staff.agency_id;
+      if (!staffAgencyId) {
+        return { ...staff, agencyname: "Không xác định" };
+      }
+      
+      const agency = agencyMap.get(staffAgencyId);
+      if (!agency) {
+        return { ...staff, agencyname: `Cơ quan #${staffAgencyId}` };
+      }
+      
+      // Get agency name from the correct property
+      const agencyName = agency.agencyname || agency.name;
+      
+      return {
+        ...staff,
+        agencyname: agencyName || `Cơ quan #${staffAgencyId}`
+      };
+    });
+    
+    console.log('Staff data enriched with agency details:', enrichedStaffData);
+    return enrichedStaffData;
+  } catch (error) {
+    console.error('Error in fetchStaffWithAgencyDetails:', error);
     return [];
   }
 }; 
