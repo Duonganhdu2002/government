@@ -56,6 +56,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? nameParts.sublist(0, nameParts.length - 1).join(' ')
           : _fullNameController.text;
 
+      // Add timeout to ensure loading state doesn't get stuck
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && _isLoading) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cập nhật hồ sơ đã được gửi đi'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      });
+
       context.read<UserBloc>().add(
             UpdateUserProfileEvent(
               firstName: firstName,
@@ -82,7 +98,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
       body: BlocListener<UserBloc, UserState>(
         listener: (context, state) {
-          if (state is UserUpdatedState) {
+          if (state is UserUpdatingState) {
+            setState(() {
+              _isLoading = true;
+            });
+          } else if (state is UserUpdatedState) {
             setState(() {
               _isLoading = false;
             });

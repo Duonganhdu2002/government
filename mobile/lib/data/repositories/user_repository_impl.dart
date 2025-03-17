@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/app_constants.dart';
@@ -222,13 +223,16 @@ class UserRepositoryImpl implements UserRepository {
       };
       if (areaCode != null) data['areacode'] = areaCode;
 
+      final String url = '${ApiConstants.baseUrl}/api/citizens/${userModel.id}';
+
       // Make API request with token in headers
       final response = await dio.patch(
-        '${ApiConstants.baseUrl}/api/citizens/${userModel.id}',
+        url,
         data: data,
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
           },
         ),
       );
@@ -238,15 +242,45 @@ class UserRepositoryImpl implements UserRepository {
         final responseData = response.data;
         Map<String, dynamic> userData;
 
-        if (responseData['data'] != null &&
-            responseData['data']['user'] != null) {
-          userData = responseData['data']['user'];
-        } else if (responseData['data'] != null) {
-          userData = responseData['data'];
-        } else if (responseData['user'] != null) {
-          userData = responseData['user'];
-        } else {
-          userData = responseData;
+        try {
+          if (responseData is Map<String, dynamic>) {
+            if (responseData['data'] != null &&
+                responseData['data']['user'] != null) {
+              userData = responseData['data']['user'];
+            } else if (responseData['data'] != null &&
+                responseData['data'] is Map<String, dynamic>) {
+              userData = responseData['data'];
+            } else if (responseData['user'] != null) {
+              userData = responseData['user'];
+            } else {
+              // If we can't find user data in the response, use the original user data
+              // with the updated fields
+              userData = userModel.toJson();
+              userData['fullname'] = fullName;
+              userData['email'] = email;
+              userData['phonenumber'] = phoneNumber;
+              userData['address'] = address;
+              userData['identificationnumber'] = identificationNumber;
+              if (areaCode != null) userData['areacode'] = areaCode;
+            }
+          } else {
+            userData = userModel.toJson();
+            userData['fullname'] = fullName;
+            userData['email'] = email;
+            userData['phonenumber'] = phoneNumber;
+            userData['address'] = address;
+            userData['identificationnumber'] = identificationNumber;
+            if (areaCode != null) userData['areacode'] = areaCode;
+          }
+        } catch (e) {
+          // Fallback to using existing user data with updated fields
+          userData = userModel.toJson();
+          userData['fullname'] = fullName;
+          userData['email'] = email;
+          userData['phonenumber'] = phoneNumber;
+          userData['address'] = address;
+          userData['identificationnumber'] = identificationNumber;
+          if (areaCode != null) userData['areacode'] = areaCode;
         }
 
         // Ensure we have at least the ID from existing user if not in response
@@ -278,6 +312,15 @@ class UserRepositoryImpl implements UserRepository {
         ));
       }
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        return Left(ServerFailure(
+          message: 'Hết thời gian kết nối đến máy chủ. Vui lòng thử lại sau.',
+          code: e.response?.statusCode,
+        ));
+      }
+
       return Left(ServerFailure(
         message:
             e.response?.data?['message'] ?? 'Không thể kết nối đến máy chủ',

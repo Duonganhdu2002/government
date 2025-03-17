@@ -44,20 +44,40 @@ class UserBloc extends Bloc<UserEvent, UserState> {
   ) async {
     emit(UserUpdatingState());
 
-    final result = await updateUserProfileUseCase(
-      UpdateProfileParams(
-        fullName: "${event.firstName ?? ''} ${event.lastName ?? ''}".trim(),
-        email: event.email ?? '',
-        phoneNumber: event.phoneNumber ?? '',
-        address: '',
-        identificationNumber: '',
-      ),
-    );
+    final fullName = "${event.firstName ?? ''} ${event.lastName ?? ''}".trim();
 
-    result.fold(
-      (failure) => emit(UserErrorState(message: failure.message)),
-      (user) => emit(UserUpdatedState(user: user)),
-    );
+    try {
+      final result = await updateUserProfileUseCase(
+        UpdateProfileParams(
+          fullName: fullName,
+          email: event.email ?? '',
+          phoneNumber: event.phoneNumber ?? '',
+          address: '',
+          identificationNumber: '',
+        ),
+      );
+
+      result.fold(
+        (failure) {
+          emit(UserErrorState(message: failure.message));
+        },
+        (user) {
+          emit(UserUpdatedState(user: user));
+        },
+      );
+    } catch (e) {
+      emit(UserErrorState(message: 'Lỗi không xác định: $e'));
+    } finally {
+      // Ensure we complete the state cycle even if something goes wrong
+      final currentState = state;
+      if (currentState is UserUpdatingState) {
+        final userModel = await getUserProfileUseCase(NoParams());
+        userModel.fold(
+            (failure) => emit(
+                UserErrorState(message: 'Không thể tải thông tin người dùng')),
+            (user) => emit(UserUpdatedState(user: user)));
+      }
+    }
   }
 
   Future<void> _onUploadUserAvatar(
