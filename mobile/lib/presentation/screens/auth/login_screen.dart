@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../blocs/auth/auth_bloc.dart';
@@ -33,7 +34,33 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthenticatedState) {
-            context.go(AppConstants.dashboardRoute);
+            print('[LoginScreen] Login successful, navigating to dashboard');
+            // Add a longer delay before navigation to ensure token is saved
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (context.mounted) {
+                // Check if token is saved before navigating
+                final prefs = SharedPreferences.getInstance();
+                prefs.then((preferences) {
+                  final token = preferences.getString(AppConstants.tokenKey);
+                  print(
+                      '[LoginScreen] Token check before navigation: ${token != null ? "Token exists" : "No token"}');
+
+                  if (token != null) {
+                    context.go(AppConstants.dashboardRoute);
+                  } else {
+                    print('[LoginScreen] Unable to navigate - no token found');
+                    // Show error message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Lỗi đăng nhập: Không thể lưu thông tin đăng nhập'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                });
+              }
+            });
           } else if (state is AuthErrorState) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

@@ -14,7 +14,8 @@ class ApiService {
   }
 
   void _configureDio() {
-    _dio.options.baseUrl = ApiConstants.baseUrl;
+    // Don't set baseUrl in Dio options to avoid conflicts
+    // _dio.options.baseUrl = ApiConstants.baseUrl;
     _dio.options.headers = ApiConstants.headers;
 
     // Cấu hình timeout

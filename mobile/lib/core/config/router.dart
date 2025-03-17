@@ -31,37 +31,36 @@ class AppRouter {
         debugLogDiagnostics: true,
         redirect: (BuildContext context, GoRouterState state) {
           final String? token = _preferences.getString(AppConstants.tokenKey);
+          print(
+              '[GoRouter] Checking token: ${token != null ? "Found token" : "No token"} for path ${state.matchedLocation}');
           final bool isAuthenticated = token != null && token.isNotEmpty;
 
           final bool isAuthRoute =
               state.matchedLocation == AppConstants.loginRoute ||
                   state.matchedLocation == AppConstants.registerRoute;
 
-          // Các màn hình công khai không cần chuyển hướng
+          // Màn hình splash không cần chuyển hướng
           if (state.matchedLocation == AppConstants.splashRoute) {
+            print('[GoRouter] Splash screen, no redirect needed');
             return null;
           }
 
-          // Nếu người dùng chưa đăng nhập và đang truy cập màn hình cần xác thực
-          if (!isAuthenticated &&
-              !isAuthRoute &&
-              !state.matchedLocation.startsWith('/dashboard') &&
-              state.matchedLocation != AppConstants.homeRoute) {
-            return null; // Để họ truy cập các route công khai
-          }
-
-          // Nếu người dùng chưa đăng nhập và đang truy cập màn hình dashboard
-          if (!isAuthenticated &&
-              (state.matchedLocation.startsWith('/dashboard') ||
-                  state.matchedLocation == AppConstants.homeRoute)) {
-            return AppConstants.loginRoute;
-          }
-
-          // Nếu người dùng đã đăng nhập và đang ở màn hình đăng nhập/đăng ký
+          // Người dùng đã đăng nhập mà đang ở trang đăng nhập/đăng ký
           if (isAuthenticated && isAuthRoute) {
+            print(
+                '[GoRouter] User authenticated (${token?.substring(0, 10)}...) - redirecting from auth page to dashboard');
             return AppConstants.dashboardRoute;
           }
 
+          // Người dùng chưa đăng nhập mà đang truy cập các trang yêu cầu xác thực
+          if (!isAuthenticated &&
+              state.matchedLocation.startsWith('/dashboard')) {
+            print('[GoRouter] User not authenticated - redirecting to login');
+            return AppConstants.loginRoute;
+          }
+
+          print('[GoRouter] No redirect needed for ${state.matchedLocation}');
+          // Cho phép truy cập các trang công khai khác
           return null;
         },
         routes: [

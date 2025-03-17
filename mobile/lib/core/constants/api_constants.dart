@@ -1,11 +1,22 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 class ApiConstants {
   // Base URL for the API
   static String get baseUrl {
-    // Sử dụng .env nếu có, hoặc mặc định sẽ dùng localhost
-    return dotenv.env['API_URL'] ?? 'http://192.168.1.4:8080';
-    // Thay 192.168.1.4 bằng IP thực của máy chủ trong mạng nội bộ
+    // Use .env if available
+    if (dotenv.env['API_URL'] != null) {
+      return dotenv.env['API_URL']!;
+    }
+
+    // For Android emulator, use 10.0.2.2 to point to host machine's localhost
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'http://10.0.2.2:8080';
+    }
+
+    // Default for other platforms
+    return 'http://192.168.1.4:8080';
   }
 
   // Authentication endpoints

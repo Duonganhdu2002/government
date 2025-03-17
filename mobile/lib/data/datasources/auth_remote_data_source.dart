@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/utils/failure.dart';
 import '../models/user_model.dart';
 
@@ -40,7 +41,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       print('===== ĐANG GỬI REQUEST ĐĂNG NHẬP =====');
       print('URL: ${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}');
       print(
-          'Thông tin đăng nhập: { username: $username, userType: $userType }');
+          'Thông tin đăng nhập: { username: $username, userType: $userType, password: $password }');
 
       // Thêm timeout cụ thể cho request
       final options = Options(
@@ -49,9 +50,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         receiveTimeout: const Duration(seconds: 15),
       );
 
+      // Ensure we're using the full URL instead of just the endpoint
+      final String fullUrl =
+          '${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}';
+
       final response = await dio
           .post(
-        ApiConstants.loginEndpoint,
+        fullUrl,
         data: {
           'username': username,
           'password': password,
@@ -101,8 +106,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         }
 
         if (token != null) {
-          await sharedPreferences.setString('token', token);
+          await sharedPreferences.setString(AppConstants.tokenKey, token);
           print('Đã lưu token vào SharedPreferences');
+          // Verify token was saved successfully
+          final savedToken = sharedPreferences.getString(AppConstants.tokenKey);
+          print(
+              'Kiểm tra token đã lưu: ${savedToken != null ? 'Thành công' : 'Thất bại'}');
 
           UserModel user;
           if (userData != null) {
@@ -219,7 +228,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<bool> logout() async {
     try {
-      final String? token = sharedPreferences.getString('token');
+      final String? token = sharedPreferences.getString(AppConstants.tokenKey);
 
       if (token != null) {
         try {
@@ -238,7 +247,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       // Always clear local storage
-      await sharedPreferences.remove('token');
+      await sharedPreferences.remove(AppConstants.tokenKey);
       await sharedPreferences.remove('user');
       return true;
     } catch (e) {
@@ -249,7 +258,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel?> getCurrentUser() async {
     try {
-      final String? token = sharedPreferences.getString('token');
+      final String? token = sharedPreferences.getString(AppConstants.tokenKey);
 
       if (token == null) {
         return null;
@@ -289,11 +298,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         await _cacheUser(user);
         return user;
       } else {
-        await sharedPreferences.remove('token');
+        await sharedPreferences.remove(AppConstants.tokenKey);
         return null;
       }
     } on DioException catch (_) {
-      await sharedPreferences.remove('token');
+      await sharedPreferences.remove(AppConstants.tokenKey);
       return null;
     } catch (e) {
       return null;
