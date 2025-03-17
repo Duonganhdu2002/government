@@ -53,7 +53,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
     } catch (e) {
       // Đảm bảo luôn thoát khỏi LoadingState khi có bất kỳ lỗi nào
-      print('Lỗi khi đăng nhập: $e');
       String errorMessage = 'Lỗi khi đăng nhập';
 
       if (e is ServerFailure) {

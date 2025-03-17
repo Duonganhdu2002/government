@@ -38,10 +38,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       String username, String password, String userType) async {
     try {
       // Log chi tiết để debug
-      print('===== ĐANG GỬI REQUEST ĐĂNG NHẬP =====');
-      print('URL: ${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}');
-      print(
-          'Thông tin đăng nhập: { username: $username, userType: $userType, password: $password }');
 
       // Thêm timeout cụ thể cho request
       final options = Options(
@@ -75,9 +71,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         },
       );
 
-      print('===== NHẬN RESPONSE ĐĂNG NHẬP =====');
-      print('Status code: ${response.statusCode}');
-      print('Response data: ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Handle different response structures
@@ -88,38 +81,29 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         if (data['tokens'] != null) {
           token = data['tokens']['accessToken'];
           userData = data['user'];
-          print('Tìm thấy token trong data[tokens]');
         } else if (data['data'] != null && data['data']['tokens'] != null) {
           token = data['data']['tokens']['accessToken'];
           userData = data['data']['user'];
-          print('Tìm thấy token trong data[data][tokens]');
         } else if (data['token'] != null) {
           // Hỗ trợ định dạng API cũ
           token = data['token'];
           userData = data['user'];
-          print('Tìm thấy token trong data[token]');
         } else if (data is String) {
           // Trường hợp server trả về string token trực tiếp
           token = data;
           userData = {'username': username};
-          print('Nhận được token dạng string trực tiếp');
         }
 
         if (token != null) {
           await sharedPreferences.setString(AppConstants.tokenKey, token);
-          print('Đã lưu token vào SharedPreferences');
           // Verify token was saved successfully
-          final savedToken = sharedPreferences.getString(AppConstants.tokenKey);
-          print(
-              'Kiểm tra token đã lưu: ${savedToken != null ? 'Thành công' : 'Thất bại'}');
+          sharedPreferences.getString(AppConstants.tokenKey);
 
           UserModel user;
           if (userData != null) {
             try {
               user = UserModel.fromJson(userData);
-              print('Đã tạo user model từ userData');
             } catch (e) {
-              print('Lỗi khi tạo user model: $e');
               // Tạo user model tối thiểu nếu không parse được
               user = UserModel(
                 id: 0,
@@ -150,19 +134,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       }
     } on DioException catch (e) {
-      print('===== DIO ERROR =====');
-      print('Status code: ${e.response?.statusCode}');
-      print('Response data: ${e.response?.data}');
-      print('Error message: ${e.message}');
-      print('Error type: ${e.type}');
 
       throw ServerFailure(
         message: e.response?.data?['message'] ?? 'Kết nối đến server thất bại',
         code: e.response?.statusCode,
       );
     } catch (e) {
-      print('===== OTHER ERROR =====');
-      print('Error: $e');
 
       throw ServerFailure(message: 'Đăng nhập thất bại: ${e.toString()}');
     }

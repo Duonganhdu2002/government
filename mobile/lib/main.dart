@@ -27,17 +27,11 @@ void main() async {
 
     // Bắt lỗi Flutter không xử lý được
     FlutterError.onError = (FlutterErrorDetails details) {
-      print('=== FLUTTER ERROR ===');
-      print(details.exception);
-      print(details.stack);
       // Có thể thêm phần gửi log lỗi tới Firebase Crashlytics hoặc service khác
     };
 
     runApp(const MyApp());
   }, (error, stackTrace) {
-    print('=== UNCAUGHT ERROR ===');
-    print(error);
-    print(stackTrace);
     // Có thể thêm phần gửi log lỗi tới Firebase Crashlytics hoặc service khác
   });
 }

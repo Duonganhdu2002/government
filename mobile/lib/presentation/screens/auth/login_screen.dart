@@ -34,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthenticatedState) {
-            print('[LoginScreen] Login successful, navigating to dashboard');
             // Add a longer delay before navigation to ensure token is saved
             Future.delayed(const Duration(milliseconds: 500), () {
               if (context.mounted) {
@@ -42,13 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 final prefs = SharedPreferences.getInstance();
                 prefs.then((preferences) {
                   final token = preferences.getString(AppConstants.tokenKey);
-                  print(
-                      '[LoginScreen] Token check before navigation: ${token != null ? "Token exists" : "No token"}');
 
                   if (token != null) {
                     context.go(AppConstants.dashboardRoute);
                   } else {
-                    print('[LoginScreen] Unable to navigate - no token found');
                     // Show error message
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(

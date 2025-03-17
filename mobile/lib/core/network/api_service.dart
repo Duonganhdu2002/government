@@ -40,12 +40,6 @@ class ApiService {
     // Thêm interceptor xử lý lỗi
     _dio.interceptors.add(InterceptorsWrapper(
       onError: (DioException error, ErrorInterceptorHandler handler) {
-        print('===== DIO ERROR INTERCEPTOR =====');
-        print('URL: ${error.requestOptions.uri}');
-        print('Method: ${error.requestOptions.method}');
-        print('Status code: ${error.response?.statusCode}');
-        print('Error type: ${error.type}');
-        print('Error message: ${error.message}');
 
         // Xử lý lỗi kết nối
         if (error.type == DioExceptionType.connectionTimeout ||
