@@ -169,6 +169,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       emit(PasswordChangeFailureState(
           message: 'Lỗi khi đổi mật khẩu: ${e.toString()}'));
+    } finally {
+      // Ensure we complete the state cycle
+      final currentState = state;
+      if (currentState is AuthLoadingState) {
+        // If still in loading state, force to failure state
+        emit(PasswordChangeFailureState(
+            message: 'Thao tác hết hạn, vui lòng thử lại'));
+      }
     }
   }
 }

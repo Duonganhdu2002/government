@@ -296,22 +296,31 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required int userId,
   }) async {
     try {
-      // Log chi tiết để debug
-      print('===== ĐANG GỬI YÊU CẦU ĐỔI MẬT KHẨU =====');
-      print('URL: ${ApiConstants.baseUrl}/api/auth/change-password');
+      // Get token from SharedPreferences
+      final String? token = sharedPreferences.getString(AppConstants.tokenKey);
+
+      if (token == null || token.isEmpty) {
+        throw const ServerFailure(
+            message: 'Không có token xác thực. Vui lòng đăng nhập lại.');
+      }
+
+      // Use the full URL
+      final String url = '${ApiConstants.baseUrl}/api/auth/change-password';
 
       final response = await dio.post(
-        '/api/auth/change-password',
+        url,
         data: {
           'citizenid': userId,
           'oldPassword': currentPassword,
           'newPassword': newPassword,
         },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
-
-      print('===== NHẬN RESPONSE ĐỔI MẬT KHẨU =====');
-      print('Status code: ${response.statusCode}');
-      print('Response data: ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;
@@ -322,11 +331,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       }
     } on DioException catch (e) {
-      print('===== DIO ERROR =====');
-      print('Status code: ${e.response?.statusCode}');
-      print('Response data: ${e.response?.data}');
-      print('Error message: ${e.message}');
-      print('Error type: ${e.type}');
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw ServerFailure(
+          message: 'Hết thời gian kết nối đến máy chủ. Vui lòng thử lại sau.',
+          code: e.response?.statusCode,
+        );
+      }
 
       throw ServerFailure(
         message: e.response?.data?['message'] ??
@@ -334,9 +346,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         code: e.response?.statusCode,
       );
     } catch (e) {
-      print('===== OTHER ERROR =====');
-      print('Error: $e');
-
       throw ServerFailure(message: 'Đổi mật khẩu thất bại: ${e.toString()}');
     }
   }

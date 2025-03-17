@@ -37,6 +37,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         _isLoading = true;
       });
 
+      // Add timeout to ensure loading state doesn't get stuck
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && _isLoading) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Yêu cầu đổi mật khẩu đã hết hạn, vui lòng thử lại'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      });
+
       context.read<AuthBloc>().add(
             ChangePasswordEvent(
               currentPassword: _currentPasswordController.text,

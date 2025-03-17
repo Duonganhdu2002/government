@@ -8,6 +8,9 @@ import '../../../../domain/entities/user.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
+import '../../dashboard/help/help_menu_screen.dart';
+import '../../dashboard/help/contact_support_screen.dart';
+import '../../dashboard/help/privacy_policy_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -178,21 +181,42 @@ class ProfileScreen extends StatelessWidget {
                       context,
                       icon: Icons.help_outline,
                       title: 'Trợ giúp & FAQ',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HelpMenuScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const Divider(color: AppTheme.medusaLightGray),
                     _buildSettingsItem(
                       context,
                       icon: Icons.support_agent_outlined,
                       title: 'Liên hệ hỗ trợ',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ContactSupportScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const Divider(color: AppTheme.medusaLightGray),
                     _buildSettingsItem(
                       context,
                       icon: Icons.privacy_tip_outlined,
                       title: 'Chính sách bảo mật',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PrivacyPolicyScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
