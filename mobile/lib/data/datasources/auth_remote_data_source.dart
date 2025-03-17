@@ -22,6 +22,12 @@ abstract class AuthRemoteDataSource {
   );
   Future<bool> logout();
   Future<UserModel?> getCurrentUser();
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required int userId,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -70,7 +76,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           );
         },
       );
-
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Handle different response structures
@@ -134,13 +139,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       }
     } on DioException catch (e) {
-
       throw ServerFailure(
         message: e.response?.data?['message'] ?? 'Kết nối đến server thất bại',
         code: e.response?.statusCode,
       );
     } catch (e) {
-
       throw ServerFailure(message: 'Đăng nhập thất bại: ${e.toString()}');
     }
   }
@@ -283,6 +286,58 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  @override
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required int userId,
+  }) async {
+    try {
+      // Log chi tiết để debug
+      print('===== ĐANG GỬI YÊU CẦU ĐỔI MẬT KHẨU =====');
+      print('URL: ${ApiConstants.baseUrl}/api/auth/change-password');
+
+      final response = await dio.post(
+        '/api/auth/change-password',
+        data: {
+          'citizenid': userId,
+          'oldPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+
+      print('===== NHẬN RESPONSE ĐỔI MẬT KHẨU =====');
+      print('Status code: ${response.statusCode}');
+      print('Response data: ${response.data}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        throw ServerFailure(
+          message: response.data['message'] ?? 'Đổi mật khẩu thất bại',
+          code: response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      print('===== DIO ERROR =====');
+      print('Status code: ${e.response?.statusCode}');
+      print('Response data: ${e.response?.data}');
+      print('Error message: ${e.message}');
+      print('Error type: ${e.type}');
+
+      throw ServerFailure(
+        message: e.response?.data?['message'] ??
+            'Đổi mật khẩu thất bại: Lỗi kết nối',
+        code: e.response?.statusCode,
+      );
+    } catch (e) {
+      print('===== OTHER ERROR =====');
+      print('Error: $e');
+
+      throw ServerFailure(message: 'Đổi mật khẩu thất bại: ${e.toString()}');
     }
   }
 

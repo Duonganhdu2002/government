@@ -67,3 +67,16 @@ class CheckAuthStatusEvent extends AuthEvent {
 class CancelLoginEvent extends AuthEvent {
   const CancelLoginEvent();
 }
+
+class ChangePasswordEvent extends AuthEvent {
+  final String currentPassword;
+  final String newPassword;
+
+  const ChangePasswordEvent({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+
+  @override
+  List<Object> get props => [currentPassword, newPassword];
+}

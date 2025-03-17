@@ -45,11 +45,12 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     emit(UserUpdatingState());
 
     final result = await updateUserProfileUseCase(
-      UpdateUserProfileParams(
-        firstName: event.firstName,
-        lastName: event.lastName,
-        email: event.email,
-        phoneNumber: event.phoneNumber,
+      UpdateProfileParams(
+        fullName: "${event.firstName ?? ''} ${event.lastName ?? ''}".trim(),
+        email: event.email ?? '',
+        phoneNumber: event.phoneNumber ?? '',
+        address: '',
+        identificationNumber: '',
       ),
     );
 

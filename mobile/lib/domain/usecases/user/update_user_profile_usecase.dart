@@ -1,41 +1,42 @@
 import 'package:dartz/dartz.dart';
-import 'package:equatable/equatable.dart';
 
 import '../../../core/utils/failure.dart';
 import '../../../core/utils/usecase.dart';
 import '../../entities/user.dart';
 import '../../repositories/user_repository.dart';
 
-class UpdateUserProfileUseCase
-    implements UseCase<User, UpdateUserProfileParams> {
+class UpdateProfileParams {
+  final String fullName;
+  final String email;
+  final String phoneNumber;
+  final String address;
+  final String identificationNumber;
+  final int? areaCode;
+
+  UpdateProfileParams({
+    required this.fullName,
+    required this.email,
+    required this.phoneNumber,
+    this.address = '',
+    this.identificationNumber = '',
+    this.areaCode,
+  });
+}
+
+class UpdateUserProfileUseCase implements UseCase<User, UpdateProfileParams> {
   final UserRepository repository;
 
   UpdateUserProfileUseCase(this.repository);
 
   @override
-  Future<Either<Failure, User>> call(UpdateUserProfileParams params) async {
-    return await repository.updateUserProfile(
-      firstName: params.firstName,
-      lastName: params.lastName,
+  Future<Either<Failure, User>> call(UpdateProfileParams params) async {
+    return await repository.updateProfile(
+      fullName: params.fullName,
       email: params.email,
       phoneNumber: params.phoneNumber,
+      address: params.address,
+      identificationNumber: params.identificationNumber,
+      areaCode: params.areaCode,
     );
   }
-}
-
-class UpdateUserProfileParams extends Equatable {
-  final String? firstName;
-  final String? lastName;
-  final String? email;
-  final String? phoneNumber;
-
-  const UpdateUserProfileParams({
-    this.firstName,
-    this.lastName,
-    this.email,
-    this.phoneNumber,
-  });
-
-  @override
-  List<Object?> get props => [firstName, lastName, email, phoneNumber];
 }

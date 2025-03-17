@@ -49,6 +49,7 @@ class MyApp extends StatelessWidget {
             registerUseCase: di.sl(),
             logoutUseCase: di.sl(),
             getCurrentUserUseCase: di.sl(),
+            changePasswordUseCase: di.sl(),
           )..add(const CheckAuthStatusEvent()),
         ),
         BlocProvider<UserBloc>(

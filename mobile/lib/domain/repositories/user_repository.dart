@@ -13,6 +13,15 @@ abstract class UserRepository {
     String? phoneNumber,
   });
 
+  Future<Either<Failure, User>> updateProfile({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+    String address,
+    String identificationNumber,
+    int? areaCode,
+  });
+
   Future<Either<Failure, User>> uploadUserAvatar({
     required String avatarPath,
   });

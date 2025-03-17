@@ -28,3 +28,16 @@ class AuthErrorState extends AuthState {
   @override
   List<Object> get props => [message];
 }
+
+class PasswordChangeSuccessState extends AuthState {
+  const PasswordChangeSuccessState();
+}
+
+class PasswordChangeFailureState extends AuthState {
+  final String message;
+
+  const PasswordChangeFailureState({required this.message});
+
+  @override
+  List<Object> get props => [message];
+}

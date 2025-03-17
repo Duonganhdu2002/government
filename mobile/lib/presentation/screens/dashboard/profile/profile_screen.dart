@@ -6,6 +6,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/entities/user.dart';
 import '../../../blocs/auth/auth_bloc.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -113,14 +115,32 @@ class ProfileScreen extends StatelessWidget {
                       context,
                       icon: Icons.edit_outlined,
                       title: 'Chỉnh sửa thông tin',
-                      onTap: () {},
+                      onTap: () {
+                        final authState = context.read<AuthBloc>().state;
+                        if (authState is AuthenticatedState) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  EditProfileScreen(user: authState.user),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     const Divider(color: AppTheme.medusaLightGray),
                     _buildSettingsItem(
                       context,
                       icon: Icons.lock_outline,
                       title: 'Đổi mật khẩu',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ChangePasswordScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

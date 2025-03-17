@@ -95,4 +95,33 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(ServerFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, bool>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      // Get current user info
+      final currentUser = await remoteDataSource.getCurrentUser();
+      if (currentUser == null) {
+        return Left(
+            ServerFailure(message: 'Không tìm thấy thông tin người dùng'));
+      }
+
+      // Make API request to change password
+      final response = await remoteDataSource.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        userId: currentUser.id ?? 0,
+      );
+
+      return Right(response);
+    } on Failure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(
+          ServerFailure(message: 'Đổi mật khẩu thất bại: ${e.toString()}'));
+    }
+  }
 }

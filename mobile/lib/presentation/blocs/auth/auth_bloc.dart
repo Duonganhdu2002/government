@@ -8,6 +8,7 @@ import '../../../domain/usecases/auth/login_usecase.dart';
 import '../../../domain/usecases/auth/register_usecase.dart';
 import '../../../domain/usecases/auth/logout_usecase.dart';
 import '../../../domain/usecases/auth/get_current_user_usecase.dart';
+import '../../../domain/usecases/auth/change_password_usecase.dart';
 import '../../../core/utils/usecase.dart';
 import '../../../core/utils/failure.dart';
 
@@ -19,18 +20,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final RegisterUseCase registerUseCase;
   final LogoutUseCase logoutUseCase;
   final GetCurrentUserUseCase getCurrentUserUseCase;
+  final ChangePasswordUseCase changePasswordUseCase;
 
   AuthBloc({
     required this.loginUseCase,
     required this.registerUseCase,
     required this.logoutUseCase,
     required this.getCurrentUserUseCase,
+    required this.changePasswordUseCase,
   }) : super(AuthInitialState()) {
     on<LoginEvent>(_onLogin);
     on<RegisterEvent>(_onRegister);
     on<LogoutEvent>(_onLogout);
     on<CheckAuthStatusEvent>(_onCheckAuthStatus);
     on<CancelLoginEvent>(_onCancelLogin);
+    on<ChangePasswordEvent>(_onChangePassword);
   }
 
   Future<void> _onLogin(LoginEvent event, Emitter<AuthState> emit) async {
@@ -146,5 +150,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       CancelLoginEvent event, Emitter<AuthState> emit) async {
     // Đơn giản chỉ chuyển từ trạng thái loading về trạng thái khởi tạo
     emit(AuthInitialState());
+  }
+
+  Future<void> _onChangePassword(
+      ChangePasswordEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoadingState());
+
+    try {
+      final result = await changePasswordUseCase(ChangePasswordParams(
+        currentPassword: event.currentPassword,
+        newPassword: event.newPassword,
+      ));
+
+      result.fold(
+        (failure) => emit(PasswordChangeFailureState(message: failure.message)),
+        (success) => emit(PasswordChangeSuccessState()),
+      );
+    } catch (e) {
+      emit(PasswordChangeFailureState(
+          message: 'Lỗi khi đổi mật khẩu: ${e.toString()}'));
+    }
   }
 }

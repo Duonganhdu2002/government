@@ -15,6 +15,7 @@ import '../../domain/usecases/auth/login_usecase.dart';
 import '../../domain/usecases/auth/register_usecase.dart';
 import '../../domain/usecases/auth/logout_usecase.dart';
 import '../../domain/usecases/auth/get_current_user_usecase.dart';
+import '../../domain/usecases/auth/change_password_usecase.dart';
 import '../../domain/usecases/user/get_user_profile_usecase.dart';
 import '../../domain/usecases/user/update_user_profile_usecase.dart';
 import '../../domain/usecases/application/get_applications_usecase.dart';
@@ -73,6 +74,7 @@ Future<void> initServiceLocator() async {
   sl.registerLazySingleton(() => RegisterUseCase(sl()));
   sl.registerLazySingleton(() => LogoutUseCase(sl()));
   sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
+  sl.registerLazySingleton(() => ChangePasswordUseCase(sl()));
 
   // User use cases
   sl.registerLazySingleton(() => GetUserProfileUseCase(sl()));

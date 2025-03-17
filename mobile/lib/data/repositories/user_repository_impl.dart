@@ -1,7 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/utils/failure.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/user_repository.dart';
@@ -182,6 +184,109 @@ class UserRepositoryImpl implements UserRepository {
       return Left(failure);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> updateProfile({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+    String address = '',
+    String identificationNumber = '',
+    int? areaCode,
+  }) async {
+    try {
+      final userModel = await localDataSource.getUser();
+      if (userModel == null) {
+        return const Left(CacheFailure(
+            message: 'Người dùng không tìm thấy trong bộ nhớ cache'));
+      }
+
+      // Get token from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.tokenKey);
+
+      if (token == null || token.isEmpty) {
+        return const Left(ServerFailure(
+            message: 'Không có token xác thực. Vui lòng đăng nhập lại.'));
+      }
+
+      // Prepare data for API request
+      final Map<String, dynamic> data = {
+        'fullname': fullName,
+        'email': email,
+        'phonenumber': phoneNumber,
+        'address': address,
+        'identificationnumber': identificationNumber,
+      };
+      if (areaCode != null) data['areacode'] = areaCode;
+
+      // Make API request with token in headers
+      final response = await dio.patch(
+        '${ApiConstants.baseUrl}/api/citizens/${userModel.id}',
+        data: data,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Extract user data from response
+        final responseData = response.data;
+        Map<String, dynamic> userData;
+
+        if (responseData['data'] != null &&
+            responseData['data']['user'] != null) {
+          userData = responseData['data']['user'];
+        } else if (responseData['data'] != null) {
+          userData = responseData['data'];
+        } else if (responseData['user'] != null) {
+          userData = responseData['user'];
+        } else {
+          userData = responseData;
+        }
+
+        // Ensure we have at least the ID from existing user if not in response
+        if (!userData.containsKey('id') && userModel.id != null) {
+          userData['id'] = userModel.id;
+        }
+
+        // Create updated user from response data
+        final updatedUser = UserModel(
+          id: userData['id'] ?? userModel.id,
+          username: userData['username'] ?? userModel.username,
+          fullName: userData['fullname'] ?? fullName,
+          email: userData['email'] ?? email,
+          phoneNumber: userData['phonenumber'] ?? phoneNumber,
+          address: userData['address'] ?? address,
+          identificationNumber:
+              userData['identificationnumber'] ?? identificationNumber,
+          areaCode: userData['areacode'] ?? areaCode ?? userModel.areaCode,
+        );
+
+        // Cache the updated user data
+        await localDataSource.cacheUser(updatedUser);
+        return Right(updatedUser);
+      } else {
+        return Left(ServerFailure(
+          message: response.data['message'] ??
+              'Không thể cập nhật thông tin cá nhân',
+          code: response.statusCode,
+        ));
+      }
+    } on DioException catch (e) {
+      return Left(ServerFailure(
+        message:
+            e.response?.data?['message'] ?? 'Không thể kết nối đến máy chủ',
+        code: e.response?.statusCode,
+      ));
+    } on Failure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(ServerFailure(message: 'Lỗi: ${e.toString()}'));
     }
   }
 }
