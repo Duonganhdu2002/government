@@ -7,6 +7,7 @@ import '../../../domain/entities/user.dart';
 import '../../../domain/usecases/auth/login_usecase.dart';
 import '../../../domain/usecases/auth/register_usecase.dart';
 import '../../../domain/usecases/auth/logout_usecase.dart';
+import '../../../domain/usecases/auth/get_current_user_usecase.dart';
 import '../../../core/utils/usecase.dart';
 import '../../../core/utils/failure.dart';
 
@@ -17,11 +18,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase loginUseCase;
   final RegisterUseCase registerUseCase;
   final LogoutUseCase logoutUseCase;
+  final GetCurrentUserUseCase getCurrentUserUseCase;
 
   AuthBloc({
     required this.loginUseCase,
     required this.registerUseCase,
     required this.logoutUseCase,
+    required this.getCurrentUserUseCase,
   }) : super(AuthInitialState()) {
     on<LoginEvent>(_onLogin);
     on<RegisterEvent>(_onRegister);
@@ -102,16 +105,41 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onCheckAuthStatus(
       CheckAuthStatusEvent event, Emitter<AuthState> emit) async {
-    emit(AuthLoadingState());
+    // Chỉ emit LoadingState nếu là lần kiểm tra đầu tiên
+    if (state is AuthInitialState) {
+      emit(AuthLoadingState());
+    }
 
-    // This would typically check if a token exists and validate it
-    // For now, we'll just use the repository's getCurrentUser method
+    try {
+      // Kiểm tra user data từ token đã được lưu
+      final result = await getCurrentUserUseCase(NoParams());
 
-    // Simulating a delay for demo purposes
-    await Future.delayed(const Duration(seconds: 1));
-
-    // For demo purposes, we'll assume not authenticated
-    emit(AuthInitialState());
+      await result.fold(
+        (failure) async {
+          // Nếu có lỗi khi lấy dữ liệu user, đăng xuất và chuyển về trạng thái khởi tạo
+          print('Không thể lấy thông tin người dùng: ${failure.message}');
+          await logoutUseCase(NoParams());
+          emit(AuthInitialState());
+        },
+        (user) async {
+          if (user != null) {
+            // Nếu có user data, chuyển sang trạng thái đã xác thực
+            emit(AuthenticatedState(user: user));
+          } else {
+            // Nếu không có user data nhưng có token, thử đăng xuất để xóa token
+            print(
+                'Có token nhưng không lấy được dữ liệu người dùng, đăng xuất');
+            await logoutUseCase(NoParams());
+            emit(AuthInitialState());
+          }
+        },
+      );
+    } catch (e) {
+      print('Lỗi khi kiểm tra trạng thái xác thực: $e');
+      // Nếu có lỗi, đăng xuất và chuyển về trạng thái khởi tạo
+      await logoutUseCase(NoParams());
+      emit(AuthInitialState());
+    }
   }
 
   Future<void> _onCancelLogin(

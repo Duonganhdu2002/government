@@ -27,9 +27,9 @@ class AppBottomNavigation extends StatelessWidget {
       child: BottomNavigationBar(
         currentIndex: currentIndex,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppTheme.secondaryColor,
-        unselectedItemColor: AppTheme.textSecondaryColor,
+        backgroundColor: AppTheme.medusaWhite,
+        selectedItemColor: AppTheme.medusaBlack,
+        unselectedItemColor: AppTheme.medusaGray,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w500,
           fontSize: 12,
@@ -56,11 +56,6 @@ class AppBottomNavigation extends StatelessWidget {
             label: 'Dịch vụ',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_outlined),
-            activeIcon: Icon(Icons.notifications),
-            label: 'Thông báo',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Tài khoản',
@@ -78,7 +73,6 @@ class AppBottomNavigation extends StatelessWidget {
       AppConstants.homeRoute,
       AppConstants.applicationsRoute,
       AppConstants.guidesRoute,
-      AppConstants.notificationsRoute,
       AppConstants.profileRoute,
     ];
 

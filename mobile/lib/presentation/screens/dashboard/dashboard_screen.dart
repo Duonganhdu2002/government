@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../widgets/app_bottom_navigation.dart';
 
@@ -39,10 +40,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return 1;
     } else if (currentPath == AppConstants.guidesRoute) {
       return 2;
-    } else if (currentPath == AppConstants.notificationsRoute) {
-      return 3;
     } else if (currentPath == AppConstants.profileRoute) {
-      return 4;
+      return 3;
     } else {
       return 0; // Home as default
     }
@@ -74,7 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Icon(Icons.person),
             ),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: AppTheme.medusaBlack,
             ),
           ),
           _buildDrawerItem(
@@ -106,12 +105,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.help,
             title: 'Dịch vụ',
             route: AppConstants.guidesRoute,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.notifications,
-            title: 'Thông báo',
-            route: AppConstants.notificationsRoute,
           ),
           const Divider(),
           _buildDrawerItem(

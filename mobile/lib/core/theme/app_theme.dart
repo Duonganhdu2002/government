@@ -12,6 +12,20 @@ class AppTheme {
   static const Color textPrimaryColor = Color(0xFF1F2937);
   static const Color textSecondaryColor = Color(0xFF6B7280);
 
+  static const Color medusaBlack = Color(0xFF111827);
+  static const Color medusaDarkGray = Color(0xFF374151);
+  static const Color medusaGray = Color(0xFF6B7280);
+  static const Color medusaLightGray = Color(0xFFF3F4F6);
+  static const Color medusaWhite = Colors.white;
+  static const LinearGradient medusaGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF111827),
+      Color(0xFF1F2937),
+    ],
+  );
+
   static ThemeData lightTheme() {
     return ThemeData(
       useMaterial3: true,
