@@ -6,6 +6,8 @@ import '../entities/application.dart';
 abstract class ApplicationRepository {
   Future<Either<Failure, List<Application>>> getApplications();
 
+  Future<Either<Failure, List<Application>>> getCurrentUserApplications();
+
   Future<Either<Failure, Application>> getApplicationById(String id);
 
   Future<Either<Failure, Application>> createApplication({

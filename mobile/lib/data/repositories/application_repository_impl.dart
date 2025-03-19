@@ -20,10 +20,9 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data['applications'];
-        final List<Application> applications = data
-            .map((item) => ApplicationModel.fromJson(item))
-            .toList();
+        final List<dynamic> data = response.data;
+        final List<Application> applications =
+            data.map((item) => ApplicationModel.fromJson(item)).toList();
         return Right(applications);
       } else {
         return Left(ServerFailure(
@@ -42,6 +41,52 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
   }
 
   @override
+  Future<Either<Failure, List<Application>>>
+      getCurrentUserApplications() async {
+    try {
+      final response = await dio.get(
+        '${ApiConstants.baseUrl}${ApiConstants.applicationsEndpoint}/current-user',
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+
+        if (data.isEmpty) {
+          return const Right([]);
+        }
+
+        final List<Application> applications = [];
+
+        for (var item in data) {
+          try {
+            final application = ApplicationModel.fromServerJson(item);
+            applications.add(application);
+          } catch (e) {
+            print('Error parsing application: $e');
+            print('Problematic data: $item');
+          }
+        }
+
+        return Right(applications);
+      } else {
+        return Left(ServerFailure(
+          message:
+              response.data['message'] ?? 'Failed to fetch user applications',
+          code: response.statusCode,
+        ));
+      }
+    } on DioException catch (e) {
+      return Left(ServerFailure(
+        message:
+            e.response?.data?['message'] ?? 'Failed to fetch user applications',
+        code: e.response?.statusCode,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, Application>> getApplicationById(String id) async {
     try {
       final response = await dio.get(
@@ -49,7 +94,8 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       );
 
       if (response.statusCode == 200) {
-        final Application application = ApplicationModel.fromJson(response.data['application']);
+        final Application application =
+            ApplicationModel.fromServerJson(response.data);
         return Right(application);
       } else {
         return Left(ServerFailure(
@@ -86,7 +132,8 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       );
 
       if (response.statusCode == 201) {
-        final Application application = ApplicationModel.fromJson(response.data['application']);
+        final Application application =
+            ApplicationModel.fromJson(response.data['application']);
         return Right(application);
       } else {
         return Left(ServerFailure(
@@ -125,7 +172,8 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       );
 
       if (response.statusCode == 200) {
-        final Application application = ApplicationModel.fromJson(response.data['application']);
+        final Application application =
+            ApplicationModel.fromJson(response.data['application']);
         return Right(application);
       } else {
         return Left(ServerFailure(
@@ -192,4 +240,4 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       return Left(ServerFailure(message: e.toString()));
     }
   }
-} 
+}

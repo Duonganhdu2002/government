@@ -19,11 +19,13 @@ import '../../domain/usecases/auth/change_password_usecase.dart';
 import '../../domain/usecases/user/get_user_profile_usecase.dart';
 import '../../domain/usecases/user/update_user_profile_usecase.dart';
 import '../../domain/usecases/application/get_applications_usecase.dart';
+import '../../domain/usecases/application/get_current_user_applications_usecase.dart';
 import '../../domain/usecases/application/get_application_by_id_usecase.dart';
 import '../../domain/usecases/application/create_application_usecase.dart';
 import '../../domain/usecases/application/update_application_usecase.dart';
 import '../../domain/usecases/application/submit_application_usecase.dart';
 import '../../domain/usecases/application/delete_application_usecase.dart';
+import '../utils/dio_utils.dart';
 
 final sl = GetIt.instance;
 
@@ -34,7 +36,7 @@ Future<void> initServiceLocator() async {
 
   // Services
   sl.registerLazySingleton<ApiService>(() => ApiService(sl()));
-  sl.registerLazySingleton<Dio>(() => Dio());
+  sl.registerLazySingleton<Dio>(() => DioUtils.getInstance());
 
   // Data sources
   sl.registerLazySingleton<AuthRemoteDataSource>(
@@ -82,6 +84,7 @@ Future<void> initServiceLocator() async {
 
   // Application use cases
   sl.registerLazySingleton(() => GetApplicationsUseCase(sl()));
+  sl.registerLazySingleton(() => GetCurrentUserApplicationsUseCase(sl()));
   sl.registerLazySingleton(() => GetApplicationByIdUseCase(sl()));
   sl.registerLazySingleton(() => CreateApplicationUseCase(sl()));
   sl.registerLazySingleton(() => UpdateApplicationUseCase(sl()));

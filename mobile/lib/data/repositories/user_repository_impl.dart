@@ -1,7 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/app_constants.dart';
@@ -284,7 +283,7 @@ class UserRepositoryImpl implements UserRepository {
         }
 
         // Ensure we have at least the ID from existing user if not in response
-        if (!userData.containsKey('id') && userModel.id != null) {
+        if (!userData.containsKey('id')) {
           userData['id'] = userModel.id;
         }
 

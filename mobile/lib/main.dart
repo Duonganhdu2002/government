@@ -66,6 +66,7 @@ class MyApp extends StatelessWidget {
             updateApplicationUseCase: di.sl(),
             submitApplicationUseCase: di.sl(),
             deleteApplicationUseCase: di.sl(),
+            getCurrentUserApplicationsUseCase: di.sl(),
           ),
         ),
       ],

@@ -74,17 +74,17 @@ class Application extends Equatable {
   String get statusText {
     switch (status) {
       case ApplicationStatus.draft:
-        return 'Draft';
+        return 'Bản nháp';
       case ApplicationStatus.submitted:
-        return 'Submitted';
+        return 'Đã nộp';
       case ApplicationStatus.inReview:
-        return 'In Review';
+        return 'Đang xử lý';
       case ApplicationStatus.approved:
-        return 'Approved';
+        return 'Đã phê duyệt';
       case ApplicationStatus.rejected:
-        return 'Rejected';
+        return 'Từ chối';
       case ApplicationStatus.completed:
-        return 'Completed';
+        return 'Hoàn thành';
     }
   }
 

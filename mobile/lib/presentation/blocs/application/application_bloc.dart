@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import '../../../core/utils/usecase.dart';
 import '../../../domain/entities/application.dart';
 import '../../../domain/usecases/application/get_applications_usecase.dart';
+import '../../../domain/usecases/application/get_current_user_applications_usecase.dart';
 import '../../../domain/usecases/application/get_application_by_id_usecase.dart';
 import '../../../domain/usecases/application/create_application_usecase.dart';
 import '../../../domain/usecases/application/update_application_usecase.dart';
@@ -15,6 +16,7 @@ part 'application_state.dart';
 
 class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
   final GetApplicationsUseCase getApplicationsUseCase;
+  final GetCurrentUserApplicationsUseCase getCurrentUserApplicationsUseCase;
   final GetApplicationByIdUseCase getApplicationByIdUseCase;
   final CreateApplicationUseCase createApplicationUseCase;
   final UpdateApplicationUseCase updateApplicationUseCase;
@@ -23,6 +25,7 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
 
   ApplicationBloc({
     required this.getApplicationsUseCase,
+    required this.getCurrentUserApplicationsUseCase,
     required this.getApplicationByIdUseCase,
     required this.createApplicationUseCase,
     required this.updateApplicationUseCase,
@@ -30,6 +33,7 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
     required this.deleteApplicationUseCase,
   }) : super(ApplicationInitialState()) {
     on<LoadApplicationsEvent>(_onLoadApplications);
+    on<LoadCurrentUserApplicationsEvent>(_onLoadCurrentUserApplications);
     on<LoadApplicationEvent>(_onLoadApplication);
     on<CreateApplicationEvent>(_onCreateApplication);
     on<UpdateApplicationEvent>(_onUpdateApplication);
@@ -50,6 +54,50 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
       (applications) =>
           emit(ApplicationsLoadedState(applications: applications)),
     );
+  }
+
+  Future<void> _onLoadCurrentUserApplications(
+    LoadCurrentUserApplicationsEvent event,
+    Emitter<ApplicationState> emit,
+  ) async {
+    print('[ApplicationBloc] Starting to load current user applications');
+    emit(ApplicationsLoadingState());
+    print('[ApplicationBloc] Emitted ApplicationsLoadingState');
+
+    try {
+      print('[ApplicationBloc] Calling getCurrentUserApplicationsUseCase');
+      final result = await getCurrentUserApplicationsUseCase(NoParams());
+
+      result.fold(
+        (failure) {
+          print(
+              '[ApplicationBloc] Error loading applications: ${failure.message}');
+          emit(ApplicationErrorState(message: failure.message));
+          print('[ApplicationBloc] Emitted ApplicationErrorState');
+        },
+        (applications) {
+          print(
+              '[ApplicationBloc] Successfully loaded ${applications.length} applications');
+
+          // Ensure all applications are valid
+          if (applications.isNotEmpty) {
+            final firstApp = applications.first;
+            print(
+                '[ApplicationBloc] First app: id=${firstApp.id}, title=${firstApp.title}, status=${firstApp.status}');
+          }
+
+          final newState = ApplicationsLoadedState(applications: applications);
+          emit(newState);
+          print(
+              '[ApplicationBloc] Emitted ApplicationsLoadedState with ${applications.length} applications');
+        },
+      );
+    } catch (e) {
+      print('[ApplicationBloc] Exception when loading applications: $e');
+      print('[ApplicationBloc] Stack trace: ${StackTrace.current}');
+      emit(ApplicationErrorState(message: 'Error: $e'));
+      print('[ApplicationBloc] Emitted ApplicationErrorState due to exception');
+    }
   }
 
   Future<void> _onLoadApplication(

@@ -7,12 +7,9 @@ abstract class ApplicationEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadApplicationsEvent extends ApplicationEvent {
-  const LoadApplicationsEvent();
+class LoadApplicationsEvent extends ApplicationEvent {}
 
-  @override
-  List<Object?> get props => [];
-}
+class LoadCurrentUserApplicationsEvent extends ApplicationEvent {}
 
 class LoadApplicationEvent extends ApplicationEvent {
   final String id;

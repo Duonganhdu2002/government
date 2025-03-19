@@ -25,7 +25,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     _tabController = TabController(length: 3, vsync: this);
 
     // Load applications when the screen initializes
-    context.read<ApplicationBloc>().add(const LoadApplicationsEvent());
+    context.read<ApplicationBloc>().add(LoadApplicationsEvent());
   }
 
   @override
@@ -73,8 +73,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-        },
+        onPressed: () {},
         backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add),
       ),
@@ -127,8 +126,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: () {
-                    },
+                    onPressed: () {},
                     child: const Text('Create New Application'),
                   ),
                 ],
@@ -172,7 +170,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   onPressed: () {
                     context
                         .read<ApplicationBloc>()
-                        .add(const LoadApplicationsEvent());
+                        .add(LoadApplicationsEvent());
                   },
                   child: const Text('Retry'),
                 ),

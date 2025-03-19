@@ -26,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final currentIndex = _getCurrentIndex(currentPath);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: widget.child,
       drawer: _buildDrawer(context),
       floatingActionButton: _buildFloatingActionButton(context),
@@ -38,7 +39,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return 0;
     } else if (currentPath.startsWith(AppConstants.applicationsRoute)) {
       return 1;
-    } else if (currentPath == AppConstants.guidesRoute) {
+    } else if (currentPath == AppConstants.historyRoute) {
       return 2;
     } else if (currentPath == AppConstants.profileRoute) {
       return 3;
@@ -49,6 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
+      backgroundColor: Colors.white,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
@@ -70,10 +72,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
             currentAccountPicture: const CircleAvatar(
-              child: Icon(Icons.person),
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person, color: Colors.black87),
             ),
             decoration: BoxDecoration(
-              color: AppTheme.medusaBlack,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.primaryColor,
+                  Colors.black87,
+                ],
+              ),
             ),
           ),
           _buildDrawerItem(
@@ -100,13 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Hồ sơ',
             route: AppConstants.applicationsRoute,
           ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.help,
-            title: 'Dịch vụ',
-            route: AppConstants.guidesRoute,
-          ),
-          const Divider(),
+          const Divider(color: Color(0xFFEEEEEE)),
           _buildDrawerItem(
             context,
             icon: Icons.settings,
@@ -135,8 +139,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     VoidCallback? onTap,
   }) {
     return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
+      leading: Icon(icon, color: AppTheme.textPrimary),
+      title: Text(
+        title,
+        style: TextStyle(color: AppTheme.textPrimary),
+      ),
       onTap: onTap ??
           () {
             Navigator.pop(context); // Close the drawer
@@ -152,9 +159,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (currentRoute == AppConstants.applicationsRoute) {
       return FloatingActionButton(
+        backgroundColor: AppTheme.primaryColor,
         onPressed: () {},
         tooltip: 'Tạo hồ sơ mới',
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       );
     }
 

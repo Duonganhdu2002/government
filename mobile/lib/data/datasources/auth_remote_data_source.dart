@@ -7,6 +7,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/failure.dart';
 import '../models/user_model.dart';
+import '../../core/utils/dio_utils.dart';
 
 abstract class AuthRemoteDataSource {
   Future<UserModel> login(String username, String password, String userType);
@@ -102,7 +103,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         if (token != null) {
           await sharedPreferences.setString(AppConstants.tokenKey, token);
           // Verify token was saved successfully
-          sharedPreferences.getString(AppConstants.tokenKey);
+          final savedToken = sharedPreferences.getString(AppConstants.tokenKey);
+          print(
+              '[Auth] Token saved successfully: ${savedToken != null ? 'Yes' : 'No'}');
+
+          // Reset the Dio instance to refresh token interceptors
+          DioUtils.resetInstance();
 
           UserModel user;
           if (userData != null) {

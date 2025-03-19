@@ -121,7 +121,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await result.fold(
         (failure) async {
           // Nếu có lỗi khi lấy dữ liệu user, đăng xuất và chuyển về trạng thái khởi tạo
-          print('Không thể lấy thông tin người dùng: ${failure.message}');
           await logoutUseCase(NoParams());
           emit(AuthInitialState());
         },
@@ -131,15 +130,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             emit(AuthenticatedState(user: user));
           } else {
             // Nếu không có user data nhưng có token, thử đăng xuất để xóa token
-            print(
-                'Có token nhưng không lấy được dữ liệu người dùng, đăng xuất');
             await logoutUseCase(NoParams());
             emit(AuthInitialState());
           }
         },
       );
     } catch (e) {
-      print('Lỗi khi kiểm tra trạng thái xác thực: $e');
       // Nếu có lỗi, đăng xuất và chuyển về trạng thái khởi tạo
       await logoutUseCase(NoParams());
       emit(AuthInitialState());

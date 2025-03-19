@@ -335,7 +335,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 4),
           // Username
           Text(
-            '@${user.username ?? ''}',
+            '@${user.username}',
             style: const TextStyle(
               fontSize: 14,
               color: Colors.white70,

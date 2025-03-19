@@ -12,7 +12,6 @@ import '../../presentation/screens/dashboard/profile/profile_screen.dart';
 import '../../presentation/screens/dashboard/history/history_screen.dart';
 import '../../presentation/screens/dashboard/applications/applications_screen.dart';
 import '../../presentation/screens/dashboard/applications/application_details_screen.dart';
-import '../../presentation/screens/dashboard/guides/guides_screen.dart';
 import '../../presentation/screens/dashboard/notifications/notifications_screen.dart';
 
 class AppRouter {
@@ -116,13 +115,6 @@ class AppRouter {
                   return ApplicationDetailsScreen(applicationId: applicationId);
                 },
               ),
-
-              // Guides
-              GoRoute(
-                path: AppConstants.guidesRoute,
-                builder: (context, state) => const GuidesScreen(),
-              ),
-
               // Notifications
               GoRoute(
                 path: AppConstants.notificationsRoute,

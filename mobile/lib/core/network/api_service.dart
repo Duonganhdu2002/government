@@ -4,84 +4,13 @@ import '../constants/app_constants.dart';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import '../constants/api_constants.dart';
+import '../utils/dio_utils.dart';
 
 class ApiService {
   final Dio _dio;
   final SharedPreferences _preferences;
 
-  ApiService(this._preferences) : _dio = Dio() {
-    _configureDio();
-  }
-
-  void _configureDio() {
-    // Don't set baseUrl in Dio options to avoid conflicts
-    // _dio.options.baseUrl = ApiConstants.baseUrl;
-    _dio.options.headers = ApiConstants.headers;
-
-    // Cấu hình timeout
-    _dio.options.connectTimeout =
-        Duration(milliseconds: ApiConstants.connectTimeout);
-    _dio.options.receiveTimeout =
-        Duration(milliseconds: ApiConstants.receiveTimeout);
-    _dio.options.sendTimeout = Duration(milliseconds: ApiConstants.sendTimeout);
-
-    // Thêm interceptors để ghi log chi tiết request/response
-    if (kDebugMode) {
-      _dio.interceptors.add(LogInterceptor(
-        request: true,
-        requestHeader: true,
-        requestBody: true,
-        responseHeader: true,
-        responseBody: true,
-        error: true,
-      ));
-    }
-
-    // Thêm interceptor xử lý lỗi
-    _dio.interceptors.add(InterceptorsWrapper(
-      onError: (DioException error, ErrorInterceptorHandler handler) {
-
-        // Xử lý lỗi kết nối
-        if (error.type == DioExceptionType.connectionTimeout ||
-            error.type == DioExceptionType.receiveTimeout ||
-            error.type == DioExceptionType.sendTimeout) {
-          error = DioException(
-            requestOptions: error.requestOptions,
-            error:
-                'Kết nối tới server thất bại, vui lòng kiểm tra lại internet và thử lại sau',
-            type: error.type,
-          );
-        }
-
-        // Chuyển tiếp lỗi đã được xử lý
-        handler.next(error);
-      },
-    ));
-
-    // Add request interceptor for authentication
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        // Get the auth token from shared preferences
-        final token = _preferences.getString(AppConstants.tokenKey);
-
-        // If token exists, add it to the headers
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-
-        return handler.next(options);
-      },
-      onError: (DioException error, handler) {
-        // Handle 401 unauthorized errors
-        if (error.response?.statusCode == 401) {
-          // Clear token and handle logout logic
-          _preferences.remove(AppConstants.tokenKey);
-          // You might want to navigate to login screen or trigger a logout event
-        }
-        return handler.next(error);
-      },
-    ));
-  }
+  ApiService(this._preferences) : _dio = DioUtils.getInstance();
 
   // Generic GET request
   Future<Map<String, dynamic>> get(String path,

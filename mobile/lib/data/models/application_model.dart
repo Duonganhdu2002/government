@@ -35,6 +35,86 @@ class ApplicationModel extends Application {
     );
   }
 
+  /// Converts server-side application data format to ApplicationModel
+  factory ApplicationModel.fromServerJson(Map<String, dynamic> json) {
+    try {
+      print('[ApplicationModel] Converting server JSON: ${json.keys}');
+
+      // Handle the application ID which could be int or string
+      String id = '';
+      if (json['applicationid'] != null) {
+        id = json['applicationid'].toString();
+      }
+
+      // Get the submission date with fallback
+      DateTime submittedAt = DateTime.now();
+      if (json['submissiondate'] != null) {
+        try {
+          submittedAt = DateTime.parse(json['submissiondate']);
+        } catch (e) {
+          print(
+              '[ApplicationModel] Error parsing submissiondate: ${json['submissiondate']}');
+        }
+      }
+
+      // Get the last updated date or use submission date as fallback
+      DateTime updatedAt = submittedAt;
+      if (json['lastupdated'] != null) {
+        try {
+          updatedAt = DateTime.parse(json['lastupdated']);
+        } catch (e) {
+          print(
+              '[ApplicationModel] Error parsing lastupdated: ${json['lastupdated']}');
+        }
+      }
+
+      // Parse status safely
+      String statusStr = 'unknown';
+      if (json['status'] != null) {
+        statusStr = json['status'].toString();
+      }
+
+      final application = ApplicationModel(
+        id: id,
+        title: json['title'] ?? 'No Title',
+        description: json['description'] ?? '',
+        createdAt: submittedAt, // Use submission date as creation date
+        updatedAt: updatedAt,
+        submittedAt: submittedAt,
+        status: _mapStringToApplicationStatus(statusStr),
+        formData: {
+          'applicationtypeid': json['applicationtypeid'],
+          'applicationtypename': json['applicationtypename'],
+          'specialapplicationtypeid': json['specialapplicationtypeid'],
+          'specialapplicationtypename': json['specialapplicationtypename'],
+        },
+        attachments: json['hasmedia'] == true ? ['Có tài liệu đính kèm'] : [],
+        referenceNumber: json['applicationid']?.toString() ?? '',
+        userId: json['citizenid']?.toString() ?? '',
+      );
+
+      print(
+          '[ApplicationModel] Successfully converted: id=${application.id}, title=${application.title}');
+      return application;
+    } catch (e, stackTrace) {
+      print('[ApplicationModel] Error converting server JSON: $e');
+      print('[ApplicationModel] Stack trace: $stackTrace');
+      print('[ApplicationModel] Original JSON: $json');
+
+      // Create a fallback application with minimal data
+      return ApplicationModel(
+        id: json['applicationid']?.toString() ?? 'unknown',
+        title: json['title'] ?? 'Không thể đọc tên hồ sơ',
+        description: 'Không thể đọc mô tả',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        status: ApplicationStatus.submitted,
+        formData: {},
+        userId: json['citizenid']?.toString() ?? '',
+      );
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -60,6 +140,7 @@ class ApplicationModel extends Application {
       case 'in_review':
       case 'inreview':
       case 'in review':
+      case 'processing':
         return ApplicationStatus.inReview;
       case 'approved':
         return ApplicationStatus.approved;

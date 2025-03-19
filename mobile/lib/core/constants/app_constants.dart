@@ -15,7 +15,6 @@ class AppConstants {
   static const String historyRoute = '/dashboard/history';
   static const String applicationsRoute = '/dashboard/applications';
   static const String applicationDetailsRoute = '/dashboard/applications/:id';
-  static const String guidesRoute = '/dashboard/guides';
   static const String notificationsRoute = '/dashboard/notifications';
 
   // Storage Keys

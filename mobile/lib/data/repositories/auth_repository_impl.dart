@@ -113,7 +113,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final response = await remoteDataSource.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
-        userId: currentUser.id ?? 0,
+        userId: currentUser.id,
       );
 
       return Right(response);
