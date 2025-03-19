@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'dart:math';
+import 'dart:io';
 
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/entities/application.dart';
 import '../../../blocs/application/application_bloc.dart';
@@ -22,12 +28,11 @@ class ApplicationDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Load application details if not provided
-    if (initialApplication == null) {
-      context
-          .read<ApplicationBloc>()
-          .add(LoadApplicationEvent(id: applicationId));
-    }
+    // Load application details always, regardless of initialApplication
+    // This ensures we have the most up-to-date data from the server
+    context
+        .read<ApplicationBloc>()
+        .add(LoadApplicationEvent(id: applicationId));
 
     // If it's a bottom sheet, only return the content
     if (isBottomSheet) {
@@ -71,17 +76,12 @@ class ApplicationDetailsScreen extends StatelessWidget {
       ),
       body: BlocBuilder<ApplicationBloc, ApplicationState>(
         builder: (context, state) {
-          if (state is ApplicationLoadingState && initialApplication == null) {
+          if (state is ApplicationLoadingState) {
             return _buildLoadingView();
           } else if (state is ApplicationErrorState) {
             return _buildErrorView(context, state.message);
           } else if (state is ApplicationLoadedState) {
             return _buildApplicationContent(context, state.application);
-          }
-
-          // Use the initial application if provided
-          if (initialApplication != null) {
-            return _buildApplicationContent(context, initialApplication!);
           }
 
           // Fallback loading view
@@ -95,7 +95,7 @@ class ApplicationDetailsScreen extends StatelessWidget {
   Widget _buildBottomSheetContent(BuildContext context) {
     return BlocBuilder<ApplicationBloc, ApplicationState>(
       builder: (context, state) {
-        if (state is ApplicationLoadingState && initialApplication == null) {
+        if (state is ApplicationLoadingState) {
           return _buildLoadingView();
         } else if (state is ApplicationErrorState) {
           return _buildErrorView(context, state.message);
@@ -104,7 +104,7 @@ class ApplicationDetailsScreen extends StatelessWidget {
               scrollController ?? ScrollController(), state.application);
         }
 
-        // Use the initial application if provided
+        // Show initial application while loading
         if (initialApplication != null) {
           return _buildBottomSheetApplicationContent(context,
               scrollController ?? ScrollController(), initialApplication!);
@@ -252,54 +252,258 @@ class ApplicationDetailsScreen extends StatelessWidget {
             controller: controller,
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
             children: [
+              // Title at the top center
               Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE0E0E0),
-                        borderRadius: BorderRadius.circular(2),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'Chi tiết đơn',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ),
+
+              // Status badge (prominent at the top)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: _buildStatusIndicator(app.status),
+                ),
+              ),
+
+              // Simple list of details with labels and values - Using a card style for basic info
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'Thông tin cơ bản',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Chi tiết đơn',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ],
+                      _buildSimpleDetailItem(context, 'Mã đơn',
+                          app.referenceNumber ?? app.id.toString()),
+                      const SizedBox(height: 12),
+                      _buildSimpleDetailItem(context, 'Tiêu đề', app.title),
+                      const SizedBox(height: 12),
+                      _buildSimpleDetailItem(context, 'Mô tả', app.description),
+                      const SizedBox(height: 12),
+                      _buildSimpleDetailItem(context, 'Ngày nộp',
+                          _formatDate(app.submittedAt ?? app.createdAt)),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
 
-              // Application status badge
-              Center(
-                child: _buildStatusIndicator(app.status),
-              ),
-              const SizedBox(height: 24),
-
-              // Application details
-              _buildDetailItem(
-                  context, 'Mã đơn', app.referenceNumber ?? app.id.toString()),
-              _buildDetailItem(context, 'Tiêu đề', app.title),
-              _buildDetailItem(context, 'Mô tả', app.description),
-              _buildDetailItem(context, 'Ngày nộp',
-                  _formatDate(app.submittedAt ?? app.createdAt)),
-
-              // Display attachments if available
-              if (app.attachments.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Text(
-                  'Tài liệu đính kèm',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+              // Application metadata - form data details
+              if (app.formData.isNotEmpty) ...[
+                Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Text(
+                            'Loại đơn',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                        if (app.formData['applicationtypename'] != null)
+                          _buildSimpleDetailItem(context, 'Loại đơn',
+                              app.formData['applicationtypename']),
+                        if (app.formData['specialapplicationtypename'] !=
+                            null) ...[
+                          const SizedBox(height: 12),
+                          _buildSimpleDetailItem(context, 'Loại đơn đặc biệt',
+                              app.formData['specialapplicationtypename']),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                ..._buildAttachmentsWithPreview(context, app.attachments),
               ],
+
+              // Attachments section
+              if (app.attachments.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                // Attachments header
+                Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.attach_file,
+                                  size: 20, color: AppTheme.primaryColor),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Tài liệu đính kèm',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  // Don't count placeholder as multiple attachments
+                                  app.attachments.length == 1 &&
+                                          app.attachments[0] ==
+                                              'Có tài liệu đính kèm'
+                                      ? '1 tệp'
+                                      : '${app.attachments.length} tệp',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (app.attachments.length == 1 &&
+                            app.attachments[0] == 'Có tài liệu đính kèm')
+                          _buildPlaceholderAttachment(context)
+                        else
+                          ..._buildAttachmentItems(
+                              context, app.attachments, app.id),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Application history section
+              const SizedBox(height: 16),
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.history,
+                                size: 20, color: AppTheme.primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Lịch sử xử lý',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Submission history item
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Circle icon
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.assignment_outlined,
+                              color: Colors.blue.shade700,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Text content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Đơn đã được nộp',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _formatDateTime(
+                                      app.submittedAt ?? app.createdAt),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Đơn của bạn đã được nộp thành công và đang chờ xử lý.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
 
@@ -336,42 +540,308 @@ class ApplicationDetailsScreen extends StatelessWidget {
     );
   }
 
+  // Create a placeholder for applications that have attachments but no URLs
+  Widget _buildPlaceholderAttachment(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.insert_drive_file_outlined,
+              color: Colors.blue.shade700,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tài liệu đã được đính kèm',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Vui lòng liên hệ với cơ quan nhà nước để biết chi tiết',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get appropriate icon for file based on filename
+  IconData _getFileIcon(String filename) {
+    final extension = filename.split('.').last.toLowerCase();
+
+    if (['jpg', 'jpeg', 'png', 'gif'].contains(extension)) {
+      return Icons.image;
+    } else if (['mp4', 'mov', 'avi'].contains(extension)) {
+      return Icons.video_file;
+    } else if (['pdf'].contains(extension)) {
+      return Icons.picture_as_pdf;
+    } else if (['doc', 'docx'].contains(extension)) {
+      return Icons.description;
+    } else if (['xls', 'xlsx'].contains(extension)) {
+      return Icons.table_chart;
+    }
+
+    return Icons.insert_drive_file;
+  }
+
+  // Get a full URL for attachment with better fallback options
+  String _getAttachmentUrl(String attachment, String applicationId) {
+    // If it's already a full URL, return it
+    if (attachment.startsWith('http://') || attachment.startsWith('https://')) {
+      return attachment;
+    }
+
+    // If it's a placeholder message and not an actual URL
+    if (attachment == 'Có tài liệu đính kèm') {
+      return '';
+    }
+
+    // Handle paths that start with /uploads/ directly - this is the main path we should use
+    if (attachment.startsWith('/uploads/')) {
+      return '${ApiConstants.baseUrl}${attachment}';
+    }
+
+    // For direct filepath that might not start with /uploads/
+    if (attachment.contains('/') && !RegExp(r'^\d+$').hasMatch(attachment)) {
+      String cleanPath =
+          attachment.startsWith('/') ? attachment : '/$attachment';
+      return '${ApiConstants.baseUrl}${cleanPath}';
+    }
+
+    // For mediafileid direct access - LAST RESORT approach, prefer filepath when available
+    if (RegExp(r'^\d+$').hasMatch(attachment)) {
+      return '${ApiConstants.baseUrl}/api/media-files/serve/$attachment';
+    }
+
+    // Otherwise, construct the standard URL
+    return '${ApiConstants.baseUrl}${ApiConstants.applicationsEndpoint}/$applicationId/attachments/$attachment';
+  }
+
+  // Simple detail item without dividers
+  Widget _buildSimpleDetailItem(
+      BuildContext context, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: AppTheme.textLight,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Get auth token from shared preferences
+  Future<String?> _getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.tokenKey);
+      return token;
+    } catch (e) {
+      print('[ApplicationDetailsScreen] Error getting auth token: $e');
+      return null;
+    }
+  }
+
+  // Advanced attachment items that look like the web UI
+  List<Widget> _buildAttachmentItems(
+      BuildContext context, List<String> attachments, String applicationId) {
+    print(
+        '[_buildAttachmentItems] Building items for ${attachments.length} attachments');
+    print('[_buildAttachmentItems] Attachments: $attachments');
+
+    return attachments.map((attachment) {
+      final String fileSize = "101 KB";
+      final String date = _formatDate(DateTime.now());
+      final String fileName = attachment.split('/').last.isEmpty
+          ? "File-13"
+          : attachment.split('/').last;
+      final IconData fileIcon = _getFileIcon(fileName);
+
+      // Always treat uploads as image files
+      final bool isImage = true;
+
+      // Get the full URL using our helper method
+      final String fullAttachmentUrl =
+          _getAttachmentUrl(attachment, applicationId);
+
+      print('[_buildAttachmentItems] URL for $attachment: $fullAttachmentUrl');
+
+      return InkWell(
+        onTap: () => _showMediaFullScreen(context, fullAttachmentUrl),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // File info header
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(fileIcon, color: AppTheme.textSecondary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tài liệu #$fileName',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "$fileSize • $date",
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.open_in_full,
+                        size: 18, color: Colors.grey.shade600),
+                  ],
+                ),
+              ),
+
+              // Luôn hiển thị ảnh cho tất cả tài liệu từ API
+              if (isImage) ...[
+                const Divider(height: 1),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                    child: DirectImageView(
+                      imageUrl: fullAttachmentUrl,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  // Hiển thị ảnh toàn màn hình khi nhấn vào
+  void _showMediaFullScreen(BuildContext context, String url) async {
+    // Log the URL we're trying to display
+    print('[_showMediaFullScreen] Showing image: $url');
+
+    // Lấy token trước khi hiển thị
+    final token = await _getAuthToken();
+    print(
+        '[_showMediaFullScreen] Auth token retrieved: ${token != null ? 'Yes' : 'No'}');
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text(
+              'Xem tài liệu',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          backgroundColor: Colors.black,
+          body: Center(
+            // Use our improved DirectImageView instead of Image.network directly
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: DirectImageView(imageUrl: url),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusIndicator(ApplicationStatus status) {
-    late Color color;
-    late String label;
-    late Color backgroundColor;
+    late Color bgColor;
     late Color textColor;
+    late String label;
 
     switch (status) {
       case ApplicationStatus.draft:
-        backgroundColor = Colors.grey.shade200;
-        color = AppTheme.statusDraft;
-        textColor = Colors.black87;
+        bgColor = Colors.grey.shade100;
+        textColor = Colors.grey.shade700;
         label = 'Bản nháp';
         break;
       case ApplicationStatus.submitted:
-        backgroundColor = Colors.white;
-        color = AppTheme.statusSubmitted;
-        textColor = AppTheme.statusSubmitted;
+        bgColor = Colors.blue.shade50;
+        textColor = Colors.blue.shade700;
         label = 'Đã nộp';
         break;
       case ApplicationStatus.inReview:
-        backgroundColor = Colors.orange.shade50;
-        color = AppTheme.statusInReview;
-        textColor = Colors.orange;
+        bgColor = Colors.orange.shade50;
+        textColor = Colors.orange.shade700;
         label = 'Đang xử lý';
         break;
       case ApplicationStatus.approved:
       case ApplicationStatus.completed:
-        backgroundColor = Colors.green.shade50;
-        color = AppTheme.statusApproved;
-        textColor = Colors.green;
+        bgColor = Colors.green.shade50;
+        textColor = Colors.green.shade700;
         label = 'Hoàn thành';
         break;
       case ApplicationStatus.rejected:
-        backgroundColor = Colors.red.shade50;
-        color = AppTheme.statusRejected;
-        textColor = Colors.red;
+        bgColor = Colors.red.shade50;
+        textColor = Colors.red.shade700;
         label = 'Từ chối';
         break;
     }
@@ -379,15 +849,14 @@ class ApplicationDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.5)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: textColor,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w600,
           fontSize: 14,
         ),
       ),
@@ -427,6 +896,11 @@ class ApplicationDetailsScreen extends StatelessWidget {
   Widget _buildAttachmentsList(BuildContext context, List<String> attachments) {
     return Column(
       children: attachments.map((attachment) {
+        final String fileName = attachment.split('/').last.isEmpty
+            ? "File"
+            : attachment.split('/').last;
+        final IconData fileIcon = _getFileIcon(fileName);
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
@@ -436,9 +910,9 @@ class ApplicationDetailsScreen extends StatelessWidget {
           child: ListTile(
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: const Icon(Icons.attach_file),
+            leading: Icon(fileIcon, color: AppTheme.textSecondary),
             title: Text(
-              attachment,
+              fileName,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppTheme.textPrimary,
@@ -448,7 +922,7 @@ class ApplicationDetailsScreen extends StatelessWidget {
               // Implement file open/download
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Đang tải xuống: $attachment'),
+                  content: Text('Đang tải xuống: $fileName'),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -457,103 +931,6 @@ class ApplicationDetailsScreen extends StatelessWidget {
         );
       }).toList(),
     );
-  }
-
-  // Attachments with image preview for bottom sheet
-  List<Widget> _buildAttachmentsWithPreview(
-      BuildContext context, List<String> attachments) {
-    return attachments.map((attachment) {
-      final bool isImage = attachment.toLowerCase().endsWith('.jpg') ||
-          attachment.toLowerCase().endsWith('.jpeg') ||
-          attachment.toLowerCase().endsWith('.png') ||
-          attachment.toLowerCase().endsWith('.gif');
-
-      return Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // File info row
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Icon(
-                    isImage ? Icons.image : Icons.attach_file,
-                    color: AppTheme.textSecondary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      attachment,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Show image preview if it's an image file
-            if (isImage) ...[
-              const Divider(height: 1),
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(8),
-                  bottomRight: Radius.circular(8),
-                ),
-                child: Container(
-                  constraints: const BoxConstraints(
-                    maxHeight: 200,
-                  ),
-                  width: double.infinity,
-                  child: Image.network(
-                    attachment,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 100,
-                        color: Colors.grey.shade100,
-                        child: const Center(
-                          child: Text('Không thể tải ảnh'),
-                        ),
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 100,
-                        color: Colors.grey.shade50,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }).toList();
   }
 
   void _showRejectConfirmation(BuildContext context) {
@@ -586,12 +963,17 @@ class ApplicationDetailsScreen extends StatelessWidget {
   String _formatDate(DateTime date) {
     return DateFormat('dd/MM/yyyy').format(date);
   }
+
+  // Format date with time
+  String _formatDateTime(DateTime date) {
+    return DateFormat('dd/MM/yyyy HH:mm').format(date);
+  }
 }
 
 // Helper function to show application details in bottom sheet
 Future<void> showApplicationDetailsSheet(
     BuildContext context, Application application) async {
-  // When user taps on an application, load the details
+  // Always call the LoadApplicationEvent when showing the details sheet
   context.read<ApplicationBloc>().add(LoadApplicationEvent(id: application.id));
 
   // Use a simpler initial view to avoid freezes
@@ -604,7 +986,7 @@ Future<void> showApplicationDetailsSheet(
     ),
     elevation: 10,
     builder: (context) => DraggableScrollableSheet(
-      initialChildSize: 0.6,
+      initialChildSize: 0.7,
       maxChildSize: 0.9,
       minChildSize: 0.4,
       expand: false,
@@ -618,4 +1000,169 @@ Future<void> showApplicationDetailsSheet(
       },
     ),
   );
+}
+
+// Thêm một widget mới để hiển thị ảnh trực tiếp với token và retry mechanism
+class DirectImageView extends StatefulWidget {
+  final String imageUrl;
+
+  const DirectImageView({
+    Key? key,
+    required this.imageUrl,
+  }) : super(key: key);
+
+  @override
+  DirectImageViewState createState() => DirectImageViewState();
+}
+
+class DirectImageViewState extends State<DirectImageView> {
+  String? _authToken;
+  bool _isLoading = true;
+  bool _hasError = false;
+  int _loadAttempt = 0;
+  static const int _maxRetries = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _getAuthToken();
+    print('[DirectImageView] Loading image: ${widget.imageUrl}');
+  }
+
+  Future<void> _getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.tokenKey);
+      if (mounted) {
+        setState(() {
+          _authToken = token;
+        });
+        print(
+            '[DirectImageView] Auth token retrieved: ${token != null ? 'Yes' : 'No'}');
+      }
+    } catch (e) {
+      print('[DirectImageView] Error getting auth token: $e');
+    }
+  }
+
+  // Tạo URL cho media dựa vào số lần thử, tương tự web application
+  String _getImageUrlWithRetry() {
+    final url = widget.imageUrl;
+
+    // Phân tích URL
+    final isUploadPath = url.contains('/uploads/');
+    final isMediaServe = url.contains('/api/media-files/serve/');
+
+    // Strategy 1: Dùng URL gốc (1st attempt)
+    if (_loadAttempt == 0) {
+      return url;
+    }
+
+    // Strategy 2: Thêm timestamp để bypass cache (2nd attempt)
+    if (_loadAttempt == 1) {
+      return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
+    }
+
+    // Strategy 3: Nếu là URL uploads, thử chuyển sang dùng media-files/serve API
+    if (_loadAttempt == 2 && isUploadPath) {
+      // Extract filename or ID from path
+      final mediaId = url.split('/').last.split('-').first;
+      if (mediaId.isNotEmpty) {
+        final baseUrl = url.split('/uploads/').first;
+        return '$baseUrl/api/media-files/serve/$mediaId';
+      }
+    }
+
+    // Strategy 4: Nếu là API serve, thử dùng đường dẫn trực tiếp
+    if (_loadAttempt == 3 && isMediaServe) {
+      // Try using a direct path instead
+      final baseUrl = url.split('/api/media-files/serve/').first;
+      final mediaId = url.split('/').last;
+      if (mediaId.isNotEmpty) {
+        return '$baseUrl/uploads/$mediaId.png'; // Thử với extension .png
+      }
+    }
+
+    // Fallback - Dùng URL gốc
+    return url;
+  }
+
+  void _retryLoading() {
+    if (_loadAttempt < _maxRetries) {
+      setState(() {
+        _loadAttempt++;
+        _hasError = false;
+        _isLoading = true;
+      });
+      print(
+          '[DirectImageView] Retrying image load (attempt $_loadAttempt): ${_getImageUrlWithRetry()}');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_authToken == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final imageUrl = _getImageUrlWithRetry();
+    print(
+        '[DirectImageView] Attempting to load image with URL: $imageUrl (attempt: ${_loadAttempt + 1})');
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      headers: {'Authorization': 'Bearer $_authToken'},
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) {
+          _isLoading = false;
+          print(
+              '[DirectImageView] Image loaded successfully at attempt ${_loadAttempt + 1}: $imageUrl');
+          return child;
+        }
+        return Center(
+          child: CircularProgressIndicator(
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!
+                : null,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        print(
+            '[DirectImageView] Error loading image (attempt ${_loadAttempt + 1}): $error');
+        print('[DirectImageView] Failed URL: $imageUrl');
+        _hasError = true;
+
+        if (_loadAttempt < _maxRetries) {
+          // Auto retry with a slight delay for UI feedback
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) _retryLoading();
+          });
+        }
+
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.broken_image),
+              const SizedBox(height: 8),
+              const Text('Không thể tải ảnh'),
+              const SizedBox(height: 4),
+              Text('Đang thử cách khác... (${_loadAttempt + 1}/$_maxRetries)',
+                  style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              if (_loadAttempt >= _maxRetries) ...[
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: _retryLoading,
+                  child: const Text('Thử lại'),
+                ),
+              ]
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

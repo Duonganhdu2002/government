@@ -34,6 +34,19 @@ class ApiConstants {
   // Application endpoints
   static const String applicationsEndpoint = '/api/applications';
 
+  // Media endpoints
+  static const String mediaFilesServeEndpoint = '/api/media-files/serve';
+  static const String mediaFilesByApplicationEndpoint =
+      '/api/media-files/by-application';
+
+  // Get full media URL by ID
+  static String getMediaUrl(String mediaId) =>
+      '$baseUrl$mediaFilesServeEndpoint/$mediaId';
+
+  // Get full application media URL
+  static String getApplicationMediaUrl(String applicationId, String fileName) =>
+      '$baseUrl$mediaFilesByApplicationEndpoint/$applicationId/$fileName';
+
   // Timeout durations in milliseconds
   static const int connectTimeout = 30000; // Tăng timeout để debug
   static const int receiveTimeout = 30000;

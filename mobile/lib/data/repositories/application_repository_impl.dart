@@ -94,8 +94,60 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       );
 
       if (response.statusCode == 200) {
+        print(
+            '[ApplicationRepositoryImpl] getApplicationById response: ${response.data}');
+
         final Application application =
             ApplicationModel.fromServerJson(response.data);
+
+        // Kiểm tra nếu có tài liệu đính kèm nhưng chưa có chi tiết
+        if (application.attachments.length == 1 &&
+            application.attachments[0] == 'Có tài liệu đính kèm') {
+          // Gọi API để lấy danh sách media files
+          try {
+            final mediaResponse = await dio.get(
+              '${ApiConstants.baseUrl}/api/media-files/by-application/$id',
+            );
+
+            if (mediaResponse.statusCode == 200 && mediaResponse.data is List) {
+              List<dynamic> mediaList = mediaResponse.data;
+              List<String> actualAttachments = [];
+
+              // Kiểm tra nếu có media files
+              if (mediaList.isNotEmpty) {
+                print(
+                    '[ApplicationRepositoryImpl] Found ${mediaList.length} media files for application $id');
+                // In chi tiết cấu trúc dữ liệu của item đầu tiên để debug
+                print(
+                    '[ApplicationRepositoryImpl] First media file details: ${mediaList.first}');
+
+                // Thêm mediafileid làm attachments
+                for (var media in mediaList) {
+                  if (media['mediafileid'] != null) {
+                    actualAttachments.add(media['mediafileid'].toString());
+                    print(
+                        '[ApplicationRepositoryImpl] Added mediafileid: ${media['mediafileid']}');
+                  }
+                }
+
+                // Tạo bản sao của application với danh sách attachments mới
+                final updatedApplication =
+                    (application as ApplicationModel).copyWith(
+                  attachments: actualAttachments.isNotEmpty
+                      ? actualAttachments
+                      : application.attachments,
+                );
+
+                return Right(updatedApplication);
+              }
+            }
+          } catch (mediaError) {
+            print(
+                '[ApplicationRepositoryImpl] Error fetching media files: $mediaError');
+            // Tiếp tục với application ban đầu nếu không lấy được media files
+          }
+        }
+
         return Right(application);
       } else {
         return Left(ServerFailure(

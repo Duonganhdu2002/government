@@ -1,0 +1,181 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../domain/entities/application_type.dart';
+import '../../domain/entities/special_application_type.dart';
+import '../blocs/application_type/application_type_bloc.dart';
+import '../widgets/loading_indicator.dart';
+import '../widgets/special_application_types_list.dart';
+
+class ApplicationTypeDetailScreen extends StatefulWidget {
+  final ApplicationType applicationType;
+
+  const ApplicationTypeDetailScreen({
+    Key? key,
+    required this.applicationType,
+  }) : super(key: key);
+
+  @override
+  State<ApplicationTypeDetailScreen> createState() =>
+      _ApplicationTypeDetailScreenState();
+}
+
+class _ApplicationTypeDetailScreenState
+    extends State<ApplicationTypeDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load special application types for this application type
+    Future.microtask(() {
+      context.read<ApplicationTypeBloc>().add(
+            LoadSpecialApplicationTypesEvent(
+              applicationTypeId: widget.applicationType.id,
+            ),
+          );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.applicationType.name),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Application type details card
+              Card(
+                elevation: 3,
+                margin: const EdgeInsets.only(bottom: 16.0),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.applicationType.name,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8.0),
+                      Text(
+                        widget.applicationType.description,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12.0),
+                      _buildProcessingTimeInfo(widget.applicationType),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Section for special application types
+              Text(
+                'Các loại hồ sơ đặc biệt',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8.0),
+
+              SpecialApplicationTypesList(
+                applicationTypeId: widget.applicationType.id,
+                applicationTypeName: widget.applicationType.name,
+                onSelected: _onSpecialTypeSelected,
+              ),
+
+              const SizedBox(height: 24.0),
+
+              // Start application button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      _startApplication(widget.applicationType, null),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12.0),
+                    child: Text('Bắt đầu hồ sơ này'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProcessingTimeInfo(ApplicationType type) {
+    final theme = Theme.of(context);
+    final hasRange = type.processingTimeRange != null;
+
+    if (!hasRange) {
+      return Row(
+        children: [
+          const Icon(Icons.timer_outlined, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            'Thời gian xử lý: ${type.processingTimeLimit} ngày',
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      );
+    }
+
+    final range = type.processingTimeRange!;
+    final isSameTime = range.min == range.max;
+
+    if (isSameTime) {
+      return Row(
+        children: [
+          const Icon(Icons.timer_outlined, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            'Thời gian xử lý: ${range.min} ngày',
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        const Icon(Icons.timer_outlined, size: 18),
+        const SizedBox(width: 4),
+        Text(
+          'Thời gian xử lý: ${range.min} - ${range.max} ngày',
+          style: theme.textTheme.bodyMedium,
+        ),
+      ],
+    );
+  }
+
+  void _onSpecialTypeSelected(SpecialApplicationType specialType) {
+    // Select the special application type in the bloc
+    context.read<ApplicationTypeBloc>().add(
+          SelectSpecialApplicationTypeEvent(
+              specialApplicationType: specialType),
+        );
+
+    // Start application with the selected special type
+    _startApplication(widget.applicationType, specialType);
+  }
+
+  void _startApplication(
+      ApplicationType type, SpecialApplicationType? specialType) {
+    // TODO: Navigate to application creation screen with selected type
+    // This would be implemented in a real app
+
+    final message = specialType != null
+        ? 'Bắt đầu hồ sơ ${specialType.name}'
+        : 'Bắt đầu hồ sơ ${type.name}';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+}

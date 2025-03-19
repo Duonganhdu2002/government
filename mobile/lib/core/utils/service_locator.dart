@@ -8,9 +8,11 @@ import '../../data/datasources/user_local_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../data/repositories/application_repository_impl.dart';
+import '../../data/repositories/application_type_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/application_repository.dart';
+import '../../domain/repositories/application_type_repository.dart';
 import '../../domain/usecases/auth/login_usecase.dart';
 import '../../domain/usecases/auth/register_usecase.dart';
 import '../../domain/usecases/auth/logout_usecase.dart';
@@ -25,6 +27,10 @@ import '../../domain/usecases/application/create_application_usecase.dart';
 import '../../domain/usecases/application/update_application_usecase.dart';
 import '../../domain/usecases/application/submit_application_usecase.dart';
 import '../../domain/usecases/application/delete_application_usecase.dart';
+import '../../domain/usecases/application_type/get_application_types_usecase.dart';
+import '../../domain/usecases/application_type/get_application_type_by_id_usecase.dart';
+import '../../domain/usecases/application_type/get_special_application_types_usecase.dart';
+import '../../presentation/blocs/application_type/application_type_bloc.dart';
 import '../utils/dio_utils.dart';
 
 final sl = GetIt.instance;
@@ -69,6 +75,11 @@ Future<void> initServiceLocator() async {
       dio: sl(),
     ),
   );
+  sl.registerLazySingleton<ApplicationTypeRepository>(
+    () => ApplicationTypeRepositoryImpl(
+      dio: sl(),
+    ),
+  );
 
   // Use cases
   // Auth use cases
@@ -90,4 +101,16 @@ Future<void> initServiceLocator() async {
   sl.registerLazySingleton(() => UpdateApplicationUseCase(sl()));
   sl.registerLazySingleton(() => SubmitApplicationUseCase(sl()));
   sl.registerLazySingleton(() => DeleteApplicationUseCase(sl()));
+
+  // Application type use cases
+  sl.registerLazySingleton(() => GetApplicationTypesUseCase(sl()));
+  sl.registerLazySingleton(() => GetApplicationTypeByIdUseCase(sl()));
+  sl.registerLazySingleton(() => GetSpecialApplicationTypesUseCase(sl()));
+
+  // BLoCs
+  sl.registerFactory(() => ApplicationTypeBloc(
+        getApplicationTypesUseCase: sl(),
+        getApplicationTypeByIdUseCase: sl(),
+        getSpecialApplicationTypesUseCase: sl(),
+      ));
 }

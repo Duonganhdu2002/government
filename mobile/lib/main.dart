@@ -10,6 +10,7 @@ import 'core/utils/service_locator.dart' as di;
 import 'presentation/blocs/auth/auth_bloc.dart';
 import 'presentation/blocs/user/user_bloc.dart';
 import 'presentation/blocs/application/application_bloc.dart';
+import 'presentation/blocs/application_type/application_type_bloc.dart';
 
 void main() async {
   // Bắt tất cả lỗi không xử lý được để tránh crash app
@@ -68,6 +69,9 @@ class MyApp extends StatelessWidget {
             deleteApplicationUseCase: di.sl(),
             getCurrentUserApplicationsUseCase: di.sl(),
           ),
+        ),
+        BlocProvider<ApplicationTypeBloc>(
+          create: (context) => di.sl<ApplicationTypeBloc>(),
         ),
       ],
       child: MaterialApp.router(

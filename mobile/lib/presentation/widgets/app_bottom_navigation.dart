@@ -48,7 +48,7 @@ class AppBottomNavigation extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
-            label: 'Hồ sơ',
+            label: 'Danh mục hồ sơ',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history_outlined),
