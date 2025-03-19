@@ -92,7 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.medusaBlack),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -138,14 +138,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.medusaBlack,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Cập nhật thông tin cá nhân của bạn',
                     style: TextStyle(
-                      color: AppTheme.medusaGray,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -198,7 +198,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _updateProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.medusaBlack,
+                        backgroundColor: AppTheme.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -243,7 +243,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: AppTheme.medusaDarkGray,
+            color: AppTheme.secondaryColor,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -253,7 +253,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppTheme.medusaLightGray,
+            fillColor: Colors.grey.shade200,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
@@ -263,7 +263,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               vertical: 12,
             ),
           ),
-          style: const TextStyle(color: AppTheme.medusaBlack),
+          style: const TextStyle(color: AppTheme.primaryColor),
           validator: validator,
         ),
       ],

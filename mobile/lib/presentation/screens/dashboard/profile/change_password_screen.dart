@@ -71,7 +71,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.medusaBlack),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -116,14 +116,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.medusaBlack,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Nhập mật khẩu hiện tại và mật khẩu mới của bạn',
                     style: TextStyle(
-                      color: AppTheme.medusaGray,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -183,7 +183,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _changePassword,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.medusaBlack,
+                        backgroundColor: AppTheme.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -229,7 +229,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: AppTheme.medusaDarkGray,
+            color: AppTheme.secondaryColor,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -239,7 +239,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           obscureText: obscureText,
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppTheme.medusaLightGray,
+            fillColor: Colors.grey.shade200,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
@@ -251,12 +251,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             suffixIcon: IconButton(
               icon: Icon(
                 obscureText ? Icons.visibility_off : Icons.visibility,
-                color: AppTheme.medusaGray,
+                color: AppTheme.textSecondary,
               ),
               onPressed: onToggleVisibility,
             ),
           ),
-          style: const TextStyle(color: AppTheme.medusaBlack),
+          style: const TextStyle(color: AppTheme.primaryColor),
           validator: validator,
         ),
       ],

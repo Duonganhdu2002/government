@@ -18,14 +18,14 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.medusaWhite,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.medusaWhite,
+        backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         title: const Text(
           'Thông tin cá nhân',
           style: TextStyle(
-            color: AppTheme.medusaBlack,
+            color: AppTheme.primaryColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -46,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.all(50.0),
                         child: CircularProgressIndicator(
-                          color: AppTheme.medusaBlack,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                     );
@@ -71,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
                                     .add(const CheckAuthStatusEvent());
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.medusaBlack,
+                                backgroundColor: AppTheme.primaryColor,
                               ),
                               child: const Text('Thử lại'),
                             ),
@@ -92,7 +92,7 @@ class ProfileScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.medusaWhite,
+                  color: AppTheme.backgroundColor,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -108,7 +108,7 @@ class ProfileScreen extends StatelessWidget {
                     Text(
                       'Cài đặt tài khoản',
                       style: TextStyle(
-                        color: AppTheme.medusaBlack,
+                        color: AppTheme.primaryColor,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -131,7 +131,7 @@ class ProfileScreen extends StatelessWidget {
                         }
                       },
                     ),
-                    const Divider(color: AppTheme.medusaLightGray),
+                    const Divider(color: AppTheme.textLight),
                     _buildSettingsItem(
                       context,
                       icon: Icons.lock_outline,
@@ -155,7 +155,7 @@ class ProfileScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.medusaWhite,
+                  color: AppTheme.backgroundColor,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -171,7 +171,7 @@ class ProfileScreen extends StatelessWidget {
                     Text(
                       'Hỗ trợ',
                       style: TextStyle(
-                        color: AppTheme.medusaBlack,
+                        color: AppTheme.primaryColor,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -190,7 +190,7 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.medusaLightGray),
+                    const Divider(color: AppTheme.textLight),
                     _buildSettingsItem(
                       context,
                       icon: Icons.support_agent_outlined,
@@ -204,7 +204,7 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.medusaLightGray),
+                    const Divider(color: AppTheme.textLight),
                     _buildSettingsItem(
                       context,
                       icon: Icons.privacy_tip_outlined,
@@ -237,20 +237,20 @@ class ProfileScreen extends StatelessWidget {
                         title: const Text(
                           'Đăng xuất',
                           style: TextStyle(
-                            color: AppTheme.medusaBlack,
+                            color: AppTheme.primaryColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         content: const Text(
                           'Bạn có chắc chắn muốn đăng xuất không?',
-                          style: TextStyle(color: AppTheme.medusaDarkGray),
+                          style: TextStyle(color: AppTheme.secondaryColor),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
                             child: const Text(
                               'Hủy',
-                              style: TextStyle(color: AppTheme.medusaGray),
+                              style: TextStyle(color: AppTheme.textSecondary),
                             ),
                           ),
                           ElevatedButton(
@@ -260,7 +260,7 @@ class ProfileScreen extends StatelessWidget {
                               context.go(AppConstants.loginRoute);
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.medusaBlack,
+                              backgroundColor: AppTheme.primaryColor,
                             ),
                             child: const Text('Đăng xuất'),
                           ),
@@ -269,7 +269,7 @@ class ProfileScreen extends StatelessWidget {
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.medusaBlack,
+                    backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -293,105 +293,148 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileCard(BuildContext context, User user) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24.0),
-      decoration: BoxDecoration(
-        gradient: AppTheme.medusaGradient,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Profile Avatar
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppTheme.medusaLightGray,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _getInitials(user.fullName ?? 'User'),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.medusaBlack,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Full Name
-          Text(
-            user.fullName ?? 'Người dùng',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          // Username
-          Text(
-            '@${user.username}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Email
-          Text(
-            user.email ?? 'Chưa có email',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
-            ),
-          ),
-          // Phone Number
-          if (user.phoneNumber != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              user.phoneNumber!,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          // Personal Information
+          // Header with avatar and name
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            color: AppTheme.primaryColor,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
-                  'Thông tin chi tiết',
-                  style: TextStyle(
-                    fontSize: 16,
+                // Profile Avatar
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      _getInitials(user.fullName ?? 'User'),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Full Name
+                Text(
+                  user.fullName ?? 'Người dùng',
+                  style: const TextStyle(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
+                // Username
+                Text(
+                  '@${user.username}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Basic contact information
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Email row
+                Row(
+                  children: [
+                    const Icon(Icons.email,
+                        size: 20, color: AppTheme.primaryColor),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        user.email ?? 'Chưa có email',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Phone row
+                Row(
+                  children: [
+                    const Icon(Icons.phone,
+                        size: 20, color: AppTheme.primaryColor),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        user.phoneNumber ?? 'Chưa có số điện thoại',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Address row
+                Row(
+                  children: [
+                    const Icon(Icons.home,
+                        size: 20, color: AppTheme.primaryColor),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        user.address ?? 'Chưa có địa chỉ',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Personal Information
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            color: Colors.grey.shade50,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Thông tin chi tiết',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
                 _buildInfoRow('Loại tài khoản', 'Công dân'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Họ tên', user.fullName ?? 'Chưa cung cấp'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Email', user.email ?? 'Chưa cung cấp'),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                    'Số điện thoại', user.phoneNumber ?? 'Chưa cung cấp'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Địa chỉ', user.address ?? 'Chưa cung cấp'),
                 const SizedBox(height: 8),
                 _buildInfoRow('Số CCCD/CMND',
                     user.identificationNumber ?? 'Chưa cung cấp'),
@@ -415,7 +458,8 @@ class ProfileScreen extends StatelessWidget {
             label,
             style: const TextStyle(
               fontSize: 14,
-              color: Colors.white70,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -425,7 +469,7 @@ class ProfileScreen extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: AppTheme.primaryColor,
             ),
           ),
         ),
@@ -447,7 +491,7 @@ class ProfileScreen extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: AppTheme.medusaBlack,
+              color: AppTheme.primaryColor,
               size: 22,
             ),
             const SizedBox(width: 16),
@@ -455,13 +499,13 @@ class ProfileScreen extends StatelessWidget {
               title,
               style: const TextStyle(
                 fontSize: 16,
-                color: AppTheme.medusaDarkGray,
+                color: AppTheme.secondaryColor,
               ),
             ),
             const Spacer(),
             const Icon(
               Icons.arrow_forward_ios,
-              color: AppTheme.medusaGray,
+              color: AppTheme.textSecondary,
               size: 16,
             ),
           ],

@@ -92,13 +92,17 @@ class _HistoryScreenState extends State<HistoryScreen>
 
     // Use less frequent rebuilds
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Lịch sử hồ sơ đã nộp'),
+        backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _checkTokenAndLoadData,
+            tooltip: 'Làm mới',
           ),
         ],
       ),
@@ -181,18 +185,44 @@ class _LoadingView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 50,
-            height: 50,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-              strokeWidth: 3,
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 30,
+                height: 30,
+                child: CircularProgressIndicator(
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                  strokeWidth: 3,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(
             'Đang tải dữ liệu...',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Vui lòng đợi trong giây lát',
+            style: TextStyle(
+              color: AppTheme.textLight,
+              fontSize: 14,
+            ),
           ),
         ],
       ),
@@ -219,27 +249,60 @@ class _ErrorView extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, color: AppTheme.textSecondary, size: 48),
-            const SizedBox(height: 16),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.error_outline,
+                color: AppTheme.textSecondary,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Đã xảy ra lỗi',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
             Text(
               error,
               style: TextStyle(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Thử lại'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: onRetry,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Thử lại'),
+              ),
             ),
             if (isTokenError) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: onLogout,
-                child: const Text('Đăng nhập lại'),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 200,
+                child: TextButton(
+                  onPressed: onLogout,
+                  child: const Text('Đăng nhập lại'),
+                ),
               ),
             ],
           ],
@@ -258,26 +321,52 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.description_outlined,
-            size: 64,
-            color: Colors.grey,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Bạn chưa nộp đơn nào',
-            style: TextStyle(fontSize: 18),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.description_outlined,
+              size: 40,
+              color: AppTheme.textLight,
+            ),
           ),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              // Navigate to applications screen
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+          Text(
+            'Chưa có đơn nào',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Bạn chưa nộp đơn nào trong hệ thống',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 16,
             ),
-            child: const Text('Tạo đơn mới'),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: 200,
+            child: ElevatedButton(
+              onPressed: () {
+                // Navigate to applications screen
+                context.go(AppConstants.applicationsRoute);
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text('Tạo đơn mới'),
+            ),
           ),
         ],
       ),
@@ -299,24 +388,32 @@ class _ApplicationListView extends StatelessWidget {
       onRefresh: () async {
         context.read<ApplicationBloc>().add(LoadCurrentUserApplicationsEvent());
       },
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        // Set an itemExtent to help ListView be more efficient
-        itemExtent: 220, // Approximate height of each card
-        itemCount: applications.length,
-        itemBuilder: (context, index) {
-          final application = applications[index];
-          // Only log first few items to avoid excessive logging
-          if (index < 2) {
-            print(
-                '[ApplicationListView] Building item $index: ${application.title}');
-          }
-          return _ApplicationCard(
-            key: ValueKey('app_${application.id}'),
-            application: application,
-          );
-        },
-      ),
+      color: AppTheme.primaryColor,
+      backgroundColor: Colors.white,
+      displacement: 40,
+      child: applications.isEmpty
+          ? const _EmptyView()
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              // Set an itemExtent to help ListView be more efficient
+              itemExtent: 200, // Adjusted height after removing button
+              itemCount: applications.length,
+              itemBuilder: (context, index) {
+                final application = applications[index];
+                // Only log first few items to avoid excessive logging
+                if (index < 2) {
+                  print(
+                      '[ApplicationListView] Building item $index: ${application.title}');
+                }
+                return _ApplicationCard(
+                  key: ValueKey('app_${application.id}'),
+                  application: application,
+                );
+              },
+            ),
     );
   }
 }
@@ -330,12 +427,16 @@ class _ApplicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300, width: 0.5),
+      ),
       clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppTheme.subtleGradient,
+          color: Colors.white,
         ),
         child: Material(
           color: Colors.transparent,
@@ -345,14 +446,18 @@ class _ApplicationCard extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Header row with ID and status
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          'Mã đơn: ${application.referenceNumber ?? 'N/A'}',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          'Mã đơn: ${application.referenceNumber ?? application.id.toString()}',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -361,8 +466,7 @@ class _ApplicationCard extends StatelessWidget {
                       _buildStatusBadge(application.status),
                     ],
                   ),
-                  const Divider(),
-                  const SizedBox(height: 8),
+                  const Divider(height: 24),
                   // Title
                   Text(
                     application.title,
@@ -370,7 +474,7 @@ class _ApplicationCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   // Description
                   Text(
                     'Mô tả: ${application.description}',
@@ -378,28 +482,24 @@ class _ApplicationCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   // Date
-                  Text(
-                    'Ngày nộp: ${_formatDate(application.submittedAt ?? application.createdAt)}',
-                    style: TextStyle(
-                      color: AppTheme.textLight,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Button row
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () =>
-                          _showApplicationDetails(context, application),
-                      icon: const Text('Xem chi tiết'),
-                      label: const Icon(Icons.arrow_forward, size: 16),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.primaryColor,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 16,
+                        color: AppTheme.textLight,
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Ngày nộp: ${_formatDate(application.submittedAt ?? application.createdAt)}',
+                        style: TextStyle(
+                          color: AppTheme.textLight,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -444,6 +544,13 @@ class _ApplicationCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Text(
         label,
@@ -475,10 +582,11 @@ Future<void> _showApplicationDetails(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
+    elevation: 10,
     builder: (context) => DraggableScrollableSheet(
       initialChildSize: 0.6,
       maxChildSize: 0.9,
-      minChildSize: 0.5,
+      minChildSize: 0.4,
       expand: false,
       builder: (_, controller) {
         return BlocBuilder<ApplicationBloc, ApplicationState>(
@@ -550,80 +658,117 @@ Widget _buildApplicationDetailsContent(
     BuildContext context, ScrollController controller, Application app) {
   return Container(
     decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.white,
-          const Color(0xFFF9F9F9),
-        ],
-      ),
+      color: Colors.white,
     ),
-    child: ListView(
-      controller: controller,
-      padding: const EdgeInsets.all(20),
+    child: Stack(
       children: [
-        Center(
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE0E0E0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Chi tiết đơn',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Application status badge
-        Center(
-          child: _buildStatusIndicator(app.status),
-        ),
-        const SizedBox(height: 24),
-
-        // Application details
-        _buildDetailItem(context, 'Mã đơn', app.referenceNumber ?? 'N/A'),
-        _buildDetailItem(context, 'Tiêu đề', app.title),
-        _buildDetailItem(context, 'Mô tả', app.description),
-        _buildDetailItem(
-            context, 'Ngày nộp', _formatDate(app.submittedAt ?? app.createdAt)),
-
-        // Display attachments if available
-        if (app.attachments.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text(
-            'Tài liệu đính kèm',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          ...app.attachments
-              .map(
-                (attachment) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading:
-                      Icon(Icons.attach_file, color: AppTheme.textSecondary),
-                  title: Text(
-                    attachment,
-                    style: Theme.of(context).textTheme.bodyMedium,
+        ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+          children: [
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0E0E0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-              )
-              .toList(),
-        ],
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chi tiết đơn',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
-        const SizedBox(height: 36),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Đóng'),
+            // Application status badge
+            Center(
+              child: _buildStatusIndicator(app.status),
+            ),
+            const SizedBox(height: 24),
+
+            // Application details
+            _buildDetailItem(
+                context, 'Mã đơn', app.referenceNumber ?? app.id.toString()),
+            _buildDetailItem(context, 'Tiêu đề', app.title),
+            _buildDetailItem(context, 'Mô tả', app.description),
+            _buildDetailItem(context, 'Ngày nộp',
+                _formatDate(app.submittedAt ?? app.createdAt)),
+
+            // Display attachments if available
+            if (app.attachments.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Tài liệu đính kèm',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              ...app.attachments
+                  .map(
+                    (attachment) => Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.attach_file,
+                              color: AppTheme.textSecondary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              attachment,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ],
+          ],
+        ),
+
+        // Fixed button at bottom
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 5,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Đóng'),
+              ),
+            ),
+          ),
         ),
       ],
     ),
