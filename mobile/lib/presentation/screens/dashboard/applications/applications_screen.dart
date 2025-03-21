@@ -25,7 +25,29 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<ApplicationTypeBloc>().add(const LoadApplicationTypesEvent());
+
+    // Check if there's already a loaded state before triggering new events
+    final applicationTypeState = context.read<ApplicationTypeBloc>().state;
+
+    if (applicationTypeState is! ApplicationTypesLoadedState) {
+      // Only load application types if they aren't already loaded
+      context
+          .read<ApplicationTypeBloc>()
+          .add(const LoadApplicationTypesEvent());
+
+      // Wait for application types to load, then load all special types
+      Future.delayed(const Duration(milliseconds: 500), () {
+        context
+            .read<ApplicationTypeBloc>()
+            .add(const LoadAllSpecialApplicationTypesEvent());
+      });
+    } else if (applicationTypeState is ApplicationTypesLoadedState &&
+        !applicationTypeState.allSpecialTypesLoaded) {
+      // If app types are loaded but special types aren't, only load special types
+      context
+          .read<ApplicationTypeBloc>()
+          .add(const LoadAllSpecialApplicationTypesEvent());
+    }
   }
 
   @override
@@ -53,6 +75,49 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                       child: LoadingIndicator(),
                     );
                   } else if (state is ApplicationTypesLoadedState) {
+                    // Show a small loading indicator for special types if needed
+                    if (!state.allSpecialTypesLoaded) {
+                      return Stack(
+                        children: [
+                          _showEmptyState(state)
+                              ? _buildEmptyState()
+                              : _buildApplicationTypesList(state),
+                          Positioned(
+                            bottom: 16,
+                            right: 16,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Đang tải dữ liệu...',
+                                    style: AppStyles.caption
+                                        .copyWith(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
                     if (_showEmptyState(state)) {
                       return _buildEmptyState();
                     }
@@ -203,9 +268,22 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }
 
   void _onApplicationTypeSelected(ApplicationType applicationType) {
+    // Check if special types are already loaded in the bloc state
+    final applicationTypeState = context.read<ApplicationTypeBloc>().state;
+    bool specialTypesAlreadyLoaded = false;
+
+    if (applicationTypeState is ApplicationTypesLoadedState &&
+        applicationTypeState.allSpecialTypesLoaded &&
+        applicationTypeState.specialTypesCache
+            .containsKey(applicationType.id)) {
+      specialTypesAlreadyLoaded = true;
+    }
+
     // Select the application type in the bloc
     context.read<ApplicationTypeBloc>().add(
-          SelectApplicationTypeEvent(applicationType: applicationType),
+          SelectApplicationTypeEvent(
+            applicationType: applicationType,
+          ),
         );
 
     // Navigate to application type details screen
@@ -216,7 +294,21 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           applicationType: applicationType,
         ),
       ),
-    );
+    ).then((_) {
+      // When returning from details screen, make sure we're still in the ApplicationTypesLoadedState
+      // to prevent reloading everything from API
+      if (!(context.read<ApplicationTypeBloc>().state
+          is ApplicationTypesLoadedState)) {
+        // If we've lost our loaded state, recover it from the previous state
+        if (context.read<ApplicationTypeBloc>().state
+            is ApplicationTypeSelectedState) {
+          final selectedState = context.read<ApplicationTypeBloc>().state
+              as ApplicationTypeSelectedState;
+          // Go back to the previous list state
+          context.read<ApplicationTypeBloc>().emit(selectedState.previousState);
+        }
+      }
+    });
   }
 
   Widget _buildEmptyState() {

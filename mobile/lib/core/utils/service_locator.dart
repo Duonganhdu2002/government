@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../network/api_service.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/datasources/user_local_data_source.dart';
+import '../../data/datasources/application_type_local_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../data/repositories/application_repository_impl.dart';
@@ -30,6 +31,7 @@ import '../../domain/usecases/application/delete_application_usecase.dart';
 import '../../domain/usecases/application_type/get_application_types_usecase.dart';
 import '../../domain/usecases/application_type/get_application_type_by_id_usecase.dart';
 import '../../domain/usecases/application_type/get_special_application_types_usecase.dart';
+import '../../domain/usecases/application_type/get_all_special_application_types_usecase.dart';
 import '../../presentation/blocs/application_type/application_type_bloc.dart';
 import '../utils/dio_utils.dart';
 
@@ -56,6 +58,11 @@ Future<void> initServiceLocator() async {
       sharedPreferences: sl(),
     ),
   );
+  sl.registerLazySingleton<ApplicationTypeLocalDataSource>(
+    () => ApplicationTypeLocalDataSourceImpl(
+      sharedPreferences: sl(),
+    ),
+  );
 
   // Repositories
   sl.registerLazySingleton<AuthRepository>(
@@ -78,6 +85,7 @@ Future<void> initServiceLocator() async {
   sl.registerLazySingleton<ApplicationTypeRepository>(
     () => ApplicationTypeRepositoryImpl(
       dio: sl(),
+      localDataSource: sl(),
     ),
   );
 
@@ -106,11 +114,13 @@ Future<void> initServiceLocator() async {
   sl.registerLazySingleton(() => GetApplicationTypesUseCase(sl()));
   sl.registerLazySingleton(() => GetApplicationTypeByIdUseCase(sl()));
   sl.registerLazySingleton(() => GetSpecialApplicationTypesUseCase(sl()));
+  sl.registerLazySingleton(() => GetAllSpecialApplicationTypesUseCase(sl()));
 
   // BLoCs
   sl.registerFactory(() => ApplicationTypeBloc(
         getApplicationTypesUseCase: sl(),
         getApplicationTypeByIdUseCase: sl(),
         getSpecialApplicationTypesUseCase: sl(),
+        getAllSpecialApplicationTypesUseCase: sl(),
       ));
 }

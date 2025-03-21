@@ -9,4 +9,6 @@ abstract class ApplicationTypeRepository {
   Future<Either<Failure, ApplicationType>> getApplicationTypeById(int id);
   Future<Either<Failure, List<SpecialApplicationType>>>
       getSpecialApplicationTypes(int applicationTypeId);
+  Future<Either<Failure, Map<int, List<SpecialApplicationType>>>>
+      getAllSpecialApplicationTypes();
 }

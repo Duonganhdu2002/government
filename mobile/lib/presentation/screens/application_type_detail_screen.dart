@@ -25,14 +25,37 @@ class _ApplicationTypeDetailScreenState
   @override
   void initState() {
     super.initState();
-    // Load special application types for this application type
-    Future.microtask(() {
-      context.read<ApplicationTypeBloc>().add(
-            LoadSpecialApplicationTypesEvent(
-              applicationTypeId: widget.applicationType.id,
-            ),
-          );
-    });
+
+    // Check if special types are already in the bloc's cache
+    final applicationTypeState = context.read<ApplicationTypeBloc>().state;
+
+    // Only load special types if they aren't already loaded
+    bool shouldLoadSpecialTypes = true;
+
+    if (applicationTypeState is ApplicationTypesLoadedState &&
+        applicationTypeState.allSpecialTypesLoaded &&
+        applicationTypeState.specialTypesCache
+            .containsKey(widget.applicationType.id)) {
+      // Special types already in cache, no need to load again
+      shouldLoadSpecialTypes = false;
+    } else if (applicationTypeState is ApplicationTypeSelectedState &&
+        !applicationTypeState.loadingSpecialTypes &&
+        applicationTypeState.specialApplicationTypes.isNotEmpty) {
+      // Already have special types in the selected state
+      shouldLoadSpecialTypes = false;
+    }
+
+    // Only load if needed
+    if (shouldLoadSpecialTypes) {
+      // Load special application types for this application type
+      Future.microtask(() {
+        context.read<ApplicationTypeBloc>().add(
+              LoadSpecialApplicationTypesEvent(
+                applicationTypeId: widget.applicationType.id,
+              ),
+            );
+      });
+    }
   }
 
   @override

@@ -28,6 +28,8 @@ class ApplicationTypesLoadedState extends ApplicationTypeState {
   final Map<ApplicationCategory, List<ApplicationType>> groupedApplicationTypes;
   final ApplicationCategory? selectedCategory;
   final String? searchQuery;
+  final bool allSpecialTypesLoaded;
+  final Map<int, List<SpecialApplicationType>> specialTypesCache;
 
   const ApplicationTypesLoadedState({
     required this.applicationTypes,
@@ -35,6 +37,8 @@ class ApplicationTypesLoadedState extends ApplicationTypeState {
     this.filteredApplicationTypes,
     this.selectedCategory,
     this.searchQuery,
+    this.allSpecialTypesLoaded = false,
+    this.specialTypesCache = const {},
   });
 
   @override
@@ -44,6 +48,8 @@ class ApplicationTypesLoadedState extends ApplicationTypeState {
         groupedApplicationTypes,
         selectedCategory,
         searchQuery,
+        allSpecialTypesLoaded,
+        specialTypesCache,
       ];
 }
 

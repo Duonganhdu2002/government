@@ -7,6 +7,7 @@ import '../../../domain/entities/special_application_type.dart';
 import '../../../domain/usecases/application_type/get_application_types_usecase.dart';
 import '../../../domain/usecases/application_type/get_application_type_by_id_usecase.dart';
 import '../../../domain/usecases/application_type/get_special_application_types_usecase.dart';
+import '../../../domain/usecases/application_type/get_all_special_application_types_usecase.dart';
 
 part 'application_type_event.dart';
 part 'application_type_state.dart';
@@ -16,26 +17,44 @@ class ApplicationTypeBloc
   final GetApplicationTypesUseCase getApplicationTypesUseCase;
   final GetApplicationTypeByIdUseCase getApplicationTypeByIdUseCase;
   final GetSpecialApplicationTypesUseCase getSpecialApplicationTypesUseCase;
+  final GetAllSpecialApplicationTypesUseCase
+      getAllSpecialApplicationTypesUseCase;
+
+  // Cache for special application types
+  final Map<int, List<SpecialApplicationType>> _specialTypesCache = {};
 
   ApplicationTypeBloc({
     required this.getApplicationTypesUseCase,
     required this.getApplicationTypeByIdUseCase,
     required this.getSpecialApplicationTypesUseCase,
+    required this.getAllSpecialApplicationTypesUseCase,
   }) : super(ApplicationTypeInitialState()) {
     on<LoadApplicationTypesEvent>(_onLoadApplicationTypes);
     on<LoadApplicationTypeEvent>(_onLoadApplicationType);
     on<LoadSpecialApplicationTypesEvent>(_onLoadSpecialApplicationTypes);
+    on<LoadAllSpecialApplicationTypesEvent>(_onLoadAllSpecialApplicationTypes);
     on<SearchApplicationTypesEvent>(_onSearchApplicationTypes);
     on<FilterApplicationTypesByCategoryEvent>(
         _onFilterApplicationTypesByCategory);
     on<SelectApplicationTypeEvent>(_onSelectApplicationType);
     on<SelectSpecialApplicationTypeEvent>(_onSelectSpecialApplicationType);
+    on<PreloadAllSpecialApplicationTypesEvent>(
+        _onPreloadAllSpecialApplicationTypes);
   }
 
   Future<void> _onLoadApplicationTypes(
     LoadApplicationTypesEvent event,
     Emitter<ApplicationTypeState> emit,
   ) async {
+    // Skip if we're already in a loaded state with data, to prevent unnecessary API calls
+    if (state is ApplicationTypesLoadedState) {
+      final currentState = state as ApplicationTypesLoadedState;
+      if (currentState.applicationTypes.isNotEmpty) {
+        print('Application types already loaded, skipping API call');
+        return;
+      }
+    }
+
     emit(ApplicationTypesLoadingState());
 
     final result = await getApplicationTypesUseCase(NoParams());
@@ -54,12 +73,85 @@ class ApplicationTypeBloc
           groupedTypes[category]!.add(type);
         }
 
+        // Check if we already have special types cached before emitting state
+        final hasSpecialTypesInCache = _specialTypesCache.isNotEmpty;
+
         emit(ApplicationTypesLoadedState(
           applicationTypes: applicationTypes,
           groupedApplicationTypes: groupedTypes,
+          allSpecialTypesLoaded: hasSpecialTypesInCache,
+          specialTypesCache: _specialTypesCache,
         ));
+
+        // Preload all special application types only if we don't already have them cached
+        if (!hasSpecialTypesInCache) {
+          add(PreloadAllSpecialApplicationTypesEvent(
+              applicationTypes: applicationTypes));
+        }
       },
     );
+  }
+
+  Future<void> _onPreloadAllSpecialApplicationTypes(
+    PreloadAllSpecialApplicationTypesEvent event,
+    Emitter<ApplicationTypeState> emit,
+  ) async {
+    // Load all special types at once using the use case
+    final result = await getAllSpecialApplicationTypesUseCase(NoParams());
+
+    result.fold(
+      (failure) {
+        print(
+            'Failed to preload special application types: ${failure.message}');
+        // Try to load them individually as a fallback
+        _loadSpecialTypesIndividually(event.applicationTypes);
+      },
+      (specialTypesMap) {
+        // Store in cache
+        _specialTypesCache.addAll(specialTypesMap);
+        print(
+            'Preloaded special types for ${specialTypesMap.length} application types');
+
+        // Update state with cached special types if currently in a loaded state
+        if (state is ApplicationTypesLoadedState) {
+          final currentState = state as ApplicationTypesLoadedState;
+          emit(ApplicationTypesLoadedState(
+            applicationTypes: currentState.applicationTypes,
+            groupedApplicationTypes: currentState.groupedApplicationTypes,
+            filteredApplicationTypes: currentState.filteredApplicationTypes,
+            selectedCategory: currentState.selectedCategory,
+            searchQuery: currentState.searchQuery,
+            allSpecialTypesLoaded: true,
+            specialTypesCache: _specialTypesCache,
+          ));
+        }
+      },
+    );
+  }
+
+  Future<void> _loadSpecialTypesIndividually(
+      List<ApplicationType> applicationTypes) async {
+    // Fallback method to load special types individually
+    for (final applicationType in applicationTypes) {
+      final result = await getSpecialApplicationTypesUseCase(
+        GetSpecialApplicationTypesParams(applicationTypeId: applicationType.id),
+      );
+
+      result.fold(
+        (failure) {
+          // On failure, store an empty list in cache
+          _specialTypesCache[applicationType.id] = [];
+          print(
+              'Failed to load special types for ${applicationType.name}: ${failure.message}');
+        },
+        (specialTypes) {
+          // Store in cache
+          _specialTypesCache[applicationType.id] = specialTypes;
+          print(
+              'Loaded ${specialTypes.length} special types for ${applicationType.name}');
+        },
+      );
+    }
   }
 
   Future<void> _onLoadApplicationType(
@@ -75,11 +167,21 @@ class ApplicationTypeBloc
     result.fold(
       (failure) => emit(ApplicationTypeErrorState(message: failure.message)),
       (applicationType) {
-        emit(ApplicationTypeLoadedState(applicationType: applicationType));
+        // Check if we already have special types for this application type
+        final specialTypes = _specialTypesCache[applicationType.id] ?? [];
+        final loadingSpecialTypes = specialTypes.isEmpty;
 
-        // After loading the application type, also load its special types
-        add(LoadSpecialApplicationTypesEvent(
-            applicationTypeId: applicationType.id));
+        emit(ApplicationTypeLoadedState(
+          applicationType: applicationType,
+          specialApplicationTypes: specialTypes,
+          loadingSpecialTypes: loadingSpecialTypes,
+        ));
+
+        // If we don't have special types cached yet, load them
+        if (loadingSpecialTypes) {
+          add(LoadSpecialApplicationTypesEvent(
+              applicationTypeId: applicationType.id));
+        }
       },
     );
   }
@@ -88,6 +190,70 @@ class ApplicationTypeBloc
     LoadSpecialApplicationTypesEvent event,
     Emitter<ApplicationTypeState> emit,
   ) async {
+    // Log for debugging
+    print(
+        'Loading special types for application type ID: ${event.applicationTypeId}');
+
+    // Skip if we have allSpecialTypesLoaded flag set to true in ApplicationTypesLoadedState
+    if (state is ApplicationTypesLoadedState) {
+      final currentState = state as ApplicationTypesLoadedState;
+      if (currentState.allSpecialTypesLoaded &&
+          currentState.specialTypesCache.containsKey(event.applicationTypeId)) {
+        print(
+            'All special types already loaded and cached, using cache for applicationTypeId: ${event.applicationTypeId}');
+
+        // Still emit a specific state for this application type using cached data
+        emit(SpecialApplicationTypesLoadedState(
+          applicationTypes: currentState.applicationTypes,
+          filteredApplicationTypes: currentState.filteredApplicationTypes,
+          groupedApplicationTypes: currentState.groupedApplicationTypes,
+          selectedCategory: currentState.selectedCategory,
+          searchQuery: currentState.searchQuery,
+          applicationTypeId: event.applicationTypeId,
+          specialApplicationTypes:
+              currentState.specialTypesCache[event.applicationTypeId] ?? [],
+        ));
+        return;
+      }
+    }
+
+    // Check if we already have these special types cached
+    if (_specialTypesCache.containsKey(event.applicationTypeId) &&
+        _specialTypesCache[event.applicationTypeId]!.isNotEmpty) {
+      final cachedSpecialTypes = _specialTypesCache[event.applicationTypeId]!;
+      print(
+          'Using cached special types for applicationTypeId: ${event.applicationTypeId}, count: ${cachedSpecialTypes.length}');
+
+      if (state is ApplicationTypeLoadedState) {
+        final currentState = state as ApplicationTypeLoadedState;
+        emit(ApplicationTypeLoadedState(
+          applicationType: currentState.applicationType,
+          specialApplicationTypes: cachedSpecialTypes,
+          loadingSpecialTypes: false,
+        ));
+      } else if (state is ApplicationTypesLoadedState) {
+        final currentState = state as ApplicationTypesLoadedState;
+        emit(SpecialApplicationTypesLoadedState(
+          applicationTypes: currentState.applicationTypes,
+          filteredApplicationTypes: currentState.filteredApplicationTypes,
+          groupedApplicationTypes: currentState.groupedApplicationTypes,
+          selectedCategory: currentState.selectedCategory,
+          searchQuery: currentState.searchQuery,
+          applicationTypeId: event.applicationTypeId,
+          specialApplicationTypes: cachedSpecialTypes,
+        ));
+      } else if (state is ApplicationTypeSelectedState) {
+        final currentState = state as ApplicationTypeSelectedState;
+        emit(ApplicationTypeSelectedState(
+          applicationType: currentState.applicationType,
+          specialApplicationTypes: cachedSpecialTypes,
+          previousState: currentState.previousState,
+          loadingSpecialTypes: false,
+        ));
+      }
+      return;
+    }
+
     // Set loading state for special types, but preserve existing state
     if (state is ApplicationTypeLoadedState) {
       final currentState = state as ApplicationTypeLoadedState;
@@ -98,6 +264,14 @@ class ApplicationTypeBloc
     } else if (state is ApplicationTypesLoadedState) {
       emit(SpecialApplicationTypesLoadingState(
           previousState: state as ApplicationTypesLoadedState));
+    } else if (state is ApplicationTypeSelectedState) {
+      final currentState = state as ApplicationTypeSelectedState;
+      emit(ApplicationTypeSelectedState(
+        applicationType: currentState.applicationType,
+        specialApplicationTypes: const [],
+        previousState: currentState.previousState,
+        loadingSpecialTypes: true,
+      ));
     }
 
     final result = await getSpecialApplicationTypesUseCase(
@@ -107,6 +281,9 @@ class ApplicationTypeBloc
 
     result.fold(
       (failure) {
+        // Cache empty list on failure
+        _specialTypesCache[event.applicationTypeId] = [];
+
         if (state is ApplicationTypeLoadedState) {
           // In case of error, set empty list to avoid blocking the UI
           final currentState = state as ApplicationTypeLoadedState;
@@ -119,9 +296,20 @@ class ApplicationTypeBloc
           final previousState =
               (state as SpecialApplicationTypesLoadingState).previousState;
           emit(previousState);
+        } else if (state is ApplicationTypeSelectedState) {
+          final currentState = state as ApplicationTypeSelectedState;
+          emit(ApplicationTypeSelectedState(
+            applicationType: currentState.applicationType,
+            specialApplicationTypes: const [],
+            previousState: currentState.previousState,
+            loadingSpecialTypes: false,
+          ));
         }
       },
       (specialTypes) {
+        // Cache the special types
+        _specialTypesCache[event.applicationTypeId] = specialTypes;
+
         if (state is ApplicationTypeLoadedState) {
           final currentState = state as ApplicationTypeLoadedState;
           emit(ApplicationTypeLoadedState(
@@ -141,6 +329,14 @@ class ApplicationTypeBloc
             applicationTypeId: event.applicationTypeId,
             specialApplicationTypes: specialTypes,
           ));
+        } else if (state is ApplicationTypeSelectedState) {
+          final currentState = state as ApplicationTypeSelectedState;
+          emit(ApplicationTypeSelectedState(
+            applicationType: currentState.applicationType,
+            specialApplicationTypes: specialTypes,
+            previousState: currentState.previousState,
+            loadingSpecialTypes: false,
+          ));
         }
       },
     );
@@ -159,6 +355,8 @@ class ApplicationTypeBloc
         emit(ApplicationTypesLoadedState(
           applicationTypes: allTypes,
           groupedApplicationTypes: currentState.groupedApplicationTypes,
+          allSpecialTypesLoaded: currentState.allSpecialTypesLoaded,
+          specialTypesCache: currentState.specialTypesCache,
         ));
         return;
       }
@@ -189,6 +387,8 @@ class ApplicationTypeBloc
         applicationTypes: filteredTypes,
         groupedApplicationTypes: groupedTypes,
         searchQuery: event.query,
+        allSpecialTypesLoaded: currentState.allSpecialTypesLoaded,
+        specialTypesCache: currentState.specialTypesCache,
       ));
     }
   }
@@ -208,6 +408,8 @@ class ApplicationTypeBloc
           groupedApplicationTypes: currentState.groupedApplicationTypes,
           selectedCategory: null,
           searchQuery: currentState.searchQuery,
+          allSpecialTypesLoaded: currentState.allSpecialTypesLoaded,
+          specialTypesCache: currentState.specialTypesCache,
         ));
         return;
       }
@@ -228,6 +430,8 @@ class ApplicationTypeBloc
         groupedApplicationTypes: currentState.groupedApplicationTypes,
         selectedCategory: event.category,
         searchQuery: currentState.searchQuery,
+        allSpecialTypesLoaded: currentState.allSpecialTypesLoaded,
+        specialTypesCache: currentState.specialTypesCache,
       ));
     }
   }
@@ -235,19 +439,58 @@ class ApplicationTypeBloc
   void _onSelectApplicationType(
     SelectApplicationTypeEvent event,
     Emitter<ApplicationTypeState> emit,
-  ) {
+  ) async {
     if (state is ApplicationTypesLoadedState) {
-      // First load special types for this application type
-      add(LoadSpecialApplicationTypesEvent(
-          applicationTypeId: event.applicationType.id));
+      final currentState = state as ApplicationTypesLoadedState;
 
-      // Then set the selected application type
+      // Log for debugging
+      print(
+          'Selecting application type: ${event.applicationType.name}, ID: ${event.applicationType.id}');
+
+      // Check if we have special types already in the cache or if all special types are already loaded
+      bool shouldLoadSpecialTypes = true;
+      List<SpecialApplicationType> specialTypes = [];
+
+      // First, check if we have special types in the cache
+      if (_specialTypesCache.containsKey(event.applicationType.id)) {
+        specialTypes = _specialTypesCache[event.applicationType.id] ?? [];
+        shouldLoadSpecialTypes = specialTypes.isEmpty;
+        print(
+            'Found ${specialTypes.length} special types in memory cache for ${event.applicationType.name}');
+      }
+      // Then, check if we have a complete cache of all special types
+      else if (currentState.allSpecialTypesLoaded &&
+          currentState.specialTypesCache
+              .containsKey(event.applicationType.id)) {
+        specialTypes =
+            currentState.specialTypesCache[event.applicationType.id] ?? [];
+        shouldLoadSpecialTypes = specialTypes.isEmpty;
+        // Copy from state cache to memory cache for future use
+        if (!specialTypes.isEmpty) {
+          _specialTypesCache[event.applicationType.id] = specialTypes;
+        }
+        print(
+            'Found ${specialTypes.length} special types in state cache for ${event.applicationType.name}');
+      }
+
+      // Set the selected application type
       emit(ApplicationTypeSelectedState(
         applicationType: event.applicationType,
-        specialApplicationTypes: const [],
-        loadingSpecialTypes: true,
-        previousState: state as ApplicationTypesLoadedState,
+        specialApplicationTypes: specialTypes,
+        loadingSpecialTypes: shouldLoadSpecialTypes,
+        previousState: currentState,
       ));
+
+      // If we don't have the special types yet, load them
+      if (shouldLoadSpecialTypes) {
+        print(
+            'Loading special types for ${event.applicationType.name} from API');
+        add(LoadSpecialApplicationTypesEvent(
+            applicationTypeId: event.applicationType.id));
+      }
+    } else {
+      print(
+          'Cannot select application type: state is not ApplicationTypesLoadedState');
     }
   }
 
@@ -346,5 +589,45 @@ class ApplicationTypeBloc
     }
 
     return result;
+  }
+
+  Future<void> _onLoadAllSpecialApplicationTypes(
+    LoadAllSpecialApplicationTypesEvent event,
+    Emitter<ApplicationTypeState> emit,
+  ) async {
+    if (state is ApplicationTypesLoadedState) {
+      final currentState = state as ApplicationTypesLoadedState;
+
+      // Only trigger loading if not already loaded
+      if (!currentState.allSpecialTypesLoaded) {
+        // Load all special types at once using the use case
+        final result = await getAllSpecialApplicationTypesUseCase(NoParams());
+
+        result.fold(
+          (failure) {
+            print(
+                'Failed to load all special application types: ${failure.message}');
+            // Do not update state on failure, keep current state
+          },
+          (specialTypesMap) {
+            // Store in cache
+            _specialTypesCache.addAll(specialTypesMap);
+            print(
+                'Loaded special types for ${specialTypesMap.length} application types');
+
+            // Update state with cached special types
+            emit(ApplicationTypesLoadedState(
+              applicationTypes: currentState.applicationTypes,
+              groupedApplicationTypes: currentState.groupedApplicationTypes,
+              filteredApplicationTypes: currentState.filteredApplicationTypes,
+              selectedCategory: currentState.selectedCategory,
+              searchQuery: currentState.searchQuery,
+              allSpecialTypesLoaded: true,
+              specialTypesCache: _specialTypesCache,
+            ));
+          },
+        );
+      }
+    }
   }
 }

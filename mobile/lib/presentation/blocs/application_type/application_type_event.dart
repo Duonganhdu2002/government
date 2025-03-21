@@ -29,6 +29,20 @@ class LoadSpecialApplicationTypesEvent extends ApplicationTypeEvent {
   List<Object> get props => [applicationTypeId];
 }
 
+class LoadAllSpecialApplicationTypesEvent extends ApplicationTypeEvent {
+  const LoadAllSpecialApplicationTypesEvent();
+}
+
+class PreloadAllSpecialApplicationTypesEvent extends ApplicationTypeEvent {
+  final List<ApplicationType> applicationTypes;
+
+  const PreloadAllSpecialApplicationTypesEvent(
+      {required this.applicationTypes});
+
+  @override
+  List<Object> get props => [applicationTypes];
+}
+
 class SearchApplicationTypesEvent extends ApplicationTypeEvent {
   final String query;
 
