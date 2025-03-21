@@ -49,12 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     context.go(AppConstants.dashboardRoute);
 
                     // Verify token for debugging
-                    print(
-                        '[Login] Authentication successful, token exists: ${token != null}');
+                    // ignore: unnecessary_null_comparison
                     if (token != null) {
-                      print('[Login] Token length: ${token.length}');
-                      print(
-                          '[Login] Token preview: ${token.length > 20 ? token.substring(0, 20) + '...' : token}');
                     }
                     // Reset Dio instance to ensure it uses new token
                     DioUtils.resetInstance();

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,7 +9,6 @@ import '../../../../core/utils/dio_utils.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/usecase.dart';
 import '../../../../domain/entities/application.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../blocs/application/application_bloc.dart';
@@ -34,7 +35,6 @@ class _HistoryScreenState extends State<HistoryScreen>
   @override
   void initState() {
     super.initState();
-    print('[HistoryScreen] initState called');
     _loadData();
   }
 
@@ -68,12 +68,9 @@ class _HistoryScreenState extends State<HistoryScreen>
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
 
-    print(
-        '[HistoryScreen] Token check: ${token != null ? 'Token exists' : 'No token found'}');
 
     if (token == null || token.isEmpty) {
       // No token or empty token, trigger auth check
-      print('[HistoryScreen] No valid token, checking auth status');
       if (mounted) {
         context.read<AuthBloc>().add(const CheckAuthStatusEvent());
       }
@@ -81,7 +78,6 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
 
     // Token exists, load data
-    print('[HistoryScreen] Valid token found, loading applications');
     if (mounted) {
       context.read<ApplicationBloc>().add(LoadCurrentUserApplicationsEvent());
     }
@@ -117,7 +113,6 @@ class _HistoryScreenState extends State<HistoryScreen>
           return false;
         },
         listener: (context, state) {
-          print('[HistoryScreen] State changed: ${state.runtimeType}');
 
           if (state is ApplicationsLoadingState) {
             setState(() {
@@ -130,8 +125,6 @@ class _HistoryScreenState extends State<HistoryScreen>
               _errorMessage = state.message;
             });
           } else if (state is ApplicationsLoadedState) {
-            print(
-                '[HistoryScreen] Loaded ${state.applications.length} applications');
             setState(() {
               _isLoading = false;
               _errorMessage = null;
@@ -382,8 +375,6 @@ class _ApplicationListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print(
-        '[ApplicationListView] Building with ${applications.length} applications');
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -405,8 +396,6 @@ class _ApplicationListView extends StatelessWidget {
                 final application = applications[index];
                 // Only log first few items to avoid excessive logging
                 if (index < 2) {
-                  print(
-                      '[ApplicationListView] Building item $index: ${application.title}');
                 }
                 return _ApplicationCard(
                   key: ValueKey('app_${application.id}'),

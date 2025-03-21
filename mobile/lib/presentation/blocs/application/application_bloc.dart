@@ -60,43 +60,27 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
     LoadCurrentUserApplicationsEvent event,
     Emitter<ApplicationState> emit,
   ) async {
-    print('[ApplicationBloc] Starting to load current user applications');
     emit(ApplicationsLoadingState());
-    print('[ApplicationBloc] Emitted ApplicationsLoadingState');
 
     try {
-      print('[ApplicationBloc] Calling getCurrentUserApplicationsUseCase');
       final result = await getCurrentUserApplicationsUseCase(NoParams());
 
       result.fold(
         (failure) {
-          print(
-              '[ApplicationBloc] Error loading applications: ${failure.message}');
           emit(ApplicationErrorState(message: failure.message));
-          print('[ApplicationBloc] Emitted ApplicationErrorState');
         },
         (applications) {
-          print(
-              '[ApplicationBloc] Successfully loaded ${applications.length} applications');
 
           // Ensure all applications are valid
           if (applications.isNotEmpty) {
-            final firstApp = applications.first;
-            print(
-                '[ApplicationBloc] First app: id=${firstApp.id}, title=${firstApp.title}, status=${firstApp.status}');
           }
 
           final newState = ApplicationsLoadedState(applications: applications);
           emit(newState);
-          print(
-              '[ApplicationBloc] Emitted ApplicationsLoadedState with ${applications.length} applications');
         },
       );
     } catch (e) {
-      print('[ApplicationBloc] Exception when loading applications: $e');
-      print('[ApplicationBloc] Stack trace: ${StackTrace.current}');
       emit(ApplicationErrorState(message: 'Error: $e'));
-      print('[ApplicationBloc] Emitted ApplicationErrorState due to exception');
     }
   }
 

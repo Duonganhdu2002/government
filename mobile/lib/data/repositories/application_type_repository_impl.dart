@@ -37,8 +37,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       if (isCacheValid) {
         final cachedTypes = await localDataSource.getLastApplicationTypes();
         if (cachedTypes.isNotEmpty) {
-          print(
-              '[ApplicationTypeRepositoryImpl] Using ${cachedTypes.length} recently cached application types');
           return Right(cachedTypes);
         }
       }
@@ -50,8 +48,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
-        print(
-            '[ApplicationTypeRepositoryImpl] Received ${data.length} application types from API');
 
         final List<ApplicationTypeModel> applicationTypes =
             data.map((item) => ApplicationTypeModel.fromJson(item)).toList();
@@ -69,13 +65,10 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
         ));
       }
     } on DioException catch (e) {
-      print('[ApplicationTypeRepositoryImpl] DioException: ${e.message}');
 
       // Try to use cached data in case of network error
       final cachedTypes = await localDataSource.getLastApplicationTypes();
       if (cachedTypes.isNotEmpty) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using ${cachedTypes.length} cached application types as fallback');
         return Right(cachedTypes);
       }
 
@@ -85,13 +78,10 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
         code: e.response?.statusCode,
       ));
     } catch (e) {
-      print('[ApplicationTypeRepositoryImpl] Exception: $e');
 
       // Try to use cached data in case of error
       final cachedTypes = await localDataSource.getLastApplicationTypes();
       if (cachedTypes.isNotEmpty) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using ${cachedTypes.length} cached application types as fallback');
         return Right(cachedTypes);
       }
 
@@ -107,8 +97,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedTypes = await localDataSource.getLastApplicationTypes();
       final cachedType = cachedTypes.where((type) => type.id == id).firstOrNull;
       if (cachedType != null) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using cached application type for id: $id');
         return Right(cachedType);
       }
 
@@ -133,8 +121,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedTypes = await localDataSource.getLastApplicationTypes();
       final cachedType = cachedTypes.where((type) => type.id == id).firstOrNull;
       if (cachedType != null) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using cached application type as fallback for id: $id');
         return Right(cachedType);
       }
 
@@ -148,8 +134,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedTypes = await localDataSource.getLastApplicationTypes();
       final cachedType = cachedTypes.where((type) => type.id == id).firstOrNull;
       if (cachedType != null) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using cached application type as fallback for id: $id');
         return Right(cachedType);
       }
 
@@ -171,23 +155,17 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
         final cachedSpecialTypes =
             await localDataSource.getSpecialApplicationTypes(applicationTypeId);
         if (cachedSpecialTypes.isNotEmpty) {
-          print(
-              '[ApplicationTypeRepositoryImpl] Using ${cachedSpecialTypes.length} recently cached special types for type: $applicationTypeId');
           return Right(cachedSpecialTypes);
         }
       }
 
       // If no valid cached data, fetch from API
-      print(
-          '[ApplicationTypeRepositoryImpl] Fetching special types from API for applicationTypeId: $applicationTypeId');
       final response = await dio.get(
         '${ApiConstants.baseUrl}/api/special-application-types/by-application-type/$applicationTypeId',
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
-        print(
-            '[ApplicationTypeRepositoryImpl] Received ${data.length} special types from API');
 
         final List<SpecialApplicationType> specialTypes = data
             .map((item) => SpecialApplicationTypeModel.fromJson(item))
@@ -202,8 +180,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       } else if (response.statusCode == 404) {
         // 404 is normal for no special types
         // Cache empty list to avoid future unnecessary requests
-        print(
-            '[ApplicationTypeRepositoryImpl] No special types found (404) for applicationTypeId: $applicationTypeId');
         await localDataSource
             .cacheSpecialApplicationTypes(applicationTypeId, []);
         return const Right([]);
@@ -227,8 +203,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedSpecialTypes =
           await localDataSource.getSpecialApplicationTypes(applicationTypeId);
       if (cachedSpecialTypes.isNotEmpty) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using ${cachedSpecialTypes.length} cached special types as fallback');
         return Right(cachedSpecialTypes);
       }
 
@@ -242,8 +216,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedSpecialTypes =
           await localDataSource.getSpecialApplicationTypes(applicationTypeId);
       if (cachedSpecialTypes.isNotEmpty) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using ${cachedSpecialTypes.length} cached special types as fallback');
         return Right(cachedSpecialTypes);
       }
 
@@ -259,8 +231,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedSpecialTypesMap =
           await localDataSource.getAllCachedSpecialApplicationTypes();
       if (cachedSpecialTypesMap.isNotEmpty) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using cached special types for ${cachedSpecialTypesMap.length} application types');
         return Right(cachedSpecialTypesMap);
       }
 
@@ -279,8 +249,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
 
             specialTypesResult.fold(
               (failure) {
-                print(
-                    '[ApplicationTypeRepositoryImpl] Failed to fetch special types for ${type.name}: ${failure.message}');
                 allSpecialTypes[type.id] = [];
               },
               (specialTypes) {
@@ -297,8 +265,6 @@ class ApplicationTypeRepositoryImpl implements ApplicationTypeRepository {
       final cachedSpecialTypesMap =
           await localDataSource.getAllCachedSpecialApplicationTypes();
       if (cachedSpecialTypesMap.isNotEmpty) {
-        print(
-            '[ApplicationTypeRepositoryImpl] Using cached special types as fallback');
         return Right(cachedSpecialTypesMap);
       }
 

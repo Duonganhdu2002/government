@@ -1,10 +1,10 @@
+// ignore_for_file: empty_catches
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'dart:math';
-import 'dart:io';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -19,12 +19,12 @@ class ApplicationDetailsScreen extends StatelessWidget {
   final ScrollController? scrollController;
 
   const ApplicationDetailsScreen({
-    Key? key,
+    super.key,
     required this.applicationId,
     this.initialApplication,
     this.isBottomSheet = false,
     this.scrollController,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -623,14 +623,14 @@ class ApplicationDetailsScreen extends StatelessWidget {
 
     // Handle paths that start with /uploads/ directly - this is the main path we should use
     if (attachment.startsWith('/uploads/')) {
-      return '${ApiConstants.baseUrl}${attachment}';
+      return '${ApiConstants.baseUrl}$attachment';
     }
 
     // For direct filepath that might not start with /uploads/
     if (attachment.contains('/') && !RegExp(r'^\d+$').hasMatch(attachment)) {
       String cleanPath =
           attachment.startsWith('/') ? attachment : '/$attachment';
-      return '${ApiConstants.baseUrl}${cleanPath}';
+      return '${ApiConstants.baseUrl}$cleanPath';
     }
 
     // For mediafileid direct access - LAST RESORT approach, prefer filepath when available
@@ -669,23 +669,10 @@ class ApplicationDetailsScreen extends StatelessWidget {
   }
 
   // Get auth token from shared preferences
-  Future<String?> _getAuthToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(AppConstants.tokenKey);
-      return token;
-    } catch (e) {
-      print('[ApplicationDetailsScreen] Error getting auth token: $e');
-      return null;
-    }
-  }
 
   // Advanced attachment items that look like the web UI
   List<Widget> _buildAttachmentItems(
       BuildContext context, List<String> attachments, String applicationId) {
-    print(
-        '[_buildAttachmentItems] Building items for ${attachments.length} attachments');
-    print('[_buildAttachmentItems] Attachments: $attachments');
 
     return attachments.map((attachment) {
       final String fileSize = "101 KB";
@@ -702,7 +689,6 @@ class ApplicationDetailsScreen extends StatelessWidget {
       final String fullAttachmentUrl =
           _getAttachmentUrl(attachment, applicationId);
 
-      print('[_buildAttachmentItems] URL for $attachment: $fullAttachmentUrl');
 
       return InkWell(
         onTap: () => _showMediaFullScreen(context, fullAttachmentUrl),
@@ -780,12 +766,8 @@ class ApplicationDetailsScreen extends StatelessWidget {
   // Hiển thị ảnh toàn màn hình khi nhấn vào
   void _showMediaFullScreen(BuildContext context, String url) async {
     // Log the URL we're trying to display
-    print('[_showMediaFullScreen] Showing image: $url');
 
     // Lấy token trước khi hiển thị
-    final token = await _getAuthToken();
-    print(
-        '[_showMediaFullScreen] Auth token retrieved: ${token != null ? 'Yes' : 'No'}');
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1007,9 +989,9 @@ class DirectImageView extends StatefulWidget {
   final String imageUrl;
 
   const DirectImageView({
-    Key? key,
+    super.key,
     required this.imageUrl,
-  }) : super(key: key);
+  });
 
   @override
   DirectImageViewState createState() => DirectImageViewState();
@@ -1017,8 +999,6 @@ class DirectImageView extends StatefulWidget {
 
 class DirectImageViewState extends State<DirectImageView> {
   String? _authToken;
-  bool _isLoading = true;
-  bool _hasError = false;
   int _loadAttempt = 0;
   static const int _maxRetries = 3;
 
@@ -1026,7 +1006,6 @@ class DirectImageViewState extends State<DirectImageView> {
   void initState() {
     super.initState();
     _getAuthToken();
-    print('[DirectImageView] Loading image: ${widget.imageUrl}');
   }
 
   Future<void> _getAuthToken() async {
@@ -1037,11 +1016,8 @@ class DirectImageViewState extends State<DirectImageView> {
         setState(() {
           _authToken = token;
         });
-        print(
-            '[DirectImageView] Auth token retrieved: ${token != null ? 'Yes' : 'No'}');
       }
     } catch (e) {
-      print('[DirectImageView] Error getting auth token: $e');
     }
   }
 
@@ -1091,11 +1067,7 @@ class DirectImageViewState extends State<DirectImageView> {
     if (_loadAttempt < _maxRetries) {
       setState(() {
         _loadAttempt++;
-        _hasError = false;
-        _isLoading = true;
       });
-      print(
-          '[DirectImageView] Retrying image load (attempt $_loadAttempt): ${_getImageUrlWithRetry()}');
     }
   }
 
@@ -1106,8 +1078,6 @@ class DirectImageViewState extends State<DirectImageView> {
     }
 
     final imageUrl = _getImageUrlWithRetry();
-    print(
-        '[DirectImageView] Attempting to load image with URL: $imageUrl (attempt: ${_loadAttempt + 1})');
 
     return Image.network(
       imageUrl,
@@ -1115,9 +1085,6 @@ class DirectImageViewState extends State<DirectImageView> {
       headers: {'Authorization': 'Bearer $_authToken'},
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) {
-          _isLoading = false;
-          print(
-              '[DirectImageView] Image loaded successfully at attempt ${_loadAttempt + 1}: $imageUrl');
           return child;
         }
         return Center(
@@ -1130,10 +1097,6 @@ class DirectImageViewState extends State<DirectImageView> {
         );
       },
       errorBuilder: (context, error, stackTrace) {
-        print(
-            '[DirectImageView] Error loading image (attempt ${_loadAttempt + 1}): $error');
-        print('[DirectImageView] Failed URL: $imageUrl');
-        _hasError = true;
 
         if (_loadAttempt < _maxRetries) {
           // Auto retry with a slight delay for UI feedback

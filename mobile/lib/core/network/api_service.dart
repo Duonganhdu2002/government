@@ -1,16 +1,11 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../constants/app_constants.dart';
 import 'dart:developer' as developer;
-import 'package:flutter/foundation.dart';
-import '../constants/api_constants.dart';
 import '../utils/dio_utils.dart';
 
 class ApiService {
   final Dio _dio;
-  final SharedPreferences _preferences;
 
-  ApiService(this._preferences) : _dio = DioUtils.getInstance();
+  ApiService() : _dio = DioUtils.getInstance();
 
   // Generic GET request
   Future<Map<String, dynamic>> get(String path,

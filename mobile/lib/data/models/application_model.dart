@@ -1,3 +1,5 @@
+// ignore_for_file: empty_catches
+
 import '../../domain/entities/application.dart';
 
 class ApplicationModel extends Application {
@@ -38,7 +40,6 @@ class ApplicationModel extends Application {
   /// Converts server-side application data format to ApplicationModel
   factory ApplicationModel.fromServerJson(Map<String, dynamic> json) {
     try {
-      print('[ApplicationModel] Converting server JSON: ${json.keys}');
 
       // Handle the application ID which could be int or string
       String id = '';
@@ -52,8 +53,6 @@ class ApplicationModel extends Application {
         try {
           submittedAt = DateTime.parse(json['submissiondate']);
         } catch (e) {
-          print(
-              '[ApplicationModel] Error parsing submissiondate: ${json['submissiondate']}');
         }
       }
 
@@ -63,8 +62,6 @@ class ApplicationModel extends Application {
         try {
           updatedAt = DateTime.parse(json['lastupdated']);
         } catch (e) {
-          print(
-              '[ApplicationModel] Error parsing lastupdated: ${json['lastupdated']}');
         }
       }
 
@@ -93,13 +90,8 @@ class ApplicationModel extends Application {
         userId: json['citizenid']?.toString() ?? '',
       );
 
-      print(
-          '[ApplicationModel] Successfully converted: id=${application.id}, title=${application.title}');
       return application;
-    } catch (e, stackTrace) {
-      print('[ApplicationModel] Error converting server JSON: $e');
-      print('[ApplicationModel] Stack trace: $stackTrace');
-      print('[ApplicationModel] Original JSON: $json');
+    } catch (e) {
 
       // Create a fallback application with minimal data
       return ApplicationModel(

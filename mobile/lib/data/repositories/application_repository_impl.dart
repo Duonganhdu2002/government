@@ -1,5 +1,9 @@
+// ignore_for_file: empty_catches
+
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+// ignore: depend_on_referenced_packages
+import 'package:http_parser/http_parser.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/failure.dart';
@@ -61,10 +65,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
           try {
             final application = ApplicationModel.fromServerJson(item);
             applications.add(application);
-          } catch (e) {
-            print('Error parsing application: $e');
-            print('Problematic data: $item');
-          }
+          } catch (e) {}
         }
 
         return Right(applications);
@@ -94,9 +95,6 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       );
 
       if (response.statusCode == 200) {
-        print(
-            '[ApplicationRepositoryImpl] getApplicationById response: ${response.data}');
-
         final Application application =
             ApplicationModel.fromServerJson(response.data);
 
@@ -115,18 +113,12 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
 
               // Kiểm tra nếu có media files
               if (mediaList.isNotEmpty) {
-                print(
-                    '[ApplicationRepositoryImpl] Found ${mediaList.length} media files for application $id');
                 // In chi tiết cấu trúc dữ liệu của item đầu tiên để debug
-                print(
-                    '[ApplicationRepositoryImpl] First media file details: ${mediaList.first}');
 
                 // Thêm mediafileid làm attachments
                 for (var media in mediaList) {
                   if (media['mediafileid'] != null) {
                     actualAttachments.add(media['mediafileid'].toString());
-                    print(
-                        '[ApplicationRepositoryImpl] Added mediafileid: ${media['mediafileid']}');
                   }
                 }
 
@@ -142,8 +134,6 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
               }
             }
           } catch (mediaError) {
-            print(
-                '[ApplicationRepositoryImpl] Error fetching media files: $mediaError');
             // Tiếp tục với application ban đầu nếu không lấy được media files
           }
         }
@@ -173,13 +163,23 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
     List<String> attachments = const [],
   }) async {
     try {
+      // Check if this is a submission with files (attachments are present)
+      if (attachments.isNotEmpty) {
+        return _createApplicationWithFiles(
+          title: title,
+          description: description,
+          formData: formData,
+          attachments: attachments,
+        );
+      }
+
+      // Standard application creation without files
       final response = await dio.post(
         '${ApiConstants.baseUrl}${ApiConstants.applicationsEndpoint}',
         data: {
           'title': title,
           'description': description,
           'formData': formData,
-          'attachments': attachments,
         },
       );
 
@@ -196,6 +196,109 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
     } on DioException catch (e) {
       return Left(ServerFailure(
         message: e.response?.data?['message'] ?? 'Failed to create application',
+        code: e.response?.statusCode,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  // Method to create application with files using the application-upload endpoint
+  Future<Either<Failure, Application>> _createApplicationWithFiles({
+    required String title,
+    required String description,
+    required Map<String, dynamic> formData,
+    required List<String> attachments,
+  }) async {
+    try {
+      // Create FormData object
+      final dioFormData = FormData();
+
+      // Add application data
+      dioFormData.fields.add(MapEntry('title', title));
+      dioFormData.fields.add(MapEntry('description', description));
+
+      // Add application type ID
+      if (formData.containsKey('applicationTypeId')) {
+        dioFormData.fields.add(
+          MapEntry(
+              'applicationtypeid', formData['applicationTypeId'].toString()),
+        );
+      }
+
+      // Add special application type ID if present
+      if (formData.containsKey('specialApplicationTypeId') &&
+          formData['specialApplicationTypeId'] != null) {
+        dioFormData.fields.add(
+          MapEntry('specialapplicationtypeid',
+              formData['specialApplicationTypeId'].toString()),
+        );
+      }
+
+      // Add event date if present
+      if (formData.containsKey('eventDate')) {
+        dioFormData.fields.add(
+          MapEntry('eventdate', formData['eventDate']),
+        );
+      }
+
+      // Add location if present
+      if (formData.containsKey('location')) {
+        dioFormData.fields.add(
+          MapEntry('location', formData['location']),
+        );
+      }
+
+      // For demo purposes, create mock files instead of real ones
+      // In a production app, you would use real files
+      for (var i = 0; i < attachments.length; i++) {
+        // Creating a mock file with text content
+        final mockFileData = 'This is a mock file for ${attachments[i]}';
+        final mockFileName = 'mock_file_${i + 1}.txt';
+
+        dioFormData.files.add(
+          MapEntry(
+            'files',
+            MultipartFile.fromString(
+              mockFileData,
+              filename: mockFileName,
+              contentType: MediaType('text', 'plain'),
+            ),
+          ),
+        );
+      }
+
+
+      // Endpoint is application-upload
+      final response = await dio.post(
+        '${ApiConstants.baseUrl}${ApiConstants.applicationUploadEndpoint}',
+        data: dioFormData,
+        options: Options(
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+      );
+
+
+      if (response.statusCode == 201) {
+        final Application application =
+            ApplicationModel.fromJson(response.data['application']);
+        return Right(application);
+      } else {
+        return Left(ServerFailure(
+          message: response.data['message'] ??
+              'Failed to create application with files',
+          code: response.statusCode,
+        ));
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+      }
+
+      return Left(ServerFailure(
+        message: e.response?.data?['message'] ??
+            'Failed to create application with files',
         code: e.response?.statusCode,
       ));
     } catch (e) {

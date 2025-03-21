@@ -43,7 +43,7 @@ Future<void> initServiceLocator() async {
   sl.registerSingleton<SharedPreferences>(sharedPreferences);
 
   // Services
-  sl.registerLazySingleton<ApiService>(() => ApiService(sl()));
+  sl.registerLazySingleton<ApiService>(() => ApiService());
   sl.registerLazySingleton<Dio>(() => DioUtils.getInstance());
 
   // Data sources

@@ -50,7 +50,6 @@ class ApplicationTypeBloc
     if (state is ApplicationTypesLoadedState) {
       final currentState = state as ApplicationTypesLoadedState;
       if (currentState.applicationTypes.isNotEmpty) {
-        print('Application types already loaded, skipping API call');
         return;
       }
     }
@@ -101,16 +100,12 @@ class ApplicationTypeBloc
 
     result.fold(
       (failure) {
-        print(
-            'Failed to preload special application types: ${failure.message}');
         // Try to load them individually as a fallback
         _loadSpecialTypesIndividually(event.applicationTypes);
       },
       (specialTypesMap) {
         // Store in cache
         _specialTypesCache.addAll(specialTypesMap);
-        print(
-            'Preloaded special types for ${specialTypesMap.length} application types');
 
         // Update state with cached special types if currently in a loaded state
         if (state is ApplicationTypesLoadedState) {
@@ -141,14 +136,10 @@ class ApplicationTypeBloc
         (failure) {
           // On failure, store an empty list in cache
           _specialTypesCache[applicationType.id] = [];
-          print(
-              'Failed to load special types for ${applicationType.name}: ${failure.message}');
         },
         (specialTypes) {
           // Store in cache
           _specialTypesCache[applicationType.id] = specialTypes;
-          print(
-              'Loaded ${specialTypes.length} special types for ${applicationType.name}');
         },
       );
     }
@@ -191,16 +182,12 @@ class ApplicationTypeBloc
     Emitter<ApplicationTypeState> emit,
   ) async {
     // Log for debugging
-    print(
-        'Loading special types for application type ID: ${event.applicationTypeId}');
 
     // Skip if we have allSpecialTypesLoaded flag set to true in ApplicationTypesLoadedState
     if (state is ApplicationTypesLoadedState) {
       final currentState = state as ApplicationTypesLoadedState;
       if (currentState.allSpecialTypesLoaded &&
           currentState.specialTypesCache.containsKey(event.applicationTypeId)) {
-        print(
-            'All special types already loaded and cached, using cache for applicationTypeId: ${event.applicationTypeId}');
 
         // Still emit a specific state for this application type using cached data
         emit(SpecialApplicationTypesLoadedState(
@@ -221,8 +208,6 @@ class ApplicationTypeBloc
     if (_specialTypesCache.containsKey(event.applicationTypeId) &&
         _specialTypesCache[event.applicationTypeId]!.isNotEmpty) {
       final cachedSpecialTypes = _specialTypesCache[event.applicationTypeId]!;
-      print(
-          'Using cached special types for applicationTypeId: ${event.applicationTypeId}, count: ${cachedSpecialTypes.length}');
 
       if (state is ApplicationTypeLoadedState) {
         final currentState = state as ApplicationTypeLoadedState;
@@ -420,9 +405,6 @@ class ApplicationTypeBloc
       }).toList();
 
       // Create a map with only the selected category
-      final Map<ApplicationCategory, List<ApplicationType>> groupedTypes = {
-        event.category!: filteredTypes,
-      };
 
       emit(ApplicationTypesLoadedState(
         applicationTypes: allTypes, // Keep all types for reference
@@ -444,8 +426,6 @@ class ApplicationTypeBloc
       final currentState = state as ApplicationTypesLoadedState;
 
       // Log for debugging
-      print(
-          'Selecting application type: ${event.applicationType.name}, ID: ${event.applicationType.id}');
 
       // Check if we have special types already in the cache or if all special types are already loaded
       bool shouldLoadSpecialTypes = true;
@@ -455,8 +435,6 @@ class ApplicationTypeBloc
       if (_specialTypesCache.containsKey(event.applicationType.id)) {
         specialTypes = _specialTypesCache[event.applicationType.id] ?? [];
         shouldLoadSpecialTypes = specialTypes.isEmpty;
-        print(
-            'Found ${specialTypes.length} special types in memory cache for ${event.applicationType.name}');
       }
       // Then, check if we have a complete cache of all special types
       else if (currentState.allSpecialTypesLoaded &&
@@ -466,11 +444,9 @@ class ApplicationTypeBloc
             currentState.specialTypesCache[event.applicationType.id] ?? [];
         shouldLoadSpecialTypes = specialTypes.isEmpty;
         // Copy from state cache to memory cache for future use
-        if (!specialTypes.isEmpty) {
+        if (specialTypes.isNotEmpty) {
           _specialTypesCache[event.applicationType.id] = specialTypes;
         }
-        print(
-            'Found ${specialTypes.length} special types in state cache for ${event.applicationType.name}');
       }
 
       // Set the selected application type
@@ -483,14 +459,10 @@ class ApplicationTypeBloc
 
       // If we don't have the special types yet, load them
       if (shouldLoadSpecialTypes) {
-        print(
-            'Loading special types for ${event.applicationType.name} from API');
         add(LoadSpecialApplicationTypesEvent(
             applicationTypeId: event.applicationType.id));
       }
     } else {
-      print(
-          'Cannot select application type: state is not ApplicationTypesLoadedState');
     }
   }
 
@@ -605,15 +577,11 @@ class ApplicationTypeBloc
 
         result.fold(
           (failure) {
-            print(
-                'Failed to load all special application types: ${failure.message}');
             // Do not update state on failure, keep current state
           },
           (specialTypesMap) {
             // Store in cache
             _specialTypesCache.addAll(specialTypesMap);
-            print(
-                'Loaded special types for ${specialTypesMap.length} application types');
 
             // Update state with cached special types
             emit(ApplicationTypesLoadedState(

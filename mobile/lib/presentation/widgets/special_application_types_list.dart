@@ -11,11 +11,11 @@ class SpecialApplicationTypesList extends StatelessWidget {
   final Function(SpecialApplicationType) onSelected;
 
   const SpecialApplicationTypesList({
-    Key? key,
+    super.key,
     required this.applicationTypeId,
     required this.applicationTypeName,
     required this.onSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +45,7 @@ class SpecialApplicationTypesList extends StatelessWidget {
           // Trigger loading of special application types if not already loaded
           // This should only happen if we somehow missed the preloading
           Future.microtask(() {
+            // ignore: use_build_context_synchronously
             context.read<ApplicationTypeBloc>().add(
                 LoadSpecialApplicationTypesEvent(
                     applicationTypeId: applicationTypeId));

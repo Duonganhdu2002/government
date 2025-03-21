@@ -4,16 +4,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/application_type.dart';
 import '../../domain/entities/special_application_type.dart';
 import '../blocs/application_type/application_type_bloc.dart';
-import '../widgets/loading_indicator.dart';
 import '../widgets/special_application_types_list.dart';
+import '../widgets/new_application_bottom_sheet.dart';
 
 class ApplicationTypeDetailScreen extends StatefulWidget {
   final ApplicationType applicationType;
 
   const ApplicationTypeDetailScreen({
-    Key? key,
+    super.key,
     required this.applicationType,
-  }) : super(key: key);
+  });
 
   @override
   State<ApplicationTypeDetailScreen> createState() =>
@@ -49,6 +49,7 @@ class _ApplicationTypeDetailScreenState
     if (shouldLoadSpecialTypes) {
       // Load special application types for this application type
       Future.microtask(() {
+        // ignore: use_build_context_synchronously
         context.read<ApplicationTypeBloc>().add(
               LoadSpecialApplicationTypesEvent(
                 applicationTypeId: widget.applicationType.id,
@@ -72,26 +73,30 @@ class _ApplicationTypeDetailScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Application type details card
-              Card(
-                elevation: 3,
-                margin: const EdgeInsets.only(bottom: 16.0),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.applicationType.name,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8.0),
-                      Text(
-                        widget.applicationType.description,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 12.0),
-                      _buildProcessingTimeInfo(widget.applicationType),
-                    ],
+              InkWell(
+                onTap: () => _showNewApplicationBottomSheet(
+                    context, widget.applicationType, null),
+                child: Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.only(bottom: 16.0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.applicationType.name,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8.0),
+                        Text(
+                          widget.applicationType.description,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 12.0),
+                        _buildProcessingTimeInfo(widget.applicationType),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -112,19 +117,6 @@ class _ApplicationTypeDetailScreenState
               ),
 
               const SizedBox(height: 24.0),
-
-              // Start application button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      _startApplication(widget.applicationType, null),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.0),
-                    child: Text('Bắt đầu hồ sơ này'),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -184,21 +176,24 @@ class _ApplicationTypeDetailScreenState
               specialApplicationType: specialType),
         );
 
-    // Start application with the selected special type
-    _startApplication(widget.applicationType, specialType);
+    // Show bottom sheet with the selected special type
+    _showNewApplicationBottomSheet(
+        context, widget.applicationType, specialType);
   }
 
-  void _startApplication(
-      ApplicationType type, SpecialApplicationType? specialType) {
-    // TODO: Navigate to application creation screen with selected type
-    // This would be implemented in a real app
-
-    final message = specialType != null
-        ? 'Bắt đầu hồ sơ ${specialType.name}'
-        : 'Bắt đầu hồ sơ ${type.name}';
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+  void _showNewApplicationBottomSheet(
+    BuildContext context,
+    ApplicationType applicationType,
+    SpecialApplicationType? specialApplicationType,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => NewApplicationBottomSheet(
+        applicationType: applicationType,
+        specialApplicationType: specialApplicationType,
+      ),
     );
   }
 }

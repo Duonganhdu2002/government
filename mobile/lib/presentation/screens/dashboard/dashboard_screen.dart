@@ -29,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.white,
       body: widget.child,
       drawer: _buildDrawer(context),
-      floatingActionButton: _buildFloatingActionButton(context),
       bottomNavigationBar: AppBottomNavigation(currentIndex: currentIndex),
     );
   }
@@ -152,20 +151,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           },
     );
-  }
-
-  Widget? _buildFloatingActionButton(BuildContext context) {
-    final currentRoute = GoRouterState.of(context).uri.path;
-
-    if (currentRoute == AppConstants.applicationsRoute) {
-      return FloatingActionButton(
-        backgroundColor: AppTheme.primaryColor,
-        onPressed: () {},
-        tooltip: 'Tạo hồ sơ mới',
-        child: const Icon(Icons.add, color: Colors.white),
-      );
-    }
-
-    return null;
   }
 }

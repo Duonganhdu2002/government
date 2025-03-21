@@ -1,8 +1,8 @@
+// ignore_for_file: use_build_context_synchronously, duplicate_ignore
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/entities/application_type.dart';
 import '../../../blocs/application_type/application_type_bloc.dart';
 import '../../../screens/application_type_detail_screen.dart';
@@ -10,6 +10,7 @@ import '../../../themes/app_colors.dart';
 import '../../../themes/app_styles.dart';
 import '../../../widgets/application_type_card.dart';
 import '../../../widgets/loading_indicator.dart';
+import '../../../widgets/new_application_bottom_sheet.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
@@ -37,12 +38,13 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
       // Wait for application types to load, then load all special types
       Future.delayed(const Duration(milliseconds: 500), () {
+        // ignore: duplicate_ignore
+        // ignore: use_build_context_synchronously
         context
             .read<ApplicationTypeBloc>()
             .add(const LoadAllSpecialApplicationTypesEvent());
       });
-    } else if (applicationTypeState is ApplicationTypesLoadedState &&
-        !applicationTypeState.allSpecialTypesLoaded) {
+    } else if (!applicationTypeState.allSpecialTypesLoaded) {
       // If app types are loaded but special types aren't, only load special types
       context
           .read<ApplicationTypeBloc>()
@@ -286,29 +288,53 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           ),
         );
 
-    // Navigate to application type details screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ApplicationTypeDetailScreen(
-          applicationType: applicationType,
+    // If has special types, navigate to details screen
+    if (specialTypesAlreadyLoaded &&
+        applicationTypeState is ApplicationTypesLoadedState &&
+        (applicationTypeState
+                .specialTypesCache[applicationType.id]?.isNotEmpty ??
+            false)) {
+      // Navigate to application type details screen to show special types
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ApplicationTypeDetailScreen(
+            applicationType: applicationType,
+          ),
         ),
-      ),
-    ).then((_) {
-      // When returning from details screen, make sure we're still in the ApplicationTypesLoadedState
-      // to prevent reloading everything from API
-      if (!(context.read<ApplicationTypeBloc>().state
-          is ApplicationTypesLoadedState)) {
-        // If we've lost our loaded state, recover it from the previous state
+      ).then((_) {
+        // When returning from details screen, make sure we're still in the ApplicationTypesLoadedState
+        // to prevent reloading everything from API
+        // ignore: duplicate_ignore
+        // ignore: use_build_context_synchronously
         if (context.read<ApplicationTypeBloc>().state
-            is ApplicationTypeSelectedState) {
-          final selectedState = context.read<ApplicationTypeBloc>().state
-              as ApplicationTypeSelectedState;
-          // Go back to the previous list state
-          context.read<ApplicationTypeBloc>().emit(selectedState.previousState);
+            is! ApplicationTypesLoadedState) {
+          // If we've lost our loaded state, recover it from the previous state
+          // ignore: use_build_context_synchronously
+          if (context.read<ApplicationTypeBloc>().state
+              is ApplicationTypeSelectedState) {
+            final selectedState = context.read<ApplicationTypeBloc>().state
+                as ApplicationTypeSelectedState;
+            // Go back to the previous list state
+            context
+                .read<ApplicationTypeBloc>()
+                // ignore: invalid_use_of_visible_for_testing_member
+                .emit(selectedState.previousState);
+          }
         }
-      }
-    });
+      });
+    } else {
+      // Show bottom sheet directly if no special types
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => NewApplicationBottomSheet(
+          applicationType: applicationType,
+          specialApplicationType: null,
+        ),
+      );
+    }
   }
 
   Widget _buildEmptyState() {

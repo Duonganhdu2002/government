@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../domain/entities/application_type.dart';
 import '../themes/app_colors.dart';
@@ -10,10 +9,10 @@ class ApplicationTypeCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const ApplicationTypeCard({
-    Key? key,
+    super.key,
     required this.applicationType,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +58,7 @@ class ApplicationTypeCard extends StatelessWidget {
                     children: [
                       _buildInfoBadge(
                         Icons.access_time,
-                        '${applicationType.processingTimeLimit} ngày',
+                        _getProcessingTimeText(applicationType),
                       ),
                       const SizedBox(width: 12),
                       _buildCategoryBadge(
@@ -155,5 +154,22 @@ class ApplicationTypeCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getProcessingTimeText(ApplicationType type) {
+    final hasRange = type.processingTimeRange != null;
+
+    if (!hasRange) {
+      return '${type.processingTimeLimit} ngày';
+    }
+
+    final range = type.processingTimeRange!;
+    final isSameTime = range.min == range.max;
+
+    if (isSameTime) {
+      return '${range.min} ngày';
+    }
+
+    return '${range.min} - ${range.max} ngày';
   }
 }

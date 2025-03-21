@@ -13,8 +13,6 @@ import '../../presentation/screens/dashboard/history/history_screen.dart';
 import '../../presentation/screens/dashboard/applications/applications_screen.dart';
 import '../../presentation/screens/dashboard/applications/application_details_screen.dart';
 import '../../presentation/screens/dashboard/notifications/notifications_screen.dart';
-import '../../presentation/screens/application_type_detail_screen.dart';
-import '../../domain/entities/application_type.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();

@@ -33,6 +33,7 @@ class ApiConstants {
 
   // Application endpoints
   static const String applicationsEndpoint = '/api/applications';
+  static const String applicationUploadEndpoint = '/api/application-upload';
 
   // Media endpoints
   static const String mediaFilesServeEndpoint = '/api/media-files/serve';
