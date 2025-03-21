@@ -360,9 +360,63 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
 
       if (response.statusCode == 201) {
         print('Application created successfully');
-        final Application application =
-            ApplicationModel.fromJson(response.data['application']);
-        return Right(application);
+
+        try {
+          // Enhanced error handling for null values in response data
+          if (response.data == null) {
+            return Left(ServerFailure(
+              message: 'Server returned null response data',
+            ));
+          }
+
+          if (response.data['application'] == null) {
+            return Left(ServerFailure(
+              message: 'Server response missing application data',
+            ));
+          }
+
+          // Log structure of application data to help debug
+          print(
+              'Application data structure: ${response.data['application'].runtimeType}');
+          print('Application data: ${response.data['application']}');
+
+          // Create a safe copy of application data with default values for nullable fields
+          final Map<String, dynamic> safeAppData =
+              Map<String, dynamic>.from(response.data['application']);
+
+          // Ensure required fields have non-null values
+          safeAppData['id'] = safeAppData['id'] ??
+              'temp-${DateTime.now().millisecondsSinceEpoch}';
+          safeAppData['title'] = safeAppData['title'] ?? title;
+          safeAppData['description'] =
+              safeAppData['description'] ?? description;
+          safeAppData['createdAt'] =
+              safeAppData['createdAt'] ?? DateTime.now().toIso8601String();
+          safeAppData['updatedAt'] =
+              safeAppData['updatedAt'] ?? DateTime.now().toIso8601String();
+          safeAppData['status'] = safeAppData['status'] ?? 'draft';
+          safeAppData['formData'] = safeAppData['formData'] ?? formData;
+
+          // Use safe data to create the application
+          final Application application =
+              ApplicationModel.fromJson(safeAppData);
+          return Right(application);
+        } catch (parseError) {
+          print('Error parsing application data: $parseError');
+          // Create a minimal valid application object to avoid crashing
+          final Application fallbackApplication = ApplicationModel(
+            id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+            title: title,
+            description: description,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            status: ApplicationStatus.draft,
+            formData: formData,
+            attachments: [],
+            userId: '',
+          );
+          return Right(fallbackApplication);
+        }
       } else {
         print('Error creating application: ${response.data}');
         return Left(ServerFailure(

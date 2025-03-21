@@ -1232,21 +1232,46 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
 
       // Listen for result from bloc
       final completer = Completer<bool>();
-      final subscription =
-          context.read<ApplicationBloc>().stream.listen((state) {
+      late StreamSubscription subscription;
+
+      subscription = context.read<ApplicationBloc>().stream.listen((state) {
         print('Application state: $state');
-        if (state is ApplicationCreatedState) {
-          print('Application created successfully: ${state.application.id}');
-          completer.complete(true);
-        } else if (state is ApplicationErrorState) {
-          print('Application creation error: ${state.message}');
-          completer.complete(false);
+        try {
+          if (state is ApplicationCreatedState) {
+            print('Application created successfully: ${state.application.id}');
+            completer.complete(true);
+          } else if (state is ApplicationErrorState) {
+            print('Application creation error: ${state.message}');
+            completer.complete(false);
+            if (mounted) {
+              setState(() {
+                _errorMessage = state.message;
+                _isSubmitting = false;
+              });
+            }
+          }
+        } catch (e) {
+          print('Error handling application state: $e');
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
           if (mounted) {
             setState(() {
-              _errorMessage = state.message;
+              _errorMessage = 'Lỗi khi xử lý phản hồi: $e';
               _isSubmitting = false;
             });
           }
+        }
+      }, onError: (error) {
+        print('Stream error: $error');
+        if (!completer.isCompleted) {
+          completer.complete(false);
+        }
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Lỗi từ luồng xử lý hồ sơ: $error';
+            _isSubmitting = false;
+          });
         }
       });
 
@@ -1271,10 +1296,12 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
 
         if (!mounted) return;
 
+        // Set success state even if there was a UI error, as long as data was saved
         if (success) {
           setState(() {
             _isSubmitting = false;
             _success = true;
+            _errorMessage = null; // Clear any error messages if we have success
           });
 
           // Close bottom sheet after success

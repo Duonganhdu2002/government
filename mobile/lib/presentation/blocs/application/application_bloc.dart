@@ -70,10 +70,8 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
           emit(ApplicationErrorState(message: failure.message));
         },
         (applications) {
-
           // Ensure all applications are valid
-          if (applications.isNotEmpty) {
-          }
+          if (applications.isNotEmpty) {}
 
           final newState = ApplicationsLoadedState(applications: applications);
           emit(newState);
@@ -105,19 +103,33 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
   ) async {
     emit(ApplicationSubmittingState());
 
-    final result = await createApplicationUseCase(
-      CreateApplicationParams(
-        title: event.title,
-        description: event.description,
-        formData: event.formData,
-        attachments: event.attachments,
-      ),
-    );
+    try {
+      final result = await createApplicationUseCase(
+        CreateApplicationParams(
+          title: event.title,
+          description: event.description,
+          formData: event.formData,
+          attachments: event.attachments,
+        ),
+      );
 
-    result.fold(
-      (failure) => emit(ApplicationErrorState(message: failure.message)),
-      (application) => emit(ApplicationCreatedState(application: application)),
-    );
+      result.fold(
+        (failure) => emit(ApplicationErrorState(message: failure.message)),
+        (application) {
+          try {
+            emit(ApplicationCreatedState(application: application));
+          } catch (e) {
+            print('Error in emitting ApplicationCreatedState: $e');
+            // Still consider this a success but with an error message
+            emit(ApplicationErrorState(
+                message: 'Gửi hồ sơ thành công nhưng có lỗi hiển thị: $e'));
+          }
+        },
+      );
+    } catch (e) {
+      print('Unexpected error in _onCreateApplication: $e');
+      emit(ApplicationErrorState(message: 'Lỗi không xác định: $e'));
+    }
   }
 
   Future<void> _onUpdateApplication(
