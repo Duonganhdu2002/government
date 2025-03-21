@@ -16,160 +16,123 @@ class ApplicationTypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    applicationType.name,
-                    style: AppStyles.heading2.copyWith(fontSize: 16),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 12),
+                if (applicationType.description.isNotEmpty) ...[
                   Text(
                     applicationType.description,
-                    style: AppStyles.body2,
+                    style: AppStyles.body2.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildInfoBadge(
-                        Icons.access_time,
-                        _getProcessingTimeText(applicationType),
-                      ),
-                      const SizedBox(width: 12),
-                      _buildCategoryBadge(
-                        context,
-                        assignCategoryToType(applicationType).displayName,
-                      ),
-                    ],
-                  ),
                 ],
-              ),
+                _buildInfoRow(),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final category = assignCategoryToType(applicationType);
-    Color headerColor;
-
-    // Assign color based on category
-    switch (category) {
-      case ApplicationCategory.personal:
-        headerColor = AppColors.primary.withOpacity(0.9);
-        break;
-      case ApplicationCategory.legal:
-        headerColor = Colors.indigo.shade700;
-        break;
-      case ApplicationCategory.property:
-        headerColor = Colors.green.shade700;
-        break;
-      case ApplicationCategory.business:
-        headerColor = Colors.amber.shade700;
-        break;
-      case ApplicationCategory.social:
-        headerColor = Colors.purple.shade700;
-        break;
-      case ApplicationCategory.other:
-      default:
-        headerColor = Colors.grey.shade700;
-        break;
-    }
-
-    return Container(
-      height: 8,
-      decoration: BoxDecoration(
-        color: headerColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-    );
-  }
-
-  Widget _buildInfoBadge(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: AppColors.darkGrey,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: AppStyles.caption.copyWith(
-              color: AppColors.darkGrey,
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            applicationType.name,
+            style: AppStyles.subtitle1.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
           ),
-        ],
-      ),
+        ),
+        // Special types indicator - simplified since we don't have that property
+      ],
     );
   }
 
-  Widget _buildCategoryBadge(BuildContext context, String category) {
+  Widget _buildInfoRow() {
+    return Row(
+      children: [
+        _buildInfoBadge(
+          icon: Icons.access_time_rounded,
+          text: '${applicationType.processingTimeLimit} ngày',
+        ),
+        const SizedBox(width: 12),
+        _buildCategoryBadge(),
+      ],
+    );
+  }
+
+  Widget _buildInfoBadge({
+    required IconData icon,
+    required String text,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: AppColors.textSecondary,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: AppStyles.caption.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryBadge() {
+    final categoryName = applicationType.category ?? 'Other';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppColors.border,
+        ),
       ),
       child: Text(
-        category,
+        categoryName,
         style: AppStyles.caption.copyWith(
-          color: AppColors.primary,
+          color: AppColors.textSecondary,
           fontWeight: FontWeight.w500,
         ),
       ),
     );
-  }
-
-  String _getProcessingTimeText(ApplicationType type) {
-    final hasRange = type.processingTimeRange != null;
-
-    if (!hasRange) {
-      return '${type.processingTimeLimit} ngày';
-    }
-
-    final range = type.processingTimeRange!;
-    final isSameTime = range.min == range.max;
-
-    if (isSameTime) {
-      return '${range.min} ngày';
-    }
-
-    return '${range.min} - ${range.max} ngày';
   }
 }

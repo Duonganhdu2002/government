@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
@@ -124,12 +124,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     greeting,
-                    style: AppStyles.body2,
+                    style: AppStyles.body2.copyWith(color: AppColors.textLight),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     isAuthenticated ? 'Chào, $userName!' : 'Chào mừng!',
-                    style: AppStyles.heading2,
+                    style: AppStyles.heading2
+                        .copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -157,12 +158,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.lightGrey,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border, width: 1),
             ),
             child: Row(
               children: [
@@ -195,16 +197,18 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(
             'Truy cập nhanh',
-            style: AppStyles.heading3,
+            style: AppStyles.heading3.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
               _buildQuickActionCard(
                 context,
                 icon: Icons.document_scanner_outlined,
                 title: 'Hồ sơ mới',
-                color: AppColors.primary,
                 onTap: () {
                   if (isAuthenticated) {
                     context.go(AppConstants.applicationsRoute);
@@ -213,12 +217,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 },
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _buildQuickActionCard(
                 context,
                 icon: Icons.history_outlined,
                 title: 'Lịch sử',
-                color: AppColors.secondary,
                 onTap: () {
                   if (isAuthenticated) {
                     context.go(AppConstants.historyRoute);
@@ -227,12 +230,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 },
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _buildQuickActionCard(
                 context,
                 icon: Icons.notifications_outlined,
                 title: 'Thông báo',
-                color: AppColors.warning,
                 onTap: () {
                   context.go(AppConstants.notificationsRoute);
                 },
@@ -248,7 +250,6 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context, {
     required IconData icon,
     required String title,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return Expanded(
@@ -256,13 +257,17 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.border,
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.03),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
@@ -272,21 +277,23 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: AppColors.lightGrey,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
-                  color: color,
+                  color: AppColors.primary,
                   size: 24,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 title,
-                style: AppStyles.subtitle2,
+                style: AppStyles.subtitle2.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -308,27 +315,36 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Thông báo gần đây',
-                style: AppStyles.heading3,
+                style: AppStyles.heading3.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
               TextButton(
                 onPressed: () {
                   context.go(AppConstants.notificationsRoute);
                 },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
                 child: Text(
                   'Xem tất cả',
-                  style: AppStyles.body2.copyWith(color: AppColors.primary),
+                  style: AppStyles.body2.copyWith(fontWeight: FontWeight.w500),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           BlocBuilder<NotificationBloc, NotificationState>(
             builder: (context, state) {
               if (state is NotificationsLoadingState) {
                 return const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(),
+                    padding: EdgeInsets.all(24.0),
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
                   ),
                 );
               } else if (state is NotificationsLoadedState) {
@@ -358,80 +374,57 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNotificationItem(
       BuildContext context, app_notification.Notification notification) {
-    // Define colors based on notification type
-    Color getColor(String type) {
-      switch (type) {
-        case 'success':
-          return Colors.green;
-        case 'warning':
-          return Colors.orange;
-        case 'error':
-          return Colors.red;
-        case 'info':
-        default:
-          return AppColors.info;
-      }
-    }
-
-    // Define icons based on notification type
-    IconData getIcon(String type) {
-      switch (type) {
-        case 'success':
-          return Icons.check_circle;
-        case 'warning':
-          return Icons.warning;
-        case 'error':
-          return Icons.error;
-        case 'info':
-        default:
-          return Icons.info;
-      }
-    }
-
-    final color = getColor(notification.type);
-    final iconData = getIcon(notification.type);
+    // All notifications will use the same icon with the monochrome design
+    IconData iconData = Icons.notifications_outlined;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color:
-              notification.read ? Colors.transparent : color.withOpacity(0.3),
+          color: notification.read ? AppColors.border : AppColors.primary,
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: AppColors.lightGrey,
             shape: BoxShape.circle,
           ),
           child: Icon(
             iconData,
-            color: color,
+            color: AppColors.primary,
             size: 20,
           ),
         ),
         title: Text(
           notification.title,
-          style: AppStyles.subtitle1,
+          style: AppStyles.subtitle1.copyWith(
+            fontWeight: notification.read ? FontWeight.normal : FontWeight.bold,
+          ),
         ),
-        subtitle: Text(
-          notification.message,
-          style: AppStyles.body2,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            notification.message,
+            style: AppStyles.body2.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         onTap: () {
           context.go(AppConstants.notificationsRoute);
@@ -442,13 +435,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEmptyNotifications() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -456,16 +453,28 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.notifications_none,
-              size: 48,
+              Icons.notifications_off_outlined,
+              size: 40,
               color: AppColors.textLight,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Không có thông báo mới',
+              style: AppStyles.subtitle1.copyWith(
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Không có thông báo mới',
-              style: AppStyles.body1.copyWith(color: AppColors.textSecondary),
+              'Bạn sẽ nhận được thông báo khi có cập nhật mới',
+              style: AppStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -484,27 +493,36 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Hồ sơ gần đây',
-                style: AppStyles.heading3,
+                style: AppStyles.heading3.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
               TextButton(
                 onPressed: () {
                   context.go(AppConstants.historyRoute);
                 },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
                 child: Text(
                   'Xem tất cả',
-                  style: AppStyles.body2.copyWith(color: AppColors.primary),
+                  style: AppStyles.body2.copyWith(fontWeight: FontWeight.w500),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           BlocBuilder<ApplicationBloc, ApplicationState>(
             builder: (context, state) {
               if (state is ApplicationsLoadingState) {
                 return const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(),
+                    padding: EdgeInsets.all(24.0),
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
                   ),
                 );
               } else if (state is ApplicationsLoadedState) {
@@ -533,80 +551,77 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildApplicationItem(BuildContext context, Application application) {
-    // Define colors based on application status
-    Color getStatusColor(ApplicationStatus status) {
-      switch (status) {
-        case ApplicationStatus.approved:
-          return Colors.green;
-        case ApplicationStatus.rejected:
-          return Colors.red;
-        case ApplicationStatus.inReview:
-          return Colors.orange;
-        case ApplicationStatus.draft:
-        case ApplicationStatus.submitted:
-        default:
-          return AppColors.primary;
-      }
-    }
-
-    // Format status text
-    String getStatusText(ApplicationStatus status) {
-      switch (status) {
-        case ApplicationStatus.approved:
-          return 'Đã duyệt';
-        case ApplicationStatus.rejected:
-          return 'Đã từ chối';
-        case ApplicationStatus.inReview:
-          return 'Đang xem xét';
-        case ApplicationStatus.submitted:
-          return 'Đã nộp';
-        case ApplicationStatus.draft:
-        default:
-          return 'Bản nháp';
-      }
-    }
-
-    final statusColor = getStatusColor(application.status);
-    final statusText = getStatusText(application.status);
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        title: Text(
-          application.title,
-          style: AppStyles.subtitle1,
-        ),
-        subtitle: Text(
-          application.description,
-          style: AppStyles.body2,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
+        contentPadding: const EdgeInsets.all(16),
+        title: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  application.title,
+                  style: AppStyles.subtitle1.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildStatusBadge(application.status),
+            ],
           ),
-          child: Text(
-            statusText,
-            style: AppStyles.caption.copyWith(color: statusColor),
-          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              application.description,
+              style: AppStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: AppColors.textLight,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Ngày nộp: ${_formatDate(application.createdAt)}',
+                  style: AppStyles.caption.copyWith(
+                    color: AppColors.textLight,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         onTap: () {
-          context.go('${AppConstants.historyRoute}/details/${application.id}');
+          context
+              .go('${AppConstants.applicationDetailsRoute}/${application.id}');
         },
       ),
     );
@@ -614,13 +629,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEmptyApplications() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -628,16 +647,46 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.description_outlined,
-              size: 48,
+              size: 40,
               color: AppColors.textLight,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Bạn chưa có hồ sơ nào',
+              style: AppStyles.subtitle1.copyWith(
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Bạn chưa có hồ sơ nào',
-              style: AppStyles.body1.copyWith(color: AppColors.textSecondary),
+              'Tạo hồ sơ mới để bắt đầu sử dụng dịch vụ',
+              style: AppStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 200,
+              child: OutlinedButton(
+                onPressed: () {
+                  context.go(AppConstants.applicationsRoute);
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.primary),
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Tạo hồ sơ mới'),
+              ),
             ),
           ],
         ),
@@ -649,46 +698,82 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.05),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.border,
+            width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Icon(
+              Icons.person_outline,
+              size: 40,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 16),
             Text(
-              'Đăng nhập để sử dụng đầy đủ dịch vụ',
-              style: AppStyles.subtitle1.copyWith(color: AppColors.primary),
+              'Đăng nhập để sử dụng dịch vụ',
+              style: AppStyles.heading3.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Đăng nhập để truy cập các dịch vụ hành chính công, theo dõi hồ sơ và nhận thông báo từ các cơ quan nhà nước.',
-              style: AppStyles.body2,
+              'Bạn cần đăng nhập để tạo và theo dõi tiến độ hồ sơ của mình',
+              style: AppStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  context.go(AppConstants.loginRoute);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.go(AppConstants.loginRoute);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Đăng nhập'),
                   ),
                 ),
-                child: Text(
-                  'Đăng nhập ngay',
-                  style: AppStyles.button,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      context.go(AppConstants.registerRoute);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Đăng ký'),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -704,64 +789,67 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(
             'Dịch vụ phổ biến',
-            style: AppStyles.heading3,
+            style: AppStyles.heading3.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           GridView.count(
-            crossAxisCount: 3,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.85,
+            crossAxisCount: 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 1.2,
             children: [
               _buildServiceCard(
                 context,
-                title: 'CCCD/CMND',
-                icon: Icons.badge_outlined,
-                iconColor: AppColors.primary,
-                route: AppConstants.applicationsRoute,
-                isAuthenticated: isAuthenticated,
+                icon: Icons.apartment_outlined,
+                title: 'Đăng ký thường trú',
+                onTap: () {
+                  if (isAuthenticated) {
+                    context.go(AppConstants.applicationsRoute);
+                  } else {
+                    context.go(AppConstants.loginRoute);
+                  }
+                },
               ),
               _buildServiceCard(
                 context,
-                title: 'Đăng ký kinh doanh',
+                icon: Icons.card_membership_outlined,
+                title: 'Cấp mới CMND/CCCD',
+                onTap: () {
+                  if (isAuthenticated) {
+                    context.go(AppConstants.applicationsRoute);
+                  } else {
+                    context.go(AppConstants.loginRoute);
+                  }
+                },
+              ),
+              _buildServiceCard(
+                context,
                 icon: Icons.business_outlined,
-                iconColor: AppColors.secondary,
-                route: AppConstants.applicationsRoute,
-                isAuthenticated: isAuthenticated,
+                title: 'Giấy phép kinh doanh',
+                onTap: () {
+                  if (isAuthenticated) {
+                    context.go(AppConstants.applicationsRoute);
+                  } else {
+                    context.go(AppConstants.loginRoute);
+                  }
+                },
               ),
               _buildServiceCard(
                 context,
-                title: 'Đăng ký nhà đất',
-                icon: Icons.home_outlined,
-                iconColor: Colors.orange,
-                route: AppConstants.applicationsRoute,
-                isAuthenticated: isAuthenticated,
-              ),
-              _buildServiceCard(
-                context,
-                title: 'Khai thuế',
-                icon: Icons.account_balance_outlined,
-                iconColor: Colors.purple,
-                route: AppConstants.applicationsRoute,
-                isAuthenticated: isAuthenticated,
-              ),
-              _buildServiceCard(
-                context,
-                title: 'Giấy phép lái xe',
-                icon: Icons.directions_car_outlined,
-                iconColor: Colors.teal,
-                route: AppConstants.applicationsRoute,
-                isAuthenticated: isAuthenticated,
-              ),
-              _buildServiceCard(
-                context,
-                title: 'Xem tất cả',
-                icon: Icons.apps_outlined,
-                iconColor: AppColors.textSecondary,
-                route: AppConstants.applicationsRoute,
-                isAuthenticated: isAuthenticated,
+                icon: Icons.maps_home_work_outlined,
+                title: 'Thuế & Đất đai',
+                onTap: () {
+                  if (isAuthenticated) {
+                    context.go(AppConstants.applicationsRoute);
+                  } else {
+                    context.go(AppConstants.loginRoute);
+                  }
+                },
               ),
             ],
           ),
@@ -772,54 +860,96 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildServiceCard(
     BuildContext context, {
-    required String title,
     required IconData icon,
-    required Color iconColor,
-    required String route,
-    required bool isAuthenticated,
+    required String title,
+    required VoidCallback onTap,
   }) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: InkWell(
-        onTap: () {
-          if (isAuthenticated) {
-            context.go(route);
-          } else {
-            context.go(AppConstants.loginRoute);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: 28,
-                  color: iconColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: AppStyles.subtitle2,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.border,
+            width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.lightGrey,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: AppStyles.subtitle2.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(ApplicationStatus status) {
+    late String label;
+
+    switch (status) {
+      case ApplicationStatus.draft:
+        label = 'Bản nháp';
+        break;
+      case ApplicationStatus.submitted:
+        label = 'Đã nộp';
+        break;
+      case ApplicationStatus.inReview:
+        label = 'Đang xử lý';
+        break;
+      case ApplicationStatus.approved:
+      case ApplicationStatus.completed:
+        label = 'Hoàn thành';
+        break;
+      case ApplicationStatus.rejected:
+        label = 'Từ chối';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.lightGrey,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
         ),
       ),
     );
@@ -833,126 +963,105 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(
             'Tin tức mới nhất',
-            style: AppStyles.heading3,
+            style: AppStyles.heading3.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 12),
-          _buildNewsCard(
-            context,
-            title: 'Thông báo bảo trì hệ thống',
-            description:
-                'Hệ thống sẽ tạm ngưng hoạt động từ 22:00 ngày 15/05/2024 đến 02:00 ngày 16/05/2024 để bảo trì định kỳ.',
-            date: '14/05/2024',
-          ),
-          const SizedBox(height: 8),
-          _buildNewsCard(
-            context,
-            title: 'Cải tiến quy trình đăng ký online',
-            description:
-                'Từ ngày 01/06/2024, quy trình đăng ký online sẽ được cải tiến để rút ngắn thời gian xử lý hồ sơ.',
-            date: '10/05/2024',
-          ),
-          const SizedBox(height: 8),
-          _buildNewsCard(
-            context,
-            title: 'Thông báo nghỉ lễ 30/4 và 01/5',
-            description:
-                'Các cơ quan hành chính sẽ nghỉ làm việc từ ngày 30/04/2024 đến hết ngày 01/05/2024.',
-            date: '25/04/2024',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNewsCard(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required String date,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: () {
-            // Navigate to news detail
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.border,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: AppStyles.subtitle1,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                  child: Container(
+                    height: 160,
+                    width: double.infinity,
+                    color: AppColors.lightGrey,
+                    child: Icon(
+                      Icons.photo_outlined,
+                      size: 48,
+                      color: AppColors.textLight,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Thông báo về việc tiếp nhận hồ sơ trực tuyến',
+                        style: AppStyles.subtitle1.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: AppColors.lightGrey,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        date,
-                        style: AppStyles.caption.copyWith(
+                      const SizedBox(height: 8),
+                      Text(
+                        'Từ ngày 01/06/2023, tất cả các hồ sơ hành chính đều được tiếp nhận qua hệ thống trực tuyến.',
+                        style: AppStyles.body2.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: AppStyles.body2,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Xem chi tiết',
-                      style: AppStyles.body2.copyWith(
-                        color: AppColors.primary,
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 14,
+                            color: AppColors.textLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '01/06/2023',
+                            style: AppStyles.caption.copyWith(
+                              color: AppColors.textLight,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {},
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              padding: EdgeInsets.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              minimumSize: const Size(0, 0),
+                            ),
+                            child: Text(
+                              'Xem chi tiết',
+                              style: AppStyles.button.copyWith(
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 12,
-                      color: AppColors.primary,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -966,5 +1075,10 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       return 'Chào buổi tối';
     }
+  }
+
+  String _formatDate(DateTime date) {
+    // Implement the logic to format the date
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

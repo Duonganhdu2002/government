@@ -9,7 +9,6 @@ import '../../../screens/application_type_detail_screen.dart';
 import '../../../themes/app_colors.dart';
 import '../../../themes/app_styles.dart';
 import '../../../widgets/application_type_card.dart';
-import '../../../widgets/loading_indicator.dart';
 import '../../../widgets/new_application_bottom_sheet.dart';
 
 class ApplicationsScreen extends StatefulWidget {
@@ -74,7 +73,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                 builder: (context, state) {
                   if (state is ApplicationTypesLoadingState) {
                     return const Center(
-                      child: LoadingIndicator(),
+                      child: CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
                     );
                   } else if (state is ApplicationTypesLoadedState) {
                     // Show a small loading indicator for special types if needed
@@ -89,10 +91,17 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                             right: 16,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.9),
+                                color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -130,7 +139,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                   }
 
                   return const Center(
-                    child: LoadingIndicator(),
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
                   );
                 },
               ),
@@ -154,19 +166,34 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Danh mục hồ sơ',
-            style: AppStyles.heading1,
+            style: AppStyles.heading1.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Chọn loại hồ sơ bạn muốn nộp',
-            style: AppStyles.body2,
+            style: AppStyles.body2.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -180,15 +207,26 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Tìm kiếm loại hồ sơ...',
-          prefixIcon: const Icon(Icons.search, color: AppColors.darkGrey),
+          hintStyle: TextStyle(color: AppColors.textLight),
+          prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppColors.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(color: AppColors.border, width: 1),
           ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.border, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.primary, width: 1),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         ),
+        style: TextStyle(color: AppColors.textPrimary),
         onChanged: (value) {
           context.read<ApplicationTypeBloc>().add(
                 SearchApplicationTypesEvent(query: value),
@@ -201,7 +239,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   Widget _buildCategoryFilter() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
         children: [
           _buildCategoryChip(null, 'Tất cả'),
@@ -227,20 +265,31 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
             );
       },
       child: Container(
-        margin: const EdgeInsets.only(right: 8, bottom: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
+            width: 1,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
-          style: AppStyles.caption.copyWith(
+          style: AppStyles.subtitle2.copyWith(
             color: isSelected ? Colors.white : AppColors.textSecondary,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+            fontSize: 13,
           ),
         ),
       ),
@@ -344,23 +393,29 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
         children: [
           Icon(
             Icons.search_off_rounded,
-            size: 80,
-            color: AppColors.textLight.withOpacity(0.5),
+            size: 64,
+            color: AppColors.textLight,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(
             'Không tìm thấy loại hồ sơ',
             style: AppStyles.heading3.copyWith(
-              color: AppColors.textSecondary,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _searchController.text.isNotEmpty
-                ? 'Thử tìm kiếm với từ khóa khác'
-                : 'Vui lòng thử lại sau',
-            style: AppStyles.body2,
-            textAlign: TextAlign.center,
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              _searchController.text.isNotEmpty
+                  ? 'Thử tìm kiếm với từ khóa khác'
+                  : 'Vui lòng thử lại sau',
+              style: AppStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -375,38 +430,50 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
           Icon(
             Icons.error_outline,
             size: 64,
-            color: AppColors.error.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Đã xảy ra lỗi',
-            style: AppStyles.heading3,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: AppStyles.body2,
-            textAlign: TextAlign.center,
+            color: AppColors.primary,
           ),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              context.read<ApplicationTypeBloc>().add(
-                    const LoadApplicationTypesEvent(),
-                  );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+          Text(
+            'Đã xảy ra lỗi',
+            style: AppStyles.heading3.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
-            child: const Text('Thử lại'),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              message,
+              style: AppStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: 180,
+            child: ElevatedButton(
+              onPressed: () {
+                context.read<ApplicationTypeBloc>().add(
+                      const LoadApplicationTypesEvent(),
+                    );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Thử lại'),
+            ),
           ),
         ],
       ),
