@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:async';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 import '../../domain/entities/application_type.dart';
 import '../../domain/entities/special_application_type.dart';
@@ -46,11 +48,14 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
   String? _provinceCode;
   String? _districtCode;
   String? _wardCode;
-  final List<String> _imagePaths = [];
-  String? _videoPath;
+  final List<File> _imageFiles = [];
+  File? _videoFile;
   bool _isSubmitting = false;
   String? _errorMessage;
   bool _success = false;
+
+  // Image picker
+  final ImagePicker _picker = ImagePicker();
 
   // Location data
   final _locationService = LocationService();
@@ -756,9 +761,9 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
               'Ảnh',
               style: AppStyles.subtitle1,
             ),
-            if (_imagePaths.isNotEmpty)
+            if (_imageFiles.isNotEmpty)
               Text(
-                '${_imagePaths.length}/5 ảnh',
+                '${_imageFiles.length}/5 ảnh',
                 style: AppStyles.caption,
               ),
           ],
@@ -772,17 +777,19 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             // Image previews
-            ..._imagePaths.asMap().entries.map((entry) {
+            ..._imageFiles.asMap().entries.map((entry) {
               final index = entry.key;
+              final imageFile = entry.value;
+
               return Stack(
                 children: [
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade200,
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.image, size: 32, color: Colors.grey),
+                      image: DecorationImage(
+                        image: FileImage(imageFile),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -791,7 +798,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
                     child: GestureDetector(
                       onTap: () {
                         setState(() {
-                          _imagePaths.removeAt(index);
+                          _imageFiles.removeAt(index);
                         });
                       },
                       child: Container(
@@ -810,7 +817,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
             }),
 
             // Add image button (if less than 5 images)
-            if (_imagePaths.length < 5)
+            if (_imageFiles.length < 5)
               InkWell(
                 onTap: _pickImage,
                 child: Container(
@@ -840,12 +847,17 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
           style: AppStyles.subtitle1,
         ),
         const SizedBox(height: 8),
-        _videoPath != null
+        _videoFile != null
             ? Container(
                 height: 200,
                 decoration: BoxDecoration(
                   color: Colors.black,
                   borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(
+                    image: FileImage(_videoFile!),
+                    fit: BoxFit.cover,
+                    opacity: 0.7,
+                  ),
                 ),
                 child: Stack(
                   children: [
@@ -862,7 +874,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
                       child: GestureDetector(
                         onTap: () {
                           setState(() {
-                            _videoPath = null;
+                            _videoFile = null;
                           });
                         },
                         child: Container(
@@ -1007,34 +1019,136 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
     }
   }
 
-  void _pickImage() {
-    // Mock adding an image
-    setState(() {
-      if (_imagePaths.length < 5) {
-        _imagePaths.add('mock_image_path_${_imagePaths.length + 1}');
-      }
-    });
+  Future<void> _pickImage() async {
+    try {
+      // Show source selection dialog
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Chọn nguồn ảnh'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Thư viện'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Camera'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
-    // Show a snackbar message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tính năng đang được phát triển. Đã thêm ảnh mẫu.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+      if (source == null) return;
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          if (_imageFiles.length < 5) {
+            _imageFiles.add(File(image.path));
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        // Handle permission denied error specifically
+        if (e.toString().contains('permission') && mounted) {
+          _showPermissionErrorMessage();
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi chọn ảnh: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _pickVideo() {
-    // Mock adding a video
-    setState(() {
-      _videoPath = 'mock_video_path';
-    });
+  Future<void> _pickVideo() async {
+    try {
+      // Show source selection dialog
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Chọn nguồn video'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.video_library),
+                  title: const Text('Thư viện'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.videocam),
+                  title: const Text('Camera'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
-    // Show a snackbar message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tính năng đang được phát triển. Đã thêm video mẫu.'),
-        duration: Duration(seconds: 2),
+      if (source == null) return;
+
+      final XFile? video = await _picker.pickVideo(
+        source: source,
+        maxDuration: const Duration(minutes: 1),
+      );
+
+      if (video != null) {
+        setState(() {
+          _videoFile = File(video.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        // Handle permission denied error specifically
+        if (e.toString().contains('permission') && mounted) {
+          _showPermissionErrorMessage();
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi chọn video: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Show dialog when permission is denied
+  void _showPermissionErrorMessage() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Quyền truy cập bị từ chối'),
+        content: const Text(
+            'Vui lòng cấp quyền truy cập vào camera hoặc thư viện ảnh trong cài đặt để tiếp tục.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
       ),
     );
   }
@@ -1051,35 +1165,60 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
     });
 
     try {
-      // Prepare form data
+      // Prepare form data with no null values
       final Map<String, dynamic> formData = {
         'applicationTypeId': widget.applicationType.id,
-        'specialApplicationTypeId': widget.specialApplicationType?.id,
-        'eventDate': _eventDate,
-        'location': _location,
-        'hasAttachments': _hasAttachments,
-        'province': _provinceCode != null
-            ? _provinces.firstWhere((p) => p.code == _provinceCode).nameWithType
-            : null,
-        'district': _districtCode != null
-            ? _districts.firstWhere((d) => d.code == _districtCode).nameWithType
-            : null,
-        'ward': _wardCode != null
-            ? _wards.firstWhere((w) => w.code == _wardCode).nameWithType
-            : null,
       };
 
-      // Convert image paths to attachment list
-      final List<String> attachments = [..._imagePaths];
-      if (_videoPath != null) {
-        attachments.add(_videoPath!);
+      // Only include specialApplicationTypeId if it exists
+      if (widget.specialApplicationType != null) {
+        formData['specialApplicationTypeId'] =
+            widget.specialApplicationType!.id;
       }
 
-      // Make sure we have a description (even if empty)
+      // Add optional fields only if they're not null
+      if (_eventDate != null && _eventDate!.isNotEmpty) {
+        formData['eventDate'] = _eventDate;
+      }
+
+      if (_location != null && _location!.isNotEmpty) {
+        formData['location'] = _location;
+      }
+
+      formData['hasAttachments'] = _hasAttachments;
+
+      if (_provinceCode != null) {
+        final province = _provinces.firstWhere((p) => p.code == _provinceCode);
+        formData['province'] = province.nameWithType;
+      }
+
+      if (_districtCode != null) {
+        final district = _districts.firstWhere((d) => d.code == _districtCode);
+        formData['district'] = district.nameWithType;
+      }
+
+      if (_wardCode != null) {
+        final ward = _wards.firstWhere((w) => w.code == _wardCode);
+        formData['ward'] = ward.nameWithType;
+      }
+
+      // Convert image files and video files to paths for attachment list
+      final List<String> attachments =
+          _imageFiles.map((file) => file.path).toList();
+      if (_videoFile != null) {
+        attachments.add(_videoFile!.path);
+      }
+
+      // Make sure we have a description (never null)
       final String description = _descriptionController.text.isNotEmpty
           ? _descriptionController.text
           : "Hồ sơ ${widget.applicationType.name}";
 
+      print('Submitting application with data:');
+      print('Title: ${_titleController.text}');
+      print('Description: $description');
+      print('FormData: $formData');
+      print('Attachments: $attachments');
 
       // Dispatch event to application bloc with all files
       context.read<ApplicationBloc>().add(
@@ -1095,9 +1234,12 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
       final completer = Completer<bool>();
       final subscription =
           context.read<ApplicationBloc>().stream.listen((state) {
+        print('Application state: $state');
         if (state is ApplicationCreatedState) {
+          print('Application created successfully: ${state.application.id}');
           completer.complete(true);
         } else if (state is ApplicationErrorState) {
+          print('Application creation error: ${state.message}');
           completer.complete(false);
           if (mounted) {
             setState(() {
@@ -1113,6 +1255,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
         final success = await completer.future.timeout(
             const Duration(seconds: 30), // Increased timeout for file upload
             onTimeout: () {
+          print('Timeout while waiting for application submission response');
           if (mounted) {
             setState(() {
               _errorMessage =
@@ -1154,6 +1297,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
         subscription.cancel();
       }
     } catch (e) {
+      print('Exception during submission: $e');
       // Check if the widget is still mounted before updating state
       if (!mounted) return;
 

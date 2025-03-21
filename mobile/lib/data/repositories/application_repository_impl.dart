@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 // ignore: depend_on_referenced_packages
 import 'package:http_parser/http_parser.dart';
+import 'dart:io';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/failure.dart';
@@ -214,60 +215,134 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       // Create FormData object
       final dioFormData = FormData();
 
+      print('Creating application with files:');
+      print('Title: $title');
+      print('Description: $description');
+      print('FormData: $formData');
+      print('Attachments: $attachments');
+
       // Add application data
       dioFormData.fields.add(MapEntry('title', title));
       dioFormData.fields.add(MapEntry('description', description));
 
       // Add application type ID
       if (formData.containsKey('applicationTypeId')) {
+        final String applicationTypeId =
+            formData['applicationTypeId']?.toString() ?? '';
+        if (applicationTypeId.isEmpty) {
+          return Left(ServerFailure(
+            message: 'Application type ID is required',
+          ));
+        }
         dioFormData.fields.add(
-          MapEntry(
-              'applicationtypeid', formData['applicationTypeId'].toString()),
+          MapEntry('applicationtypeid', applicationTypeId),
         );
+        print('Added applicationtypeid: $applicationTypeId');
+      } else {
+        return Left(ServerFailure(
+          message: 'Application type ID is required',
+        ));
       }
 
       // Add special application type ID if present
       if (formData.containsKey('specialApplicationTypeId') &&
           formData['specialApplicationTypeId'] != null) {
+        final String specialTypeId =
+            formData['specialApplicationTypeId'].toString();
         dioFormData.fields.add(
-          MapEntry('specialapplicationtypeid',
-              formData['specialApplicationTypeId'].toString()),
+          MapEntry('specialapplicationtypeid', specialTypeId),
         );
+        print('Added specialapplicationtypeid: $specialTypeId');
       }
 
       // Add event date if present
-      if (formData.containsKey('eventDate')) {
+      if (formData.containsKey('eventDate') && formData['eventDate'] != null) {
+        final String eventDate = formData['eventDate'].toString();
         dioFormData.fields.add(
-          MapEntry('eventdate', formData['eventDate']),
+          MapEntry('eventdate', eventDate),
         );
+        print('Added eventdate: $eventDate');
       }
 
       // Add location if present
-      if (formData.containsKey('location')) {
+      if (formData.containsKey('location') && formData['location'] != null) {
+        final String location = formData['location'].toString();
         dioFormData.fields.add(
-          MapEntry('location', formData['location']),
+          MapEntry('location', location),
         );
+        print('Added location: $location');
       }
 
-      // For demo purposes, create mock files instead of real ones
-      // In a production app, you would use real files
+      // Add province if present
+      if (formData.containsKey('province') && formData['province'] != null) {
+        final String province = formData['province'].toString();
+        dioFormData.fields.add(
+          MapEntry('province', province),
+        );
+        print('Added province: $province');
+      }
+
+      // Add district if present
+      if (formData.containsKey('district') && formData['district'] != null) {
+        final String district = formData['district'].toString();
+        dioFormData.fields.add(
+          MapEntry('district', district),
+        );
+        print('Added district: $district');
+      }
+
+      // Add ward if present
+      if (formData.containsKey('ward') && formData['ward'] != null) {
+        final String ward = formData['ward'].toString();
+        dioFormData.fields.add(
+          MapEntry('ward', ward),
+        );
+        print('Added ward: $ward');
+      }
+
+      // Add real files from paths
       for (var i = 0; i < attachments.length; i++) {
-        // Creating a mock file with text content
-        final mockFileData = 'This is a mock file for ${attachments[i]}';
-        final mockFileName = 'mock_file_${i + 1}.txt';
+        final String path = attachments[i];
+        final File file = File(path);
 
-        dioFormData.files.add(
-          MapEntry(
-            'files',
-            MultipartFile.fromString(
-              mockFileData,
-              filename: mockFileName,
-              contentType: MediaType('text', 'plain'),
+        if (await file.exists()) {
+          final String fileName = path.split('/').last;
+          final String fileExtension = fileName.split('.').last.toLowerCase();
+
+          // Determine the content type based on file extension
+          String contentType;
+          String mediaType;
+
+          if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
+            contentType = 'image/$fileExtension';
+            mediaType = 'image';
+          } else if (['mp4', 'mov', 'avi'].contains(fileExtension)) {
+            contentType = 'video/$fileExtension';
+            mediaType = 'video';
+          } else {
+            contentType = 'application/octet-stream';
+            mediaType = 'application';
+          }
+
+          print('Adding file: $fileName, type: $contentType');
+
+          dioFormData.files.add(
+            MapEntry(
+              'files',
+              await MultipartFile.fromFile(
+                path,
+                filename: fileName,
+                contentType: MediaType.parse(contentType),
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          print('File not found: $path');
+        }
       }
 
+      print(
+          'Submitting application to: ${ApiConstants.baseUrl}${ApiConstants.applicationUploadEndpoint}');
 
       // Endpoint is application-upload
       final response = await dio.post(
@@ -280,12 +355,16 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         ),
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response data: ${response.data}');
 
       if (response.statusCode == 201) {
+        print('Application created successfully');
         final Application application =
             ApplicationModel.fromJson(response.data['application']);
         return Right(application);
       } else {
+        print('Error creating application: ${response.data}');
         return Left(ServerFailure(
           message: response.data['message'] ??
               'Failed to create application with files',
@@ -293,7 +372,10 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         ));
       }
     } on DioException catch (e) {
+      print('DioException: ${e.message}');
       if (e.response != null) {
+        print('Response data: ${e.response?.data}');
+        print('Response status: ${e.response?.statusCode}');
       }
 
       return Left(ServerFailure(
@@ -302,6 +384,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         code: e.response?.statusCode,
       ));
     } catch (e) {
+      print('Exception: $e');
       return Left(ServerFailure(message: e.toString()));
     }
   }
