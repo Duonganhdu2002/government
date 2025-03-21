@@ -611,35 +611,35 @@ class ApplicationDetailsScreen extends StatelessWidget {
 
   // Get a full URL for attachment with better fallback options
   String _getAttachmentUrl(String attachment, String applicationId) {
-    // If it's already a full URL, return it
-    if (attachment.startsWith('http://') || attachment.startsWith('https://')) {
-      return attachment;
-    }
-
-    // If it's a placeholder message and not an actual URL
+    // Xử lý placeholder text
     if (attachment == 'Có tài liệu đính kèm') {
       return '';
     }
 
-    // Handle paths that start with /uploads/ directly - this is the main path we should use
+    // Nếu đã là URL đầy đủ
+    if (attachment.startsWith('http://') || attachment.startsWith('https://')) {
+      return attachment;
+    }
+
+    // Xử lý đường dẫn đến file trong thư mục uploads
     if (attachment.startsWith('/uploads/')) {
       return '${ApiConstants.baseUrl}$attachment';
     }
 
-    // For direct filepath that might not start with /uploads/
-    if (attachment.contains('/') && !RegExp(r'^\d+$').hasMatch(attachment)) {
+    // Xử lý ID media file
+    if (RegExp(r'^\d+$').hasMatch(attachment)) {
+      return '${ApiConstants.baseUrl}/api/media-files/serve/$attachment';
+    }
+
+    // Xử lý đường dẫn tương đối
+    if (attachment.contains('/')) {
       String cleanPath =
           attachment.startsWith('/') ? attachment : '/$attachment';
       return '${ApiConstants.baseUrl}$cleanPath';
     }
 
-    // For mediafileid direct access - LAST RESORT approach, prefer filepath when available
-    if (RegExp(r'^\d+$').hasMatch(attachment)) {
-      return '${ApiConstants.baseUrl}/api/media-files/serve/$attachment';
-    }
-
-    // Otherwise, construct the standard URL
-    return '${ApiConstants.baseUrl}${ApiConstants.applicationsEndpoint}/$applicationId/attachments/$attachment';
+    // Mặc định: cấu trúc URL đến attachment của application
+    return '${ApiConstants.baseUrl}/api/applications/$applicationId/attachments/$attachment';
   }
 
   // Simple detail item without dividers
@@ -673,22 +673,25 @@ class ApplicationDetailsScreen extends StatelessWidget {
   // Advanced attachment items that look like the web UI
   List<Widget> _buildAttachmentItems(
       BuildContext context, List<String> attachments, String applicationId) {
-
     return attachments.map((attachment) {
-      final String fileSize = "101 KB";
-      final String date = _formatDate(DateTime.now());
+      // Skip placeholder messages
+      if (attachment == 'Có tài liệu đính kèm') {
+        return _buildPlaceholderAttachment(context);
+      }
+
       final String fileName = attachment.split('/').last.isEmpty
-          ? "File-13"
+          ? "File"
           : attachment.split('/').last;
       final IconData fileIcon = _getFileIcon(fileName);
-
-      // Always treat uploads as image files
-      final bool isImage = true;
 
       // Get the full URL using our helper method
       final String fullAttachmentUrl =
           _getAttachmentUrl(attachment, applicationId);
 
+      // Skip empty URLs
+      if (fullAttachmentUrl.isEmpty) {
+        return _buildPlaceholderAttachment(context);
+      }
 
       return InkWell(
         onTap: () => _showMediaFullScreen(context, fullAttachmentUrl),
@@ -724,7 +727,7 @@ class ApplicationDetailsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            "$fileSize • $date",
+                            "Ngày tải lên: ${_formatDate(DateTime.now())}",
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 12,
@@ -739,23 +742,21 @@ class ApplicationDetailsScreen extends StatelessWidget {
                 ),
               ),
 
-              // Luôn hiển thị ảnh cho tất cả tài liệu từ API
-              if (isImage) ...[
-                const Divider(height: 1),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  width: double.infinity,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(8),
-                      bottomRight: Radius.circular(8),
-                    ),
-                    child: DirectImageView(
-                      imageUrl: fullAttachmentUrl,
-                    ),
+              // Hiển thị ảnh với DirectImageView
+              const Divider(height: 1),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 180),
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                  child: DirectImageView(
+                    imageUrl: fullAttachmentUrl,
                   ),
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -1017,8 +1018,7 @@ class DirectImageViewState extends State<DirectImageView> {
           _authToken = token;
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Tạo URL cho media dựa vào số lần thử, tương tự web application
@@ -1039,10 +1039,10 @@ class DirectImageViewState extends State<DirectImageView> {
       return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
     }
 
-    // Strategy 3: Nếu là URL uploads, thử chuyển sang dùng media-files/serve API
+    // Strategy 3: Nếu là URL uploads, thử chuyển sang dùng media-files API
     if (_loadAttempt == 2 && isUploadPath) {
-      // Extract filename or ID from path
-      final mediaId = url.split('/').last.split('-').first;
+      final String filename = url.split('/').last;
+      final mediaId = filename.split('-').first;
       if (mediaId.isNotEmpty) {
         final baseUrl = url.split('/uploads/').first;
         return '$baseUrl/api/media-files/serve/$mediaId';
@@ -1051,11 +1051,10 @@ class DirectImageViewState extends State<DirectImageView> {
 
     // Strategy 4: Nếu là API serve, thử dùng đường dẫn trực tiếp
     if (_loadAttempt == 3 && isMediaServe) {
-      // Try using a direct path instead
       final baseUrl = url.split('/api/media-files/serve/').first;
       final mediaId = url.split('/').last;
       if (mediaId.isNotEmpty) {
-        return '$baseUrl/uploads/$mediaId.png'; // Thử với extension .png
+        return '$baseUrl/uploads/$mediaId-attachment.png';
       }
     }
 
@@ -1074,7 +1073,15 @@ class DirectImageViewState extends State<DirectImageView> {
   @override
   Widget build(BuildContext context) {
     if (_authToken == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+          ),
+        ),
+      );
     }
 
     final imageUrl = _getImageUrlWithRetry();
@@ -1093,35 +1100,62 @@ class DirectImageViewState extends State<DirectImageView> {
                 ? loadingProgress.cumulativeBytesLoaded /
                     loadingProgress.expectedTotalBytes!
                 : null,
+            strokeWidth: 2,
           ),
         );
       },
       errorBuilder: (context, error, stackTrace) {
-
+        // Auto retry with a slight delay for UI feedback
         if (_loadAttempt < _maxRetries) {
-          // Auto retry with a slight delay for UI feedback
           Future.delayed(const Duration(milliseconds: 800), () {
             if (mounted) _retryLoading();
           });
+
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.refresh, size: 24, color: Colors.grey),
+                const SizedBox(height: 8),
+                Text(
+                  'Đang thử cách khác (${_loadAttempt + 1}/$_maxRetries)',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
         }
 
         return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.broken_image),
+              const Icon(Icons.broken_image, size: 32, color: Colors.grey),
               const SizedBox(height: 8),
-              const Text('Không thể tải ảnh'),
-              const SizedBox(height: 4),
-              Text('Đang thử cách khác... (${_loadAttempt + 1}/$_maxRetries)',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey)),
-              if (_loadAttempt >= _maxRetries) ...[
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: _retryLoading,
-                  child: const Text('Thử lại'),
+              const Text(
+                'Không thể tải ảnh',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _loadAttempt = 0;
+                  });
+                  _retryLoading();
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Thử lại'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-              ]
+              ),
             ],
           ),
         );
