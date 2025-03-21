@@ -14,6 +14,10 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../blocs/application/application_bloc.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import './application_details_screen.dart';
+import '../../../blocs/history/history_bloc.dart';
+import '../../../blocs/history/history_event.dart';
+import '../../../blocs/history/history_state.dart';
+import '../../../../core/utils/service_locator.dart' as di;
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -68,7 +72,6 @@ class _HistoryScreenState extends State<HistoryScreen>
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
 
-
     if (token == null || token.isEmpty) {
       // No token or empty token, trigger auth check
       if (mounted) {
@@ -77,7 +80,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       return;
     }
 
-    // Token exists, load data
+    // Token exists, load data using application bloc instead
     if (mounted) {
       context.read<ApplicationBloc>().add(LoadCurrentUserApplicationsEvent());
     }
@@ -87,44 +90,21 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget build(BuildContext context) {
     super.build(context);
 
-    // Use less frequent rebuilds
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Lịch sử hồ sơ đã nộp'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _checkTokenAndLoadData,
-            tooltip: 'Làm mới',
-          ),
-        ],
-      ),
-      body: BlocConsumer<ApplicationBloc, ApplicationState>(
-        listenWhen: (previous, current) {
-          // Optimize by only listening to certain state changes
-          if (previous is ApplicationsLoadingState &&
-              current is ApplicationsLoadedState) return true;
-          if (previous is ApplicationsLoadingState &&
-              current is ApplicationErrorState) return true;
-          return false;
-        },
+    return BlocProvider<HistoryBloc>(
+      create: (context) => di.sl<HistoryBloc>()..add(const LoadHistoryEvent()),
+      child: BlocListener<HistoryBloc, HistoryState>(
         listener: (context, state) {
-
-          if (state is ApplicationsLoadingState) {
+          if (state is HistoryLoadingState) {
             setState(() {
               _isLoading = true;
               _errorMessage = null;
             });
-          } else if (state is ApplicationErrorState) {
+          } else if (state is HistoryErrorState) {
             setState(() {
               _isLoading = false;
               _errorMessage = state.message;
             });
-          } else if (state is ApplicationsLoadedState) {
+          } else if (state is HistoryLoadedState) {
             setState(() {
               _isLoading = false;
               _errorMessage = null;
@@ -132,39 +112,103 @@ class _HistoryScreenState extends State<HistoryScreen>
             });
           }
         },
-        buildWhen: (previous, current) {
-          // Optimize rebuilds
-          if (current is ApplicationsLoadingState) return _applications.isEmpty;
-          if (current is ApplicationsLoadedState) return true;
-          if (current is ApplicationErrorState) return true;
-          return false;
-        },
-        builder: (context, state) {
-          // Show loading indicator if we're loading and have no data
-          if (_isLoading && _applications.isEmpty) {
-            return const _LoadingView();
-          }
-
-          if (_errorMessage != null) {
-            return _ErrorView(
-              error: _errorMessage!,
-              onRetry: _checkTokenAndLoadData,
-              onLogout: () async {
-                await DioUtils.clearToken();
-                context.read<AuthBloc>().add(LogoutEvent());
-                if (!mounted) return;
-                context.go('/login');
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title: const Text('Lịch sử hồ sơ đã nộp'),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  context.read<HistoryBloc>().add(const RefreshHistoryEvent());
+                },
+                tooltip: 'Làm mới',
+              ),
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: () async {
+              // Use History bloc for refresh
+              context.read<HistoryBloc>().add(const RefreshHistoryEvent());
+              // Add a small delay for better UX
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: BlocConsumer<ApplicationBloc, ApplicationState>(
+              listenWhen: (previous, current) {
+                // Optimize by only listening to certain state changes
+                if (previous is ApplicationsLoadingState &&
+                    current is ApplicationsLoadedState) return true;
+                if (previous is ApplicationsLoadingState &&
+                    current is ApplicationErrorState) return true;
+                return false;
               },
-            );
-          }
+              listener: (context, state) {
+                if (state is ApplicationsLoadingState) {
+                  setState(() {
+                    _isLoading = true;
+                    _errorMessage = null;
+                  });
+                } else if (state is ApplicationErrorState) {
+                  setState(() {
+                    _isLoading = false;
+                    _errorMessage = state.message;
+                  });
+                } else if (state is ApplicationsLoadedState) {
+                  setState(() {
+                    _isLoading = false;
+                    _errorMessage = null;
+                    _applications = state.applications;
+                  });
+                }
+              },
+              buildWhen: (previous, current) {
+                // Optimize rebuilds
+                if (current is ApplicationsLoadingState) {
+                  return _applications.isEmpty;
+                }
+                if (current is ApplicationsLoadedState) return true;
+                if (current is ApplicationErrorState) return true;
+                return false;
+              },
+              builder: (context, state) {
+                // Show loading indicator if we're loading and have no data
+                if (_isLoading && _applications.isEmpty) {
+                  return const _LoadingView();
+                }
 
-          if (_applications.isEmpty) {
-            return const _EmptyView();
-          }
+                if (_errorMessage != null) {
+                  return _ErrorView(
+                    error: _errorMessage!,
+                    onRetry: () {
+                      context.read<HistoryBloc>().add(const LoadHistoryEvent());
+                    },
+                    onLogout: () async {
+                      await DioUtils.clearToken();
+                      context.read<AuthBloc>().add(LogoutEvent());
+                      if (!mounted) return;
+                      context.go('/login');
+                    },
+                  );
+                }
 
-          // Use our cached applications list
-          return _ApplicationListView(applications: _applications);
-        },
+                if (_applications.isEmpty) {
+                  return const _EmptyView();
+                }
+
+                // Wrap the _ApplicationListView in a ListView for scrolling
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    _ApplicationListView(applications: _applications),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -375,34 +419,38 @@ class _ApplicationListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (applications.isEmpty) {
+      return const _EmptyView();
+    }
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        context.read<ApplicationBloc>().add(LoadCurrentUserApplicationsEvent());
-      },
-      color: AppTheme.primaryColor,
-      backgroundColor: Colors.white,
-      displacement: 40,
-      child: applications.isEmpty
-          ? const _EmptyView()
-          : ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemExtent: 200, // Adjusted height after removing button
-              itemCount: applications.length,
-              itemBuilder: (context, index) {
-                final application = applications[index];
-                // Only log first few items to avoid excessive logging
-                if (index < 2) {
-                }
-                return _ApplicationCard(
-                  key: ValueKey('app_${application.id}'),
-                  application: application,
-                );
-              },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Tổng hồ sơ: ${applications.length}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textSecondary,
             ),
+          ),
+        ),
+        ListView.builder(
+          // These settings are important to make it work inside another ListView
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: applications.length,
+          itemBuilder: (context, index) {
+            final application = applications[index];
+            return _ApplicationCard(
+              key: ValueKey('app_${application.id}'),
+              application: application,
+            );
+          },
+        ),
+      ],
     );
   }
 }

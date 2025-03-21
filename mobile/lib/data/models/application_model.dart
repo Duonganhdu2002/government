@@ -18,93 +18,111 @@ class ApplicationModel extends Application {
   });
 
   factory ApplicationModel.fromJson(Map<String, dynamic> json) {
+    // Parse the status
+    final ApplicationStatus status = _parseStatus(json['status']);
+
+    // Parse dates
+    final DateTime createdAt = _parseDate(json['createdAt']);
+    final DateTime updatedAt =
+        json['updatedAt'] != null ? _parseDate(json['updatedAt']) : createdAt;
+    final DateTime? submittedAt =
+        json['submittedAt'] != null ? _parseDate(json['submittedAt']) : null;
+
+    // Parse formData, with fallback to empty map
+    Map<String, dynamic> formData = {};
+    if (json['formData'] != null) {
+      if (json['formData'] is String) {
+        try {
+          formData = Map<String, dynamic>.from(json['formData'] as Map);
+        } catch (_) {
+          formData = {};
+        }
+      } else if (json['formData'] is Map) {
+        formData = Map<String, dynamic>.from(json['formData']);
+      }
+    }
+
+    // Parse attachments
+    List<String> attachments = [];
+    if (json['attachments'] != null) {
+      if (json['attachments'] is List) {
+        attachments = List<String>.from(json['attachments']);
+      }
+    }
+
     return ApplicationModel(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      submittedAt: json['submittedAt'] != null
-          ? DateTime.parse(json['submittedAt'])
-          : null,
-      status: _mapStringToApplicationStatus(json['status']),
-      formData: json['formData'] ?? {},
-      attachments: json['attachments'] != null
-          ? List<String>.from(json['attachments'])
-          : [],
-      referenceNumber: json['referenceNumber'],
-      userId: json['userId'],
+      id: json['id'].toString(),
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      submittedAt: submittedAt,
+      status: status,
+      formData: formData,
+      attachments: attachments,
+      referenceNumber: json['referenceNumber']?.toString(),
+      userId: json['userId']?.toString() ?? '',
     );
   }
 
-  /// Converts server-side application data format to ApplicationModel
+  // Handles server-specific JSON format that might be different from the generic format
   factory ApplicationModel.fromServerJson(Map<String, dynamic> json) {
-    try {
+    // Parse the status
+    final ApplicationStatus status = _parseStatus(json['status']);
 
-      // Handle the application ID which could be int or string
-      String id = '';
-      if (json['applicationid'] != null) {
-        id = json['applicationid'].toString();
-      }
+    // Parse dates - handle different field names from server
+    final DateTime createdAt = json['submissiondate'] != null
+        ? _parseDate(json['submissiondate'])
+        : _parseDate(json['createdAt'] ?? json['created_at']);
 
-      // Get the submission date with fallback
-      DateTime submittedAt = DateTime.now();
-      if (json['submissiondate'] != null) {
+    final DateTime updatedAt = json['lastupdated'] != null
+        ? _parseDate(json['lastupdated'])
+        : (json['updatedAt'] != null
+            ? _parseDate(json['updatedAt'])
+            : createdAt);
+
+    final DateTime? submittedAt = json['submissiondate'] != null
+        ? _parseDate(json['submissiondate'])
+        : (json['submittedAt'] != null
+            ? _parseDate(json['submittedAt'])
+            : null);
+
+    // Parse formData, with fallback to empty map
+    Map<String, dynamic> formData = {};
+    if (json['formData'] != null) {
+      if (json['formData'] is String) {
         try {
-          submittedAt = DateTime.parse(json['submissiondate']);
-        } catch (e) {
+          formData = Map<String, dynamic>.from(json['formData'] as Map);
+        } catch (_) {
+          formData = {};
         }
+      } else if (json['formData'] is Map) {
+        formData = Map<String, dynamic>.from(json['formData']);
       }
-
-      // Get the last updated date or use submission date as fallback
-      DateTime updatedAt = submittedAt;
-      if (json['lastupdated'] != null) {
-        try {
-          updatedAt = DateTime.parse(json['lastupdated']);
-        } catch (e) {
-        }
-      }
-
-      // Parse status safely
-      String statusStr = 'unknown';
-      if (json['status'] != null) {
-        statusStr = json['status'].toString();
-      }
-
-      final application = ApplicationModel(
-        id: id,
-        title: json['title'] ?? 'No Title',
-        description: json['description'] ?? '',
-        createdAt: submittedAt, // Use submission date as creation date
-        updatedAt: updatedAt,
-        submittedAt: submittedAt,
-        status: _mapStringToApplicationStatus(statusStr),
-        formData: {
-          'applicationtypeid': json['applicationtypeid'],
-          'applicationtypename': json['applicationtypename'],
-          'specialapplicationtypeid': json['specialapplicationtypeid'],
-          'specialapplicationtypename': json['specialapplicationtypename'],
-        },
-        attachments: json['hasmedia'] == true ? ['Có tài liệu đính kèm'] : [],
-        referenceNumber: json['applicationid']?.toString() ?? '',
-        userId: json['citizenid']?.toString() ?? '',
-      );
-
-      return application;
-    } catch (e) {
-
-      // Create a fallback application with minimal data
-      return ApplicationModel(
-        id: json['applicationid']?.toString() ?? 'unknown',
-        title: json['title'] ?? 'Không thể đọc tên hồ sơ',
-        description: 'Không thể đọc mô tả',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        status: ApplicationStatus.submitted,
-        formData: {},
-        userId: json['citizenid']?.toString() ?? '',
-      );
     }
+
+    // Parse attachments
+    List<String> attachments = [];
+    if (json['attachments'] != null) {
+      if (json['attachments'] is List) {
+        attachments = List<String>.from(json['attachments']);
+      }
+    }
+
+    return ApplicationModel(
+      id: (json['applicationid'] ?? json['id']).toString(),
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      submittedAt: submittedAt,
+      status: status,
+      formData: formData,
+      attachments: attachments,
+      referenceNumber: json['referenceNumber']?.toString() ??
+          json['applicationid']?.toString(),
+      userId: json['citizenid']?.toString() ?? json['userId']?.toString() ?? '',
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -112,40 +130,78 @@ class ApplicationModel extends Application {
       'id': id,
       'title': title,
       'description': description,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'submittedAt': submittedAt?.toIso8601String(),
-      'status': _mapApplicationStatusToString(status),
+      'status': _statusToString(status),
       'formData': formData,
       'attachments': attachments,
       'referenceNumber': referenceNumber,
       'userId': userId,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'submittedAt': submittedAt?.toIso8601String(),
     };
   }
 
-  static ApplicationStatus _mapStringToApplicationStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'draft':
-        return ApplicationStatus.draft;
-      case 'submitted':
-        return ApplicationStatus.submitted;
-      case 'in_review':
-      case 'inreview':
-      case 'in review':
-      case 'processing':
-        return ApplicationStatus.inReview;
-      case 'approved':
-        return ApplicationStatus.approved;
-      case 'rejected':
-        return ApplicationStatus.rejected;
-      case 'completed':
-        return ApplicationStatus.completed;
-      default:
-        return ApplicationStatus.draft;
-    }
+  factory ApplicationModel.fromEntity(Application application) {
+    return ApplicationModel(
+      id: application.id,
+      title: application.title,
+      description: application.description,
+      createdAt: application.createdAt,
+      updatedAt: application.updatedAt,
+      submittedAt: application.submittedAt,
+      status: application.status,
+      formData: application.formData,
+      attachments: application.attachments,
+      referenceNumber: application.referenceNumber,
+      userId: application.userId,
+    );
   }
 
-  static String _mapApplicationStatusToString(ApplicationStatus status) {
+  static ApplicationStatus _parseStatus(dynamic status) {
+    if (status == null) return ApplicationStatus.draft;
+
+    if (status is int) {
+      switch (status) {
+        case 0:
+          return ApplicationStatus.draft;
+        case 1:
+          return ApplicationStatus.submitted;
+        case 2:
+          return ApplicationStatus.inReview;
+        case 3:
+          return ApplicationStatus.approved;
+        case 4:
+          return ApplicationStatus.rejected;
+        case 5:
+          return ApplicationStatus.completed;
+        default:
+          return ApplicationStatus.draft;
+      }
+    } else if (status is String) {
+      switch (status.toLowerCase()) {
+        case 'draft':
+          return ApplicationStatus.draft;
+        case 'submitted':
+          return ApplicationStatus.submitted;
+        case 'in_review':
+        case 'inreview':
+        case 'processing':
+          return ApplicationStatus.inReview;
+        case 'approved':
+          return ApplicationStatus.approved;
+        case 'rejected':
+          return ApplicationStatus.rejected;
+        case 'completed':
+          return ApplicationStatus.completed;
+        default:
+          return ApplicationStatus.draft;
+      }
+    }
+
+    return ApplicationStatus.draft;
+  }
+
+  static String _statusToString(ApplicationStatus status) {
     switch (status) {
       case ApplicationStatus.draft:
         return 'draft';
@@ -159,6 +215,28 @@ class ApplicationModel extends Application {
         return 'rejected';
       case ApplicationStatus.completed:
         return 'completed';
+      default:
+        return 'draft';
     }
+  }
+
+  static DateTime _parseDate(dynamic date) {
+    if (date == null) return DateTime.now();
+
+    if (date is String) {
+      try {
+        return DateTime.parse(date);
+      } catch (_) {
+        return DateTime.now();
+      }
+    } else if (date is int) {
+      try {
+        return DateTime.fromMillisecondsSinceEpoch(date);
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+
+    return DateTime.now();
   }
 }

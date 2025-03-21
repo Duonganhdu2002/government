@@ -12,6 +12,20 @@ import '../../domain/entities/application.dart';
 import '../../domain/repositories/application_repository.dart';
 import '../models/application_model.dart';
 
+// A simple logger to replace print statements in the code
+// This avoids lint warnings while keeping debugging capabilities
+class _Logger {
+  static const bool _enableLogging =
+      false; // Set to true only during development
+
+  static void log(String message) {
+    if (_enableLogging) {
+      // ignore: avoid_print
+      print('[AppRepo] $message');
+    }
+  }
+}
+
 class ApplicationRepositoryImpl implements ApplicationRepository {
   final Dio dio;
 
@@ -215,11 +229,11 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
       // Create FormData object
       final dioFormData = FormData();
 
-      print('Creating application with files:');
-      print('Title: $title');
-      print('Description: $description');
-      print('FormData: $formData');
-      print('Attachments: $attachments');
+      _Logger.log('Creating application with files:');
+      _Logger.log('Title: $title');
+      _Logger.log('Description: $description');
+      _Logger.log('FormData: $formData');
+      _Logger.log('Attachments: $attachments');
 
       // Add application data
       dioFormData.fields.add(MapEntry('title', title));
@@ -237,7 +251,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('applicationtypeid', applicationTypeId),
         );
-        print('Added applicationtypeid: $applicationTypeId');
+        _Logger.log('Added applicationtypeid: $applicationTypeId');
       } else {
         return Left(ServerFailure(
           message: 'Application type ID is required',
@@ -252,7 +266,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('specialapplicationtypeid', specialTypeId),
         );
-        print('Added specialapplicationtypeid: $specialTypeId');
+        _Logger.log('Added specialapplicationtypeid: $specialTypeId');
       }
 
       // Add event date if present
@@ -261,7 +275,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('eventdate', eventDate),
         );
-        print('Added eventdate: $eventDate');
+        _Logger.log('Added eventdate: $eventDate');
       }
 
       // Add location if present
@@ -270,7 +284,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('location', location),
         );
-        print('Added location: $location');
+        _Logger.log('Added location: $location');
       }
 
       // Add province if present
@@ -279,7 +293,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('province', province),
         );
-        print('Added province: $province');
+        _Logger.log('Added province: $province');
       }
 
       // Add district if present
@@ -288,7 +302,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('district', district),
         );
-        print('Added district: $district');
+        _Logger.log('Added district: $district');
       }
 
       // Add ward if present
@@ -297,7 +311,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         dioFormData.fields.add(
           MapEntry('ward', ward),
         );
-        print('Added ward: $ward');
+        _Logger.log('Added ward: $ward');
       }
 
       // Add real files from paths
@@ -311,20 +325,16 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
 
           // Determine the content type based on file extension
           String contentType;
-          String mediaType;
 
           if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
             contentType = 'image/$fileExtension';
-            mediaType = 'image';
           } else if (['mp4', 'mov', 'avi'].contains(fileExtension)) {
             contentType = 'video/$fileExtension';
-            mediaType = 'video';
           } else {
             contentType = 'application/octet-stream';
-            mediaType = 'application';
           }
 
-          print('Adding file: $fileName, type: $contentType');
+          _Logger.log('Adding file: $fileName, type: $contentType');
 
           dioFormData.files.add(
             MapEntry(
@@ -337,11 +347,11 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
             ),
           );
         } else {
-          print('File not found: $path');
+          _Logger.log('File not found: $path');
         }
       }
 
-      print(
+      _Logger.log(
           'Submitting application to: ${ApiConstants.baseUrl}${ApiConstants.applicationUploadEndpoint}');
 
       // Endpoint is application-upload
@@ -355,11 +365,11 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         ),
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response data: ${response.data}');
+      _Logger.log('Response status: ${response.statusCode}');
+      _Logger.log('Response data: ${response.data}');
 
       if (response.statusCode == 201) {
-        print('Application created successfully');
+        _Logger.log('Application created successfully');
 
         try {
           // Enhanced error handling for null values in response data
@@ -376,9 +386,9 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
           }
 
           // Log structure of application data to help debug
-          print(
+          _Logger.log(
               'Application data structure: ${response.data['application'].runtimeType}');
-          print('Application data: ${response.data['application']}');
+          _Logger.log('Application data: ${response.data['application']}');
 
           // Create a safe copy of application data with default values for nullable fields
           final Map<String, dynamic> safeAppData =
@@ -402,7 +412,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
               ApplicationModel.fromJson(safeAppData);
           return Right(application);
         } catch (parseError) {
-          print('Error parsing application data: $parseError');
+          _Logger.log('Error parsing application data: $parseError');
           // Create a minimal valid application object to avoid crashing
           final Application fallbackApplication = ApplicationModel(
             id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
@@ -418,7 +428,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
           return Right(fallbackApplication);
         }
       } else {
-        print('Error creating application: ${response.data}');
+        _Logger.log('Error creating application: ${response.data}');
         return Left(ServerFailure(
           message: response.data['message'] ??
               'Failed to create application with files',
@@ -426,10 +436,10 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         ));
       }
     } on DioException catch (e) {
-      print('DioException: ${e.message}');
+      _Logger.log('DioException: ${e.message}');
       if (e.response != null) {
-        print('Response data: ${e.response?.data}');
-        print('Response status: ${e.response?.statusCode}');
+        _Logger.log('Response data: ${e.response?.data}');
+        _Logger.log('Response status: ${e.response?.statusCode}');
       }
 
       return Left(ServerFailure(
@@ -438,7 +448,7 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
         code: e.response?.statusCode,
       ));
     } catch (e) {
-      print('Exception: $e');
+      _Logger.log('Exception: $e');
       return Left(ServerFailure(message: e.toString()));
     }
   }

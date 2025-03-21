@@ -14,6 +14,19 @@ import '../../../domain/usecases/application/delete_application_usecase.dart';
 part 'application_event.dart';
 part 'application_state.dart';
 
+// A simple logger to replace print statements
+class _Logger {
+  static const bool _enableLogging =
+      false; // Set to true only during development
+
+  static void log(String message) {
+    if (_enableLogging) {
+      // ignore: avoid_print
+      print('[AppBloc] $message');
+    }
+  }
+}
+
 class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
   final GetApplicationsUseCase getApplicationsUseCase;
   final GetCurrentUserApplicationsUseCase getCurrentUserApplicationsUseCase;
@@ -119,7 +132,7 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
           try {
             emit(ApplicationCreatedState(application: application));
           } catch (e) {
-            print('Error in emitting ApplicationCreatedState: $e');
+            _Logger.log('Error in emitting ApplicationCreatedState: $e');
             // Still consider this a success but with an error message
             emit(ApplicationErrorState(
                 message: 'Gửi hồ sơ thành công nhưng có lỗi hiển thị: $e'));
@@ -127,7 +140,7 @@ class ApplicationBloc extends Bloc<ApplicationEvent, ApplicationState> {
         },
       );
     } catch (e) {
-      print('Unexpected error in _onCreateApplication: $e');
+      _Logger.log('Unexpected error in _onCreateApplication: $e');
       emit(ApplicationErrorState(message: 'Lỗi không xác định: $e'));
     }
   }

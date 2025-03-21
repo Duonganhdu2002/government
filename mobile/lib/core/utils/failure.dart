@@ -14,7 +14,11 @@ class Failure extends Equatable {
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure({required super.message, super.code});
+  const ServerFailure({
+    required super.message,
+    int? code,
+    int? statusCode,
+  }) : super(code: statusCode ?? code);
 }
 
 class CacheFailure extends Failure {

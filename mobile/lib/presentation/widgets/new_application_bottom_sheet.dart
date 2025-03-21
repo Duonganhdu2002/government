@@ -12,6 +12,19 @@ import '../themes/app_colors.dart';
 import '../themes/app_styles.dart';
 import 'loading_indicator.dart';
 
+// A simple logger to replace print statements
+class _Logger {
+  static const bool _enableLogging =
+      false; // Set to true only during development
+
+  static void log(String message) {
+    if (_enableLogging) {
+      // ignore: avoid_print
+      print('[NewApplicationSheet] $message');
+    }
+  }
+}
+
 class NewApplicationBottomSheet extends StatefulWidget {
   final ApplicationType applicationType;
   final SpecialApplicationType? specialApplicationType;
@@ -1214,11 +1227,11 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
           ? _descriptionController.text
           : "Hồ sơ ${widget.applicationType.name}";
 
-      print('Submitting application with data:');
-      print('Title: ${_titleController.text}');
-      print('Description: $description');
-      print('FormData: $formData');
-      print('Attachments: $attachments');
+      _Logger.log('Submitting application with data:');
+      _Logger.log('Title: ${_titleController.text}');
+      _Logger.log('Description: $description');
+      _Logger.log('FormData: $formData');
+      _Logger.log('Attachments: $attachments');
 
       // Dispatch event to application bloc with all files
       context.read<ApplicationBloc>().add(
@@ -1235,13 +1248,14 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
       late StreamSubscription subscription;
 
       subscription = context.read<ApplicationBloc>().stream.listen((state) {
-        print('Application state: $state');
+        _Logger.log('Application state: $state');
         try {
           if (state is ApplicationCreatedState) {
-            print('Application created successfully: ${state.application.id}');
+            _Logger.log(
+                'Application created successfully: ${state.application.id}');
             completer.complete(true);
           } else if (state is ApplicationErrorState) {
-            print('Application creation error: ${state.message}');
+            _Logger.log('Application creation error: ${state.message}');
             completer.complete(false);
             if (mounted) {
               setState(() {
@@ -1251,7 +1265,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
             }
           }
         } catch (e) {
-          print('Error handling application state: $e');
+          _Logger.log('Error handling application state: $e');
           if (!completer.isCompleted) {
             completer.complete(false);
           }
@@ -1263,7 +1277,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
           }
         }
       }, onError: (error) {
-        print('Stream error: $error');
+        _Logger.log('Stream error: $error');
         if (!completer.isCompleted) {
           completer.complete(false);
         }
@@ -1280,7 +1294,8 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
         final success = await completer.future.timeout(
             const Duration(seconds: 30), // Increased timeout for file upload
             onTimeout: () {
-          print('Timeout while waiting for application submission response');
+          _Logger.log(
+              'Timeout while waiting for application submission response');
           if (mounted) {
             setState(() {
               _errorMessage =
@@ -1324,7 +1339,7 @@ class _NewApplicationBottomSheetState extends State<NewApplicationBottomSheet> {
         subscription.cancel();
       }
     } catch (e) {
-      print('Exception during submission: $e');
+      _Logger.log('Exception during submission: $e');
       // Check if the widget is still mounted before updating state
       if (!mounted) return;
 
