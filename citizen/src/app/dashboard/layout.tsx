@@ -148,7 +148,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setApplicationCount(0);
         }
       };
-      
+
       fetchApplicationCount();
     }
   }, [user]);
@@ -390,11 +390,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden md:ml-64" onClick={handleCloseSidebar}>
           <div className="py-6 flex-1">
-            <div className="px-4 pb-4 mb-4">
-              <div className="flex justify-between items-center">
-                <Heading level="h1" className="text-ui-fg-base">Dashboard</Heading>
-              </div>
-            </div>
+
             <div className="px-4">
               <Suspense fallback={<Loading />}>{children}</Suspense>
             </div>
