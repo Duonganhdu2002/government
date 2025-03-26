@@ -32,6 +32,16 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
+// Custom refresh icon
+const RefreshIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.5 2v6h-6"></path>
+    <path d="M2.5 12a10 10 0 0 1 19-4h-3.5"></path>
+    <path d="M2.5 22v-6h6"></path>
+    <path d="M21.5 12a10 10 0 0 1-19 4h3.5"></path>
+  </svg>
+);
+
 // Định nghĩa kiểu dữ liệu cho một đơn hồ sơ
 interface Application {
   applicationid: number;
@@ -40,6 +50,10 @@ interface Application {
   status: string;
   submissiondate: string;
 }
+
+// Khóa lưu trữ trong localStorage
+const APPLICATIONS_STORAGE_KEY = 'user-applications-data';
+const APPLICATIONS_TIMESTAMP_KEY = 'user-applications-timestamp';
 
 // Hàm để lấy status badge dựa trên trạng thái của đơn
 const getStatusBadge = (status: string) => {
@@ -64,33 +78,77 @@ export default function ApplicationHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  
+  // Hàm lấy dữ liệu từ API
+  const fetchApplications = async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Kiểm tra dữ liệu đã lưu trong localStorage
+      const storedData = localStorage.getItem(APPLICATIONS_STORAGE_KEY);
+      const storedTimestamp = localStorage.getItem(APPLICATIONS_TIMESTAMP_KEY);
+      
+      // Nếu có dữ liệu đã lưu và không yêu cầu refresh
+      if (storedData && storedTimestamp && !forceRefresh) {
+        const applications = JSON.parse(storedData);
+        setApplications(applications);
+        setLastUpdated(new Date(parseInt(storedTimestamp)).toLocaleString('vi-VN'));
+        setLoading(false);
+        return;
+      }
+      
+      // Nếu không có dữ liệu hoặc yêu cầu refresh, gọi API
+      const data = await fetchUserApplications();
+      
+      // Lưu dữ liệu mới vào localStorage
+      localStorage.setItem(APPLICATIONS_STORAGE_KEY, JSON.stringify(data));
+      const timestamp = Date.now();
+      localStorage.setItem(APPLICATIONS_TIMESTAMP_KEY, timestamp.toString());
+      
+      setApplications(data);
+      setLastUpdated(new Date(timestamp).toLocaleString('vi-VN'));
+    } catch (err) {
+      console.error('Failed to fetch applications:', err);
+      setError('Không thể tải lịch sử đơn. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   useEffect(() => {
-    // Lấy danh sách đơn của người dùng
-    const fetchApplications = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await fetchUserApplications();
-        setApplications(data);
-      } catch (err) {
-        console.error('Failed to fetch applications:', err);
-        setError('Không thể tải lịch sử đơn. Vui lòng thử lại sau.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
+    // Lấy dữ liệu khi component được mount
     fetchApplications();
   }, []);
   
   return (
     <Container className="py-6">
-      <Heading level="h1" className="mb-6">Lịch sử hồ sơ đã nộp</Heading>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <Heading level="h1">Lịch sử hồ sơ đã nộp</Heading>
+        
+        <div className="flex items-center mt-2 sm:mt-0">
+          {lastUpdated && (
+            <Text size="small" className="text-ui-fg-subtle mr-3">
+              Cập nhật lần cuối: {lastUpdated}
+            </Text>
+          )}
+          <Button 
+            variant="secondary" 
+            size="small" 
+            onClick={() => fetchApplications(true)}
+            disabled={loading}
+            className="hover:shadow-sm transition-shadow duration-200"
+          >
+            <RefreshIcon />
+            <span className="ml-1">Làm mới</span>
+          </Button>
+        </div>
+      </div>
       
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-700 mr-2"></div>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-ui-fg-base mr-2"></div>
           <Text>Đang tải dữ liệu...</Text>
         </div>
       ) : error ? (
