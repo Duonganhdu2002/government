@@ -45,15 +45,15 @@ interface Application {
 const getStatusBadge = (status: string) => {
   switch(status?.toLowerCase()) {
     case 'submitted':
-      return <Badge color="blue">Đã nộp</Badge>;
+      return <Badge className="bg-ui-bg-subtle text-ui-fg-base border border-ui-border-base">Đã nộp</Badge>;
     case 'processing':
-      return <Badge color="orange">Đang xử lý</Badge>;
+      return <Badge className="bg-ui-bg-base text-ui-fg-base border border-ui-border-base">Đang xử lý</Badge>;
     case 'completed':
-      return <Badge color="green">Hoàn thành</Badge>;
+      return <Badge className="bg-ui-fg-base text-ui-bg-base">Hoàn thành</Badge>;
     case 'rejected':
-      return <Badge color="red">Từ chối</Badge>;
+      return <Badge className="bg-ui-bg-base text-ui-fg-subtle border border-ui-border-base">Từ chối</Badge>;
     default:
-      return <Badge color="grey">{status}</Badge>;
+      return <Badge className="bg-ui-bg-subtle text-ui-fg-subtle">{status}</Badge>;
   }
 };
 
@@ -94,15 +94,15 @@ export default function ApplicationHistoryPage() {
           <Text>Đang tải dữ liệu...</Text>
         </div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-          <Text className="text-red-600">{error}</Text>
+        <div className="bg-ui-bg-subtle rounded-md p-4 mb-4">
+          <Text className="text-ui-fg-base">{error}</Text>
         </div>
       ) : applications.length === 0 ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
-          <div className="w-10 h-10 mx-auto mb-2 text-gray-400">
+        <div className="bg-ui-bg-subtle rounded-md p-6 text-center">
+          <div className="w-10 h-10 mx-auto mb-2 text-ui-fg-subtle">
             <FileTextIcon />
           </div>
-          <Text className="text-gray-600 mb-4">Bạn chưa nộp đơn nào</Text>
+          <Text className="text-ui-fg-subtle mb-4">Bạn chưa nộp đơn nào</Text>
           <Button 
             onClick={() => router.push('/dashboard/applications')}
           >
@@ -110,44 +110,42 @@ export default function ApplicationHistoryPage() {
           </Button>
         </div>
       ) : (
-        <div className="bg-white rounded-md border border-gray-200">
-          <Table>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>Mã đơn</Table.HeaderCell>
-                <Table.HeaderCell>Tiêu đề</Table.HeaderCell>
-                <Table.HeaderCell>Loại đơn</Table.HeaderCell>
-                <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
-                <Table.HeaderCell>Trạng thái</Table.HeaderCell>
-                <Table.HeaderCell></Table.HeaderCell>
+        <Table>
+          <Table.Header>
+            <Table.Row>
+              <Table.HeaderCell>Mã đơn</Table.HeaderCell>
+              <Table.HeaderCell>Tiêu đề</Table.HeaderCell>
+              <Table.HeaderCell>Loại đơn</Table.HeaderCell>
+              <Table.HeaderCell>Ngày nộp</Table.HeaderCell>
+              <Table.HeaderCell>Trạng thái</Table.HeaderCell>
+              <Table.HeaderCell></Table.HeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {applications.map((application) => (
+              <Table.Row key={application.applicationid}>
+                <Table.Cell>{application.applicationid}</Table.Cell>
+                <Table.Cell>{application.title}</Table.Cell>
+                <Table.Cell>{application.applicationtypename}</Table.Cell>
+                <Table.Cell>{formatDate(application.submissiondate)}</Table.Cell>
+                <Table.Cell>{getStatusBadge(application.status)}</Table.Cell>
+                <Table.Cell>
+                  <Button 
+                    variant="secondary" 
+                    size="small"
+                    onClick={() => {
+                      setSelectedApplicationId(application.applicationid);
+                      setIsModalOpen(true);
+                    }}
+                  >
+                    Xem chi tiết
+                    <span className="w-4 h-4 ml-1"><ArrowRightIcon /></span>
+                  </Button>
+                </Table.Cell>
               </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {applications.map((application) => (
-                <Table.Row key={application.applicationid}>
-                  <Table.Cell>{application.applicationid}</Table.Cell>
-                  <Table.Cell>{application.title}</Table.Cell>
-                  <Table.Cell>{application.applicationtypename}</Table.Cell>
-                  <Table.Cell>{formatDate(application.submissiondate)}</Table.Cell>
-                  <Table.Cell>{getStatusBadge(application.status)}</Table.Cell>
-                  <Table.Cell>
-                    <Button 
-                      variant="secondary" 
-                      size="small"
-                      onClick={() => {
-                        setSelectedApplicationId(application.applicationid);
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      Xem chi tiết
-                      <span className="w-4 h-4 ml-1"><ArrowRightIcon /></span>
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
-        </div>
+            ))}
+          </Table.Body>
+        </Table>
       )}
       
       {/* Modal chi tiết đơn */}

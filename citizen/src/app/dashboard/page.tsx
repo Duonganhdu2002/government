@@ -26,7 +26,6 @@ import {
   Clock,
   Plus,
   User as UserIcon,
-  BellAlert as BellIcon,
   ChevronRight,
 } from '@medusajs/icons';
 
@@ -37,37 +36,34 @@ const ApplicationStatus = ({ status }: { status: string }) => {
   const getStatusClass = () => {
     switch (status.toLowerCase()) {
       case 'approved':
-        return 'bg-ui-tag-green-bg text-ui-tag-green-text';
+        return 'bg-ui-fg-base text-ui-bg-base';
       case 'rejected':
-        return 'bg-ui-tag-red-bg text-ui-tag-red-text';
+        return 'bg-ui-bg-base text-ui-fg-subtle border border-ui-border-base';
       case 'pending':
       case 'processing':
-        return 'bg-ui-tag-orange-bg text-ui-tag-orange-text';
+        return 'bg-ui-bg-subtle text-ui-fg-base border border-ui-border-base';
       default:
-        return 'bg-ui-tag-blue-bg text-ui-tag-blue-text';
+        return 'bg-ui-bg-subtle text-ui-fg-subtle';
     }
   };
 
   const getStatusIcon = () => {
     switch (status.toLowerCase()) {
       case 'approved':
-        return <Check className="w-4 h-4 text-ui-tag-green-text" />;
+        return <Check className="w-4 h-4" />;
       case 'rejected':
-        return <XMark className="w-4 h-4 text-ui-tag-red-text" />;
+        return <XMark className="w-4 h-4" />;
       case 'pending':
       case 'processing':
-        return <Clock className="w-4 h-4 text-ui-tag-orange-text" />;
+        return <Clock className="w-4 h-4" />;
       default:
-        return <ChevronRight className="w-4 h-4 text-ui-tag-blue-text" />;
+        return <ChevronRight className="w-4 h-4" />;
     }
   };
 
   return (
-    <Badge className={`flex items-center ${getStatusClass()}`}>
-      <div className="flex items-center">
-        {getStatusIcon()}
-        <span className="ml-1 capitalize">{status}</span>
-      </div>
+    <Badge className={`${getStatusClass()}`}>
+      <span className="capitalize">{status}</span>
     </Badge>
   );
 };
@@ -86,11 +82,11 @@ const StatCard = ({
   description: string; 
   icon: React.ComponentType<any>;
 }) => (
-  <div className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-base">
+  <div className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-base hover:shadow-sm transition-shadow duration-200">
     <div className="p-5">
       <div className="flex items-center">
-        <div className="w-10 h-10 rounded-full bg-ui-bg-base-hover flex items-center justify-center text-ui-fg-interactive">
-          <Icon className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-md bg-ui-bg-subtle border border-ui-border-base flex items-center justify-center text-ui-fg-base shadow-sm">
+          <Icon className="w-4 h-4" />
         </div>
         <div className="ml-3">
           <Text size="small" className="text-ui-fg-subtle">{title}</Text>
@@ -116,7 +112,7 @@ const RecentApplicationItem = ({
   application: any;
   onViewDetail: (id: number) => void;
 }) => (
-  <div className="p-4 border-b border-ui-border-base">
+  <div className="p-4 border-b border-ui-border-base hover:bg-ui-bg-subtle transition-colors duration-200">
     <div className="flex items-center justify-between">
       <div>
         <Text size="large" weight="plus" className="text-ui-fg-base">
@@ -136,6 +132,7 @@ const RecentApplicationItem = ({
         variant="secondary" 
         size="small"
         onClick={() => onViewDetail(application.applicationid)}
+        className="hover:shadow-sm transition-shadow duration-200"
       >
         Xem chi tiết
       </Button>
@@ -152,51 +149,17 @@ const QuickLink = ({ title, icon: Icon, href, description }: {
   href: string;
   description: string;
 }) => (
-  <div className="bg-ui-bg-base rounded-lg border border-ui-border-base p-4">
+  <div className="bg-ui-bg-base rounded-lg border border-ui-border-base p-4 hover:shadow-sm transition-shadow duration-200">
     <Heading level="h3" className="text-lg mb-2">{title}</Heading>
     <Text size="small" className="text-ui-fg-subtle mb-4">
       {description}
     </Text>
     <Link href={href}>
-      <Button variant="secondary" size="small">
+      <Button variant="secondary" size="small" className="hover:shadow-sm transition-shadow duration-200">
         Nộp hồ sơ
         <ChevronRight className="ml-1" />
       </Button>
     </Link>
-  </div>
-);
-
-/**
- * Notification item component
- */
-const NotificationItem = ({ 
-  notification 
-}: { 
-  notification: {
-    id: number;
-    title: string;
-    message: string;
-    date: string;
-    read: boolean;
-  }
-}) => (
-  <div className={`p-4 border-b border-ui-border-base ${notification.read ? '' : 'bg-blue-50'}`}>
-    <div className="flex">
-      <div className="flex-shrink-0 pt-1">
-        <BellIcon className={`w-5 h-5 ${notification.read ? 'text-gray-400' : 'text-blue-500'}`} />
-      </div>
-      <div className="ml-3">
-        <Text weight="plus" className="text-ui-fg-base">
-          {notification.title}
-        </Text>
-        <Text size="small" className="text-ui-fg-subtle mt-1">
-          {notification.message}
-        </Text>
-        <Text size="small" className="text-ui-fg-subtle mt-2">
-          {new Date(notification.date).toLocaleDateString('vi-VN')}
-        </Text>
-      </div>
-    </div>
   </div>
 );
 
@@ -214,16 +177,6 @@ export default function DashboardPage() {
     approved: 0,
     rejected: 0,
   });
-  
-  // State for notifications
-  const [notifications, setNotifications] = useState<Array<{
-    id: number;
-    title: string;
-    message: string;
-    date: string;
-    read: boolean;
-  }>>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
   
   // State for new application modal
   const [showNewApplicationModal, setShowNewApplicationModal] = useState(false);
@@ -246,26 +199,6 @@ export default function DashboardPage() {
       setRecentApplications(dashboardData.applications);
       setStats(dashboardData.stats);
       
-      // Sample notifications
-      const dummyNotifications = [
-        {
-          id: 1,
-          title: 'Hồ sơ của bạn đã được phê duyệt',
-          message: 'Hồ sơ đăng ký khai sinh đã được phê duyệt thành công',
-          date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Yesterday
-          read: false
-        },
-        {
-          id: 2,
-          title: 'Cập nhật trạng thái hồ sơ',
-          message: 'Hồ sơ đăng ký kết hôn đang được xử lý',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-          read: true
-        }
-      ];
-      
-      setNotifications(dummyNotifications);
-      
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -278,9 +211,6 @@ export default function DashboardPage() {
     await loadDashboardData(); // Reload dashboard data after submission
   };
 
-  // Count unread notifications
-  const unreadNotifications = notifications.filter(n => !n.read).length;
-
   return (
     <div className="px-4 py-6">
       <div className="px-4 pb-4 mb-6">
@@ -291,18 +221,7 @@ export default function DashboardPage() {
               Chào mừng {user?.name || user?.username || 'bạn'} đến với Cổng dịch vụ công
             </Text>
           </div>
-          <div className="flex items-center">
-            <Button 
-              variant="secondary" 
-              className="mr-2"
-              onClick={() => setShowNotifications(true)}
-            >
-              <BellIcon className="mr-2" />
-              Thông báo
-              {unreadNotifications > 0 && (
-                <Badge className="ml-2 bg-red-100 text-red-600">{unreadNotifications}</Badge>
-              )}
-            </Button>
+          <div>
             <Button onClick={() => setShowNewApplicationModal(true)}>
               <Plus className="mr-2" />
               Nộp hồ sơ mới
@@ -343,7 +262,7 @@ export default function DashboardPage() {
         {/* Recent applications */}
         <div className="md:col-span-2">
           <div className="bg-ui-bg-base rounded-lg border border-ui-border-base overflow-hidden">
-            <div className="p-5 border-b border-ui-border-base flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="p-5 border-b border-ui-border-base bg-ui-bg-subtle flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <Text size="large" weight="plus" className="text-ui-fg-base">Hồ sơ gần đây</Text>
                 <Text size="small" className="text-ui-fg-subtle mt-1">
@@ -360,7 +279,7 @@ export default function DashboardPage() {
             <div>
               {loading ? (
                 <div className="p-8 flex justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-fg-interactive"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-fg-base"></div>
                 </div>
               ) : recentApplications.length > 0 ? (
                 <div>
@@ -390,9 +309,9 @@ export default function DashboardPage() {
         {/* Document guides section */}
         <div>
           <div className="bg-ui-bg-base rounded-lg border border-ui-border-base overflow-hidden h-full">
-            <div className="p-5 border-b border-ui-border-base">
+            <div className="p-5 border-b border-ui-border-base bg-ui-bg-subtle">
               <div className="flex items-center">
-                <DocumentText className="text-ui-fg-interactive mr-2" />
+                <DocumentText className="text-ui-fg-base mr-2" />
                 <Text size="large" weight="plus" className="text-ui-fg-base">Tài liệu hướng dẫn</Text>
               </div>
               <Text size="small" className="text-ui-fg-subtle mt-1">
@@ -400,11 +319,11 @@ export default function DashboardPage() {
               </Text>
             </div>
             <div className="p-4">
-              <ul className="space-y-3">
-                <li>
-                  <Link href="/guides/identity-documents" className="flex items-center text-ui-fg-interactive hover:text-ui-fg-interactive-hover">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <UserIcon className="w-4 h-4 text-blue-600" />
+              <ul className="space-y-4">
+                <li className="hover:bg-ui-bg-subtle rounded-md transition-colors duration-200 p-2">
+                  <Link href="/guides/identity-documents" className="flex items-center text-ui-fg-base hover:text-ui-fg-base">
+                    <div className="w-8 h-8 rounded-md bg-ui-bg-subtle border border-ui-border-base flex items-center justify-center mr-3 shadow-sm">
+                      <UserIcon className="w-4 h-4" />
                     </div>
                     <div>
                       <Text weight="plus">Giấy tờ cá nhân</Text>
@@ -412,10 +331,10 @@ export default function DashboardPage() {
                     </div>
                   </Link>
                 </li>
-                <li>
-                  <Link href="/guides/application-process" className="flex items-center text-ui-fg-interactive hover:text-ui-fg-interactive-hover">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                      <DocumentText className="w-4 h-4 text-green-600" />
+                <li className="hover:bg-ui-bg-subtle rounded-md transition-colors duration-200 p-2">
+                  <Link href="/guides/application-process" className="flex items-center text-ui-fg-base hover:text-ui-fg-base">
+                    <div className="w-8 h-8 rounded-md bg-ui-bg-subtle border border-ui-border-base flex items-center justify-center mr-3 shadow-sm">
+                      <DocumentText className="w-4 h-4" />
                     </div>
                     <div>
                       <Text weight="plus">Quy trình xử lý hồ sơ</Text>
@@ -423,10 +342,10 @@ export default function DashboardPage() {
                     </div>
                   </Link>
                 </li>
-                <li>
-                  <Link href="/guides/faq" className="flex items-center text-ui-fg-interactive hover:text-ui-fg-interactive-hover">
-                    <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
-                      <Check className="w-4 h-4 text-yellow-600" />
+                <li className="hover:bg-ui-bg-subtle rounded-md transition-colors duration-200 p-2">
+                  <Link href="/guides/faq" className="flex items-center text-ui-fg-base hover:text-ui-fg-base">
+                    <div className="w-8 h-8 rounded-md bg-ui-bg-subtle border border-ui-border-base flex items-center justify-center mr-3 shadow-sm">
+                      <Check className="w-4 h-4" />
                     </div>
                     <div>
                       <Text weight="plus">Câu hỏi thường gặp</Text>
@@ -435,8 +354,8 @@ export default function DashboardPage() {
                   </Link>
                 </li>
               </ul>
-              <Link href="/dashboard/guides" className="flex justify-center mt-4">
-                <Button variant="secondary" size="small">
+              <Link href="/dashboard/guides" className="flex justify-center mt-6">
+                <Button variant="secondary" size="small" className="hover:shadow-sm transition-shadow duration-200">
                   Xem tất cả hướng dẫn
                   <ChevronRight className="ml-1" />
                 </Button>
@@ -445,37 +364,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      
-      {/* Notifications drawer */}
-      <Drawer open={showNotifications}>
-        <Drawer.Content className="max-w-md">
-          <Drawer.Header>
-            <Drawer.Title>Thông báo</Drawer.Title>
-            <Button 
-              variant="secondary" 
-              size="small" 
-              onClick={() => setShowNotifications(false)}
-            >
-              <XMark />
-            </Button>
-          </Drawer.Header>
-          <Drawer.Body>
-            {notifications.length > 0 ? (
-              <div>
-                {notifications.map(notification => (
-                  <NotificationItem key={notification.id} notification={notification} />
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 text-center">
-                <Text className="text-ui-fg-subtle">
-                  Bạn không có thông báo nào
-                </Text>
-              </div>
-            )}
-          </Drawer.Body>
-        </Drawer.Content>
-      </Drawer>
       
       {/* New application modal */}
       <NewApplicationModal 
