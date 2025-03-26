@@ -184,20 +184,44 @@ export default function DashboardPage() {
   // State for application detail modal
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
 
-  // Load dashboard data on component mount
-  useEffect(() => {
-    loadDashboardData();
-  }, [user]);
+  // Storage keys for caching
+  const DASHBOARD_DATA_KEY = 'dashboard-data';
+  const DASHBOARD_TIMESTAMP_KEY = 'dashboard-data-timestamp';
+  const CACHE_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   // Function to load dashboard data
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (forceRefresh = false) => {
     try {
       setLoading(true);
+      
+      // Check if we have cached data and it's not a forced refresh
+      if (!forceRefresh) {
+        const cachedDataStr = localStorage.getItem(DASHBOARD_DATA_KEY);
+        const cachedTimestampStr = localStorage.getItem(DASHBOARD_TIMESTAMP_KEY);
+        
+        if (cachedDataStr && cachedTimestampStr) {
+          const cachedTimestamp = parseInt(cachedTimestampStr);
+          const now = Date.now();
+          
+          // Use cached data if it's less than 5 minutes old
+          if (now - cachedTimestamp < CACHE_EXPIRY_TIME) {
+            const cachedData = JSON.parse(cachedDataStr);
+            setRecentApplications(cachedData.applications);
+            setStats(cachedData.stats);
+            setLoading(false);
+            return;
+          }
+        }
+      }
       
       // Get dashboard data from service
       const dashboardData = await fetchDashboardData();
       setRecentApplications(dashboardData.applications);
       setStats(dashboardData.stats);
+      
+      // Cache the data
+      localStorage.setItem(DASHBOARD_DATA_KEY, JSON.stringify(dashboardData));
+      localStorage.setItem(DASHBOARD_TIMESTAMP_KEY, Date.now().toString());
       
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -206,9 +230,14 @@ export default function DashboardPage() {
     }
   };
 
+  // Load dashboard data on component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, [user]);
+
   // Handle application submission success
   const handleApplicationSuccess = async () => {
-    await loadDashboardData(); // Reload dashboard data after submission
+    await loadDashboardData(true); // Reload dashboard data after submission with force refresh
   };
 
   return (
@@ -221,7 +250,24 @@ export default function DashboardPage() {
               Chào mừng {user?.name || user?.username || 'bạn'} đến với Cổng dịch vụ công
             </Text>
           </div>
-          <div>
+          <div className="flex gap-2">
+            <Button 
+              variant="secondary" 
+              size="small" 
+              onClick={() => loadDashboardData(true)}
+              disabled={loading}
+              className="hover:shadow-sm transition-shadow duration-200"
+            >
+              <span className="w-4 h-4 mr-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6"></path>
+                  <path d="M2.5 12a10 10 0 0 1 19-4h-3.5"></path>
+                  <path d="M2.5 22v-6h6"></path>
+                  <path d="M21.5 12a10 10 0 0 1-19 4h3.5"></path>
+                </svg>
+              </span>
+              Làm mới
+            </Button>
             <Button onClick={() => setShowNewApplicationModal(true)}>
               <Plus className="mr-2" />
               Nộp hồ sơ mới

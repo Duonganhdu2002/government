@@ -52,6 +52,12 @@ const APPLICATION_CATEGORIES: Record<string, string> = {
   'OTHER': 'Loại hồ sơ khác'
 };
 
+// Near the top of the file, add these constants for localStorage keys
+// After the APPLICATION_CATEGORIES definition
+const APPLICATION_TYPES_STORAGE_KEY = 'application-types-data';
+const APPLICATION_TYPES_TIMESTAMP_KEY = 'application-types-timestamp';
+const CACHE_EXPIRY_TIME = 30 * 60 * 1000; // 30 minutes in milliseconds
+
 // Định nghĩa hàm assignCategoryToType ở cấp cao nhất để tránh lỗi
 // "Cannot access 'assignCategoryToType' before initialization"
 const assignCategoryToType = (type: ApplicationType): string => {
@@ -596,10 +602,33 @@ export default function ApplicationsPage() {
   // Track which category accordion is open
   const [openCategory, setOpenCategory] = useState<string | null>('PERSONAL');
 
+  // Fetch application types when component mounts
   useEffect(() => {
     const fetchApplicationTypes = async () => {
       try {
         setLoading(true);
+        
+        // Check if we have cached data
+        const cachedDataStr = localStorage.getItem(APPLICATION_TYPES_STORAGE_KEY);
+        const cachedTimestampStr = localStorage.getItem(APPLICATION_TYPES_TIMESTAMP_KEY);
+        
+        if (cachedDataStr && cachedTimestampStr) {
+          const cachedTimestamp = parseInt(cachedTimestampStr);
+          const now = Date.now();
+          
+          // Use cached data if it's less than 30 minutes old
+          if (now - cachedTimestamp < CACHE_EXPIRY_TIME) {
+            console.log('Using cached application types data');
+            const cachedData = JSON.parse(cachedDataStr);
+            setApplicationTypes(cachedData);
+            setLoading(false);
+            
+            // Initialize pagination
+            initializePagination();
+            return;
+          }
+        }
+        
         console.log('Gọi API lấy danh sách loại hồ sơ');
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/application-types`);
@@ -669,6 +698,10 @@ export default function ApplicationsPage() {
           })
         );
 
+        // Save to localStorage
+        localStorage.setItem(APPLICATION_TYPES_STORAGE_KEY, JSON.stringify(typesWithTimeRanges));
+        localStorage.setItem(APPLICATION_TYPES_TIMESTAMP_KEY, Date.now().toString());
+        
         setApplicationTypes(typesWithTimeRanges);
       } catch (err) {
         console.error('Lỗi khi tải loại hồ sơ:', err);
@@ -678,17 +711,109 @@ export default function ApplicationsPage() {
       }
     };
 
+    const initializePagination = () => {
+      // Khởi tạo phân trang cho mỗi danh mục
+      const initPagination = Object.keys(APPLICATION_CATEGORIES).reduce((acc, category) => {
+        acc[category] = 1;
+        return acc;
+      }, {} as { [key: string]: number });
+      initPagination['ALL'] = 1;
+
+      setPaginationState(initPagination);
+    };
+
     fetchApplicationTypes();
-
-    // Khởi tạo phân trang cho mỗi danh mục
-    const initPagination = Object.keys(APPLICATION_CATEGORIES).reduce((acc, category) => {
-      acc[category] = 1;
-      return acc;
-    }, {} as { [key: string]: number });
-    initPagination['ALL'] = 1;
-
-    setPaginationState(initPagination);
   }, []);
+
+  // Also add a refresh function that resets the cache and re-fetches data
+  const refreshApplicationTypes = async () => {
+    // Clear cache
+    localStorage.removeItem(APPLICATION_TYPES_STORAGE_KEY);
+    localStorage.removeItem(APPLICATION_TYPES_TIMESTAMP_KEY);
+    
+    // Reset states
+    setApplicationTypes([]);
+    setError('');
+    setLoading(true);
+    
+    try {
+      console.log('Refreshing application types data');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/application-types`);
+
+      if (!response.ok) {
+        throw new Error(`Không thể tải loại hồ sơ: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Process application types with processing time ranges
+      const typesWithTimeRanges = await Promise.all(
+        data.map(async (type: ApplicationType) => {
+          // Same processing as in the original fetch function...
+          try {
+            const specialResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/api/special-application-types/by-application-type/${type.applicationtypeid}`
+            );
+
+            if (!specialResponse.ok && specialResponse.status !== 404) {
+              throw new Error(`Failed to fetch special types: ${specialResponse.status}`);
+            }
+
+            if (specialResponse.status === 404 || !specialResponse.ok) {
+              return {
+                ...type,
+                processingTimeRange: {
+                  min: type.processingtimelimit,
+                  max: type.processingtimelimit
+                }
+              };
+            }
+
+            const specialTypes = await specialResponse.json();
+
+            if (!specialTypes || specialTypes.length === 0) {
+              return {
+                ...type,
+                processingTimeRange: {
+                  min: type.processingtimelimit,
+                  max: type.processingtimelimit
+                }
+              };
+            }
+
+            const processingTimes = specialTypes.map((st: any) => st.processingtimelimit);
+            const min = Math.min(...processingTimes, type.processingtimelimit);
+            const max = Math.max(...processingTimes, type.processingtimelimit);
+
+            return {
+              ...type,
+              processingTimeRange: { min, max }
+            };
+          } catch (error) {
+            console.error(`Error fetching special types for ${type.typename}:`, error);
+            return {
+              ...type,
+              processingTimeRange: {
+                min: type.processingtimelimit,
+                max: type.processingtimelimit
+              }
+            };
+          }
+        })
+      );
+      
+      // Update localStorage
+      localStorage.setItem(APPLICATION_TYPES_STORAGE_KEY, JSON.stringify(typesWithTimeRanges));
+      localStorage.setItem(APPLICATION_TYPES_TIMESTAMP_KEY, Date.now().toString());
+      
+      setApplicationTypes(typesWithTimeRanges);
+    } catch (err) {
+      console.error('Lỗi khi làm mới danh sách loại hồ sơ:', err);
+      setError('Không thể tải danh sách loại hồ sơ. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch special application types for a selected application type
   const fetchSpecialApplicationTypes = async (applicationTypeId: number) => {
@@ -934,34 +1059,53 @@ export default function ApplicationsPage() {
               onChange={handleSearch}
               className="max-w-md flex-grow"
             />
-            <div className="min-w-[200px]">
-              <Select
-                value={selectedCategory}
-                onValueChange={(value) => {
-                  setSelectedCategory(value);
-                  // Reset pagination when category changes
-                  setPaginationState({});
-                  // If selecting a specific category, open it
-                  if (value !== 'ALL') {
-                    setOpenCategory(value);
-                  } else {
-                    // If "All" is selected, open the first non-empty category
-                    const firstCategory = Object.entries(categorizedApplicationTypes)
-                      .find(([_, types]) => types.length > 0)?.[0] || null;
-                    setOpenCategory(firstCategory);
-                  }
-                }}
+            <div className="flex gap-2">
+              <Button 
+                variant="secondary" 
+                size="small" 
+                onClick={refreshApplicationTypes}
+                disabled={loading}
+                className="hover:shadow-sm transition-shadow duration-200 whitespace-nowrap"
               >
-                <Select.Trigger className="w-full">
-                  <Select.Value placeholder="Chọn loại hồ sơ" />
-                </Select.Trigger>
-                <Select.Content>
-                  <Select.Item value="ALL">Tất cả loại hồ sơ</Select.Item>
-                  {Object.entries(APPLICATION_CATEGORIES).map(([key, value]) => (
-                    <Select.Item key={key} value={key}>{value}</Select.Item>
-                  ))}
-                </Select.Content>
-              </Select>
+                <span className="w-4 h-4 mr-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.5 2v6h-6"></path>
+                    <path d="M2.5 12a10 10 0 0 1 19-4h-3.5"></path>
+                    <path d="M2.5 22v-6h6"></path>
+                    <path d="M21.5 12a10 10 0 0 1-19 4h3.5"></path>
+                  </svg>
+                </span>
+                Làm mới
+              </Button>
+              <div className="min-w-[200px]">
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(value) => {
+                    setSelectedCategory(value);
+                    // Reset pagination when category changes
+                    setPaginationState({});
+                    // If selecting a specific category, open it
+                    if (value !== 'ALL') {
+                      setOpenCategory(value);
+                    } else {
+                      // If "All" is selected, open the first non-empty category
+                      const firstCategory = Object.entries(categorizedApplicationTypes)
+                        .find(([_, types]) => types.length > 0)?.[0] || null;
+                      setOpenCategory(firstCategory);
+                    }
+                  }}
+                >
+                  <Select.Trigger className="w-full">
+                    <Select.Value placeholder="Chọn loại hồ sơ" />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="ALL">Tất cả loại hồ sơ</Select.Item>
+                    {Object.entries(APPLICATION_CATEGORIES).map(([key, value]) => (
+                      <Select.Item key={key} value={key}>{value}</Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -973,7 +1117,7 @@ export default function ApplicationsPage() {
           ) : error ? (
             <div className="text-center py-8 text-ui-fg-subtle">
               <div className="text-red-500 mb-2">{error}</div>
-              <Button variant="secondary" onClick={() => window.location.reload()}>
+              <Button variant="secondary" onClick={refreshApplicationTypes}>
                 Thử lại
               </Button>
             </div>
