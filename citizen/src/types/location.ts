@@ -79,6 +79,48 @@ export namespace LocationModels {
     readonly longitude: number;
     readonly address?: Address;
   }
+
+  /**
+   * Dữ liệu địa chỉ được trả về từ LocationSelector
+   */
+  export interface LocationData {
+    readonly provinceCode: string;
+    readonly districtCode: string;
+    readonly wardCode: string;
+    readonly fullAddress: string;
+  }
+
+  /**
+   * Props cho component LocationSelector
+   */
+  export interface LocationSelectorProps {
+    /** Initial location values (optional) */
+    readonly initialLocation?: Partial<LocationData>;
+    /** Called when any location value changes */
+    readonly onChange: (location: LocationData) => void;
+    /** Whether the selector is disabled */
+    readonly isDisabled?: boolean;
+    /** Additional class names for the container */
+    readonly className?: string;
+    /** Whether to show validation errors */
+    readonly showValidation?: boolean;
+  }
+
+  /**
+   * Props cho component dropdown đơn vị hành chính
+   */
+  export interface DropdownProps {
+    readonly label: string;
+    readonly value: string;
+    readonly onChange: (value: string) => void;
+    readonly options: Array<{ code: string; name_with_type: string; name?: string }>;
+    readonly placeholder: string;
+    readonly loading: boolean;
+    readonly disabled?: boolean;
+    readonly error?: string;
+    readonly showValidation?: boolean;
+    readonly onRetry?: () => void;
+  }
 }
 
 /**
@@ -121,4 +163,7 @@ export class AddressFormatter {
 export type Province = LocationModels.Province;
 export type District = LocationModels.District;
 export type Ward = LocationModels.Ward;
-export type AddressData = LocationModels.Address; 
+export type AddressData = LocationModels.Address;
+export type LocationData = LocationModels.LocationData;
+export type LocationSelectorProps = LocationModels.LocationSelectorProps;
+export type DropdownProps = LocationModels.DropdownProps; 

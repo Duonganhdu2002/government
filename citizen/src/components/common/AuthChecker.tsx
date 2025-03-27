@@ -2,6 +2,7 @@
 
 import { FC, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { commonStrings } from '@/resources';
 
 /**
  * Component kiểm tra trạng thái xác thực khi ứng dụng khởi động
@@ -17,12 +18,12 @@ const AuthChecker: FC = () => {
     // Đảm bảo chỉ chạy một lần
     if (!hasCheckedRef.current) {
       const checkAuth = async () => {
-        console.log('AuthChecker: Checking authentication state...');
+        console.log(commonStrings.logs.auth.checking);
         try {
           await checkAuthState();
-          console.log('AuthChecker: Authentication check completed.');
+          console.log(commonStrings.logs.auth.completed);
         } catch (error) {
-          console.error('AuthChecker: Authentication check failed:', error);
+          console.error(commonStrings.logs.auth.failed, error);
         }
         hasCheckedRef.current = true;
       };

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { ModalComponents, commonStrings } from '@/resources';
 
-// Custom Modal component
+/**
+ * Custom Modal component
+ */
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,9 +29,15 @@ const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
     // Prevent body scrolling when modal is open
     document.body.style.overflow = 'hidden';
     
+    // Log modal open state for debugging
+    console.log(commonStrings.logs.modal.opened);
+    
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
       document.body.style.overflow = 'auto';
+      
+      // Log modal closed state for debugging
+      console.log(commonStrings.logs.modal.closed);
     };
   }, [isOpen, onClose]);
 
@@ -40,42 +49,20 @@ const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6 scrollbar-hide"
-      onClick={onClose}
-    >
-      <div 
-        className={`bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col scrollbar-hide ${className}`}
+    <ModalComponents.Overlay onClick={onClose}>
+      <ModalComponents.Container 
         onClick={handleModalContentClick}
-        style={{ 
-          maxWidth: 'calc(100vw - 48px)',
-          height: 'calc(100vh - 96px)',
-          maxHeight: 'calc(100vh - 96px)'
-        }}
+        className={className}
       >
         {children}
-      </div>
-    </div>
+      </ModalComponents.Container>
+    </ModalComponents.Overlay>
   );
 };
 
 // Modal parts
-Modal.Header = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 rounded-t-xl ${className}`}>
-    {children}
-  </div>
-);
-
-Modal.Body = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`flex-grow overflow-auto scrollbar-hide ${className}`}>
-    {children}
-  </div>
-);
-
-Modal.Footer = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`px-6 py-4 border-t border-gray-200 rounded-b-xl ${className}`}>
-    {children}
-  </div>
-);
+Modal.Header = ModalComponents.Header;
+Modal.Body = ModalComponents.Body;
+Modal.Footer = ModalComponents.Footer;
 
 export default Modal; 
