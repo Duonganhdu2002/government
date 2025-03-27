@@ -12,7 +12,7 @@ import {
 } from '@medusajs/ui';
 import { fetchUserApplications } from '@/services/applicationService';
 import { formatDate } from '@/utils/dateUtils';
-import ApplicationDetailModal from '@/components/ApplicationDetailModal';
+import ApplicationDetailModal from '@/components/applications/ApplicationDetailModal';
 
 // Các icon cần thiết
 const FileTextIcon = () => (

@@ -1,124 +1,87 @@
 /**
  * src/services/authService.ts
  *
- * This module defines functions to call the authentication endpoints.
- * It uses the NEXT_PUBLIC_API_URL environment variable.
+ * Module định nghĩa các hàm gọi API cho các thao tác liên quan đến xác thực
  */
-import { getAuthHeaders } from '@/lib/api';
+import { apiClient } from '@/utils/api';
+import { AUTH_ENDPOINTS } from '@/resources/apiEndpoints';
+import { 
+  LoginRequest, 
+  LoginResponse, 
+  RegisterCitizenRequest, 
+  RegisterResponse, 
+  RefreshTokenRequest,
+  RefreshTokenResponse,
+  LogoutRequest,
+  LogoutResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
+  UserType
+} from '@/types';
 
-export interface RegisterData {
-  fullname: string;
-  identificationnumber: string;
-  address: string;
-  phonenumber: string;
-  email: string;
-  username: string;
-  password: string;
-  areacode: number;
-}
-
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  message: string;
-  user: {
-    id: number;
-    fullname: string;
-    identificationnumber: string;
-    address: string;
-    phonenumber: string;
-    email: string;
-    username: string;
-    areacode: number;
+/**
+ * Đăng ký tài khoản người dùng mới (người dân)
+ */
+export const registerUser = async (
+  data: RegisterCitizenRequest
+): Promise<RegisterResponse> => {
+  const requestData = {
+    ...data,
+    // Chuyển đổi tên trường để khớp với backend
+    identificationnumber: data.identificationNumber,
+    phonenumber: data.phone,
+    areacode: data.areaCode,
+    userType: UserType.CITIZEN
   };
-  accessToken: string;
-  refreshToken: string;
-}
 
-export interface ChangePasswordData {
-  citizenid: number;
-  oldPassword: string;
-  newPassword: string;
-}
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-export const registerUserAPI = async (
-  data: RegisterData
-): Promise<AuthResponse> => {
-  const response = await fetch(`${API_URL}/api/auth/register`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Registration failed");
-  }
-  return await response.json();
+  return await apiClient.post(AUTH_ENDPOINTS.REGISTER, requestData);
 };
 
-export const loginUserAPI = async (
-  credentials: LoginCredentials
-): Promise<AuthResponse> => {
-  const response = await fetch(`${API_URL}/api/auth/login`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(credentials),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Login failed");
-  }
-  return await response.json();
+/**
+ * Đăng nhập người dùng
+ */
+export const loginUser = async (
+  credentials: LoginRequest
+): Promise<LoginResponse> => {
+  return await apiClient.post(AUTH_ENDPOINTS.LOGIN, credentials);
 };
 
-export const refreshTokenAPI = async (
+/**
+ * Làm mới token
+ */
+export const refreshToken = async (
   refreshToken: string
-): Promise<{ accessToken: string }> => {
-  const response = await fetch(`${API_URL}/api/auth/refresh`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ refreshToken }),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to refresh token");
-  }
-  return await response.json();
+): Promise<RefreshTokenResponse> => {
+  const request: RefreshTokenRequest = { refreshToken };
+  return await apiClient.post(AUTH_ENDPOINTS.REFRESH_TOKEN, request);
 };
 
-export const logoutUserAPI = async (
-  userId: number
-): Promise<{ message: string }> => {
-  const response = await fetch(`${API_URL}/api/auth/logout`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ userId }),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Logout failed");
-  }
-  return await response.json();
+/**
+ * Đăng xuất người dùng
+ */
+export const logoutUser = async (
+  refreshToken: string
+): Promise<LogoutResponse> => {
+  const request: LogoutRequest = { refreshToken };
+  return await apiClient.post(AUTH_ENDPOINTS.LOGOUT, request);
 };
 
-export const changePasswordAPI = async (
-  data: ChangePasswordData
-): Promise<{ message: string }> => {
-  const response = await fetch(`${API_URL}/api/auth/change-password`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
+/**
+ * Thay đổi mật khẩu
+ */
+export const changePassword = async (
+  data: ChangePasswordRequest
+): Promise<ChangePasswordResponse> => {
+  return await apiClient.post(AUTH_ENDPOINTS.CHANGE_PASSWORD, data);
+};
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Change password failed");
-  }
-
-  return await response.json();
+/**
+ * Yêu cầu đặt lại mật khẩu
+ */
+export const requestResetPassword = async (
+  data: ResetPasswordRequest
+): Promise<ResetPasswordResponse> => {
+  return await apiClient.post(AUTH_ENDPOINTS.RESET_PASSWORD, data);
 };

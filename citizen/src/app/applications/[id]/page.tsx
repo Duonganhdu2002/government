@@ -10,10 +10,10 @@ import {
   Badge
 } from '@medusajs/ui';
 import { ChevronLeft, Calendar, MapPin } from '@medusajs/icons';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import { fetchApplicationById } from '@/services/applicationService';
-import PrintPreview from '@/components/PrintPreview';
+import PrintPreview from '@/components/applications/PrintPreview';
 
 // Custom icons
 interface IconProps {

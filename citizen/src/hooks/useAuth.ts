@@ -17,7 +17,7 @@ import {
   setError, 
   setLoading
 } from '@/store/authSlice';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/utils/api';
 import { 
   LoginRequest, 
   RegisterCitizenRequest, 
@@ -26,7 +26,7 @@ import {
   UserType,
   CitizenUser,
   StaffUser
-} from '@/lib/types/auth.types';
+} from '@/types/auth';
 
 /**
  * Authentication hook to manage user login, logout, and session

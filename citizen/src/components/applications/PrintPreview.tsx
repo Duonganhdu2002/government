@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Text, Heading, Button, Container } from '@medusajs/ui';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import { useSelector } from 'react-redux';
-import Modal from './Modal';
+import Modal from '../common/Modal';
 
 // Interface for media attachments
 interface MediaAttachment {

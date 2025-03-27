@@ -1,7 +1,7 @@
 'use client';
 
 import { FC, useEffect, useRef } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * Component kiểm tra trạng thái xác thực khi ứng dụng khởi động

@@ -11,7 +11,7 @@ import {
 import { ChevronLeft, Calendar, MapPin } from '@medusajs/icons';
 import { fetchApplicationById } from '@/services/applicationService';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
-import Modal from './Modal';
+import Modal from '../common/Modal';
 import PrintPreview from './PrintPreview';
 
 // Custom icons

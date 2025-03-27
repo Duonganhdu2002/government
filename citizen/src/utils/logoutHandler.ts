@@ -1,40 +1,116 @@
 /**
- * logoutHandler.ts
+ * src/utils/logoutHandler.ts
  * 
- * Hook for handling user logout
- * Provides a consistent way to log users out across the application
+ * Lớp xử lý đăng xuất người dùng
  */
 
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/hooks/useAuth";
+import Cookies from 'js-cookie';
+import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { setError as setErrorMessage } from '@/store/authSlice';
+import { logout as logoutAction } from '@/store/authSlice';
 
 /**
- * Hook for handling user logout
- * 
- * @returns Function to handle logout with optional redirect
+ * Định nghĩa kiểu LogoutOptions
  */
-export const useLogoutHandler = () => {
-  const { logout } = useAuth();
-  const router = useRouter();
+export interface LogoutOptions {
+  /** Có chuyển hướng đến trang đăng nhập sau khi đăng xuất không */
+  redirect?: boolean;
+  /** Thông báo lỗi (nếu có) */
+  errorMessage?: string;
+}
+
+/**
+ * Lớp quản lý đăng xuất người dùng
+ */
+export class LogoutHandler {
+  private readonly router;
+  private readonly dispatch;
 
   /**
-   * Handle user logout
-   * 
-   * @param redirectPath Optional path to redirect after logout (defaults to /login)
+   * Khởi tạo LogoutHandler
+   * @param router Router instance từ next/navigation
+   * @param dispatch Dispatch function từ Redux
    */
-  const handleLogout = async (redirectPath = '/login') => {
-    try {
-      // Use the logout function from useAuth
-      await logout(redirectPath);
-      
-      // The redirection is handled by useAuth.logout
-    } catch (error) {
-      console.error("Logout error:", error);
-      
-      // Fallback navigation in case of error
-      router.push(redirectPath);
-    }
-  };
+  constructor(router: ReturnType<typeof useRouter>, dispatch: ReturnType<typeof useDispatch>) {
+    this.router = router;
+    this.dispatch = dispatch;
+  }
 
-  return handleLogout;
+  /**
+   * Thực hiện đăng xuất người dùng
+   * @param options Tùy chọn đăng xuất
+   */
+  public executeLogout(options: LogoutOptions = {}): void {
+    const { redirect = true, errorMessage } = options;
+
+    // Xóa token khỏi cookies
+    Cookies.remove('accessToken');
+    Cookies.remove('refreshToken');
+
+    // Cập nhật trạng thái Redux
+    this.dispatch(logoutAction());
+
+    // Xử lý hiển thị thông báo lỗi nếu có
+    if (errorMessage) {
+      this.dispatch(setErrorMessage(errorMessage));
+    }
+
+    // Chuyển hướng đến trang đăng nhập nếu được yêu cầu
+    if (redirect) {
+      this.router.replace('/login');
+    }
+  }
+
+  /**
+   * Đăng xuất do token hết hạn
+   */
+  public logoutDueToExpiredToken(): void {
+    this.executeLogout({
+      redirect: true,
+      errorMessage: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+    });
+  }
+
+  /**
+   * Đăng xuất do lỗi xác thực
+   */
+  public logoutDueToAuthError(): void {
+    this.executeLogout({
+      redirect: true,
+      errorMessage: 'Có lỗi xác thực. Vui lòng đăng nhập lại.'
+    });
+  }
+
+  /**
+   * Đăng xuất theo yêu cầu người dùng
+   */
+  public logoutByUserRequest(): void {
+    this.executeLogout({
+      redirect: true
+    });
+  }
+}
+
+/**
+ * Hook tạo LogoutHandler instance
+ * @returns LogoutHandler instance
+ */
+export const useLogoutHandler = (): LogoutHandler => {
+  const router = useRouter();
+  const dispatch = useDispatch();
+  return new LogoutHandler(router, dispatch);
+};
+
+/**
+ * Hàm tương thích với code cũ
+ */
+export const executeLogout = (
+  router: ReturnType<typeof useRouter>,
+  dispatch: ReturnType<typeof useDispatch>,
+  redirect: boolean = true,
+  errorMessage?: string
+): void => {
+  const handler = new LogoutHandler(router, dispatch);
+  handler.executeLogout({ redirect, errorMessage });
 };

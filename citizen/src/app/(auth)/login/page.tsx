@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { UserType } from '@/lib/types/auth.types';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { UserType } from '@/types/auth';
+import { useAuth } from '@/hooks/useAuth';
 
 // Import Medusa UI components
 import {

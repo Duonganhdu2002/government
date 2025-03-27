@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { getAuthHeaders } from '@/lib/api';
-import LocationSelector, { LocationData } from '@/components/LocationSelector';
+import { useAuth } from '@/hooks/useAuth';
+import { getAuthHeaders } from '@/utils/authHeaders';
+import LocationSelector, { LocationData } from '@/components/location/LocationSelector';
 import {
   Heading,
   Text,

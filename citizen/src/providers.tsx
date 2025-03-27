@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '@/store/store';
-import AuthChecker from '@/components/AuthChecker';
+import AuthChecker from '@/components/common/AuthChecker';
 
 // Import UI providers if needed
 // import { MediaContextProvider } from 'your-ui-library';

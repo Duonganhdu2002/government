@@ -1,110 +1,50 @@
 /**
  * src/services/postsService.ts
  *
- * This module defines functions to call the posts endpoints.
- * It uses the NEXT_PUBLIC_API_URL environment variable.
+ * Module định nghĩa các hàm gọi API cho các thao tác liên quan đến bài viết
  */
+import { apiClient } from '@/utils/api';
+import { POST_ENDPOINTS } from '@/resources/apiEndpoints';
+import { Post, CreatePostData } from '@/types';
 
-import { getAuthHeaders } from '@/lib/api';
-
-export interface Post {
-  post_id: number;
-  category_id: number;
-  title: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreatePostData {
-  category_id: number;
-  title: string;
-  content: string;
-}
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-export const getAllPostsAPI = async (): Promise<Post[]> => {
-  const response = await fetch(`${API_URL}/api/posts`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch posts");
-  }
-  return await response.json();
+/**
+ * Lấy tất cả bài viết
+ */
+export const fetchPosts = async (): Promise<Post[]> => {
+  return await apiClient.get(POST_ENDPOINTS.LIST);
 };
 
-export const getPostByIdAPI = async (
-  id: number
-): Promise<Post> => {
-  const response = await fetch(`${API_URL}/api/posts/${id}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch post");
-  }
-  return await response.json();
+/**
+ * Lấy bài viết theo ID
+ */
+export const fetchPostById = async (id: number): Promise<Post> => {
+  return await apiClient.get(POST_ENDPOINTS.DETAIL(id));
 };
 
-export const getPostsByCategoryIdAPI = async (
-  categoryId: number
-): Promise<Post[]> => {
-  const response = await fetch(`${API_URL}/api/posts/category/${categoryId}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch posts by category");
-  }
-  return await response.json();
+/**
+ * Lấy bài viết theo danh mục
+ */
+export const fetchPostsByCategory = async (categoryId: number): Promise<Post[]> => {
+  return await apiClient.get(`${POST_ENDPOINTS.LIST}?category_id=${categoryId}`);
 };
 
-export const createPostAPI = async (
-  data: CreatePostData
-): Promise<Post> => {
-  const response = await fetch(`${API_URL}/api/posts`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to create post");
-  }
-  return await response.json();
+/**
+ * Tạo bài viết mới
+ */
+export const createPost = async (postData: CreatePostData): Promise<Post> => {
+  return await apiClient.post(POST_ENDPOINTS.LIST, postData);
 };
 
-export const updatePostAPI = async (
-  id: number,
-  data: CreatePostData
-): Promise<Post> => {
-  const response = await fetch(`${API_URL}/api/posts/${id}`, {
-    method: "PUT",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to update post");
-  }
-  return await response.json();
+/**
+ * Cập nhật bài viết
+ */
+export const updatePost = async (id: number, postData: Partial<CreatePostData>): Promise<Post> => {
+  return await apiClient.put(POST_ENDPOINTS.DETAIL(id), postData);
 };
 
-export const deletePostAPI = async (
-  id: number
-): Promise<{ message: string }> => {
-  const response = await fetch(`${API_URL}/api/posts/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to delete post");
-  }
-  return await response.json();
+/**
+ * Xóa bài viết
+ */
+export const deletePost = async (id: number): Promise<{ message: string }> => {
+  return await apiClient.delete(POST_ENDPOINTS.DETAIL(id));
 };

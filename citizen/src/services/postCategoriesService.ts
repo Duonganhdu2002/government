@@ -1,92 +1,46 @@
 /**
  * src/services/postCategoriesService.ts
  *
- * This module defines functions to call the post categories endpoints.
- * It uses the NEXT_PUBLIC_API_URL environment variable.
+ * Module định nghĩa các hàm gọi API cho các thao tác liên quan đến danh mục bài viết
  */
+import { apiClient } from '@/utils/api';
+import { POST_ENDPOINTS } from '@/resources/apiEndpoints';
+import { 
+  PostCategory, 
+  CreatePostCategoryData 
+} from '@/types';
 
-import { getAuthHeaders } from '@/lib/api';
-
-export interface PostCategory {
-  category_id: number;
-  category_name: string;
-  description?: string;
-}
-
-export interface CreatePostCategoryData {
-  category_name: string;
-  description?: string;
-}
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-export const getAllPostCategoriesAPI = async (): Promise<PostCategory[]> => {
-  const response = await fetch(`${API_URL}/api/post-categories`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch post categories");
-  }
-  return await response.json();
+/**
+ * Lấy tất cả danh mục bài viết
+ */
+export const fetchPostCategories = async (): Promise<PostCategory[]> => {
+  return await apiClient.get(POST_ENDPOINTS.CATEGORIES);
 };
 
-export const getPostCategoryByIdAPI = async (
-  id: number
-): Promise<PostCategory> => {
-  const response = await fetch(`${API_URL}/api/post-categories/${id}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to fetch post category");
-  }
-  return await response.json();
+/**
+ * Lấy danh mục bài viết theo ID
+ */
+export const fetchPostCategoryById = async (id: number): Promise<PostCategory> => {
+  return await apiClient.get(`${POST_ENDPOINTS.CATEGORIES}/${id}`);
 };
 
-export const createPostCategoryAPI = async (
-  data: CreatePostCategoryData
-): Promise<PostCategory> => {
-  const response = await fetch(`${API_URL}/api/post-categories`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to create post category");
-  }
-  return await response.json();
+/**
+ * Tạo danh mục bài viết mới
+ */
+export const createPostCategory = async (categoryData: CreatePostCategoryData): Promise<PostCategory> => {
+  return await apiClient.post(POST_ENDPOINTS.CATEGORIES, categoryData);
 };
 
-export const updatePostCategoryAPI = async (
-  id: number,
-  data: CreatePostCategoryData
-): Promise<PostCategory> => {
-  const response = await fetch(`${API_URL}/api/post-categories/${id}`, {
-    method: "PUT",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to update post category");
-  }
-  return await response.json();
+/**
+ * Cập nhật danh mục bài viết
+ */
+export const updatePostCategory = async (id: number, categoryData: CreatePostCategoryData): Promise<PostCategory> => {
+  return await apiClient.put(`${POST_ENDPOINTS.CATEGORIES}/${id}`, categoryData);
 };
 
-export const deletePostCategoryAPI = async (
-  id: number
-): Promise<{ message: string }> => {
-  const response = await fetch(`${API_URL}/api/post-categories/${id}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to delete post category");
-  }
-  return await response.json();
+/**
+ * Xóa danh mục bài viết
+ */
+export const deletePostCategory = async (id: number): Promise<{ message: string }> => {
+  return await apiClient.delete(`${POST_ENDPOINTS.CATEGORIES}/${id}`);
 };

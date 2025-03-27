@@ -12,9 +12,9 @@ import {
 } from '@medusajs/ui';
 import { ChevronLeft } from '@medusajs/icons';
 import { fetchUserApplications } from '@/services/applicationService';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/utils/dateUtils';
-import ApplicationDetailModal from '@/components/ApplicationDetailModal';
+import ApplicationDetailModal from '@/components/applications/ApplicationDetailModal';
 
 // Custom icons
 interface IconProps {

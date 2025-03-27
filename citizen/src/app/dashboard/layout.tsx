@@ -5,9 +5,9 @@ import "../globals.css";
 import Loading from "../loading";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import Image from "next/image";
-import { apiClient } from "@/lib/api";
+import { apiClient } from "@/utils/api";
 
 // Import Medusa UI components
 import {

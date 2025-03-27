@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import {
   Heading,
@@ -16,7 +16,7 @@ import {
 } from '@medusajs/ui';
 import { Check, ChevronRight, User, Calendar, Phone, MapPin, Pencil, Key } from '@medusajs/icons';
 import { updateUserProfile } from '@/store/authSlice';
-import { apiClient, ApiError } from '@/lib/api';
+import { apiClient, ApiError } from '@/utils/api';
 
 // Định nghĩa kiểu dữ liệu cho thông tin người dùng
 interface UserProfile {

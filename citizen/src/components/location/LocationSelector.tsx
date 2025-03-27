@@ -9,11 +9,9 @@ import {
 import {
   fetchProvinces,
   fetchDistrictsByProvince,
-  fetchWardsByDistrict,
-  Province,
-  District,
-  Ward
+  fetchWardsByDistrict
 } from '@/services/locationService';
+import { Province, District, Ward } from '@/types/location';
 
 export interface LocationData {
   provinceCode: string;

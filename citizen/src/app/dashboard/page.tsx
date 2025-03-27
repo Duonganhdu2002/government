@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { useAuth } from '@/lib/hooks/useAuth';
-import NewApplicationModal from '@/components/NewApplicationModal';
-import ApplicationDetailModal from '@/components/ApplicationDetailModal';
+import { useAuth } from '@/hooks/useAuth';
+import NewApplicationModal from '@/components/applications/NewApplicationModal';
+import ApplicationDetailModal from '@/components/applications/ApplicationDetailModal';
 import { fetchDashboardData } from '@/services/applicationService';
 
 // Import Medusa UI components

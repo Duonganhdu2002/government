@@ -1,60 +1,24 @@
 /**
- * Service for fetching location data (provinces, districts, wards) in Vietnam
+ * src/services/locationService.ts
+ *
+ * Module định nghĩa các hàm gọi API để lấy dữ liệu địa chính (tỉnh/thành, quận/huyện, phường/xã)
  */
-import { getAuthHeaders } from '@/lib/api';
-
-export interface Province {
-  code: string;
-  name: string;
-  name_with_type: string;
-  slug: string;
-  type: string;
-}
-
-export interface District {
-  code: string;
-  name: string;
-  name_with_type: string;
-  parent_code: string;
-  slug: string;
-  type: string;
-}
-
-export interface Ward {
-  code: string;
-  name: string;
-  name_with_type: string;
-  parent_code: string;
-  slug: string;
-  type: string;
-}
-
-// Using a more reliable API endpoint
-const BASE_URL = 'https://vietnam-administrative-division-json-server-swart.vercel.app';
+import { apiClient } from '@/utils/api';
+import { LOCATION_ENDPOINTS } from '@/resources/apiEndpoints';
+import { Province, District, Ward } from '@/types/location';
+import { 
+  mapProvincesFromApi, 
+  mapDistrictsFromApi, 
+  mapWardsFromApi 
+} from '@/utils/mappers/locationMapper';
 
 /**
- * Fetch all provinces from Vietnam
+ * Lấy danh sách tất cả các tỉnh/thành
  */
 export const fetchProvinces = async (): Promise<Province[]> => {
   try {
-    const headers = getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/province`, {
-      headers
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch provinces');
-    }
-    
-    const data = await response.json();
-    // Transform data to match our interface
-    return data.map((item: any) => ({
-      code: item.idProvince || item.code,
-      name: item.name,
-      name_with_type: item.name,
-      slug: item.name?.toLowerCase().replace(/\s+/g, '-') || '',
-      type: item.type || 'province'
-    }));
+    const data = await apiClient.get(LOCATION_ENDPOINTS.PROVINCES);
+    return mapProvincesFromApi(data);
   } catch (error) {
     console.error('Error fetching provinces:', error);
     return [];
@@ -62,29 +26,12 @@ export const fetchProvinces = async (): Promise<Province[]> => {
 };
 
 /**
- * Fetch districts by province code
+ * Lấy danh sách quận/huyện theo mã tỉnh/thành
  */
 export const fetchDistrictsByProvince = async (provinceCode: string): Promise<District[]> => {
   try {
-    const headers = getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/district/?idProvince=${provinceCode}`, {
-      headers
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch districts');
-    }
-    
-    const data = await response.json();
-    // Transform data to match our interface
-    return data.map((item: any) => ({
-      code: item.idDistrict || item.code,
-      name: item.name,
-      name_with_type: item.name,
-      parent_code: item.idProvince || provinceCode,
-      slug: item.name?.toLowerCase().replace(/\s+/g, '-') || '',
-      type: item.type || 'district'
-    }));
+    const data = await apiClient.get(LOCATION_ENDPOINTS.DISTRICTS(provinceCode));
+    return mapDistrictsFromApi(data, provinceCode);
   } catch (error) {
     console.error('Error fetching districts:', error);
     return [];
@@ -92,29 +39,12 @@ export const fetchDistrictsByProvince = async (provinceCode: string): Promise<Di
 };
 
 /**
- * Fetch wards by district code
+ * Lấy danh sách phường/xã theo mã quận/huyện
  */
 export const fetchWardsByDistrict = async (districtCode: string): Promise<Ward[]> => {
   try {
-    const headers = getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/commune/?idDistrict=${districtCode}`, {
-      headers
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch wards');
-    }
-    
-    const data = await response.json();
-    // Transform data to match our interface
-    return data.map((item: any) => ({
-      code: item.idCommune || item.code,
-      name: item.name,
-      name_with_type: item.name,
-      parent_code: item.idDistrict || districtCode,
-      slug: item.name?.toLowerCase().replace(/\s+/g, '-') || '',
-      type: item.type || 'ward'
-    }));
+    const data = await apiClient.get(LOCATION_ENDPOINTS.WARDS(districtCode));
+    return mapWardsFromApi(data, districtCode);
   } catch (error) {
     console.error('Error fetching wards:', error);
     return [];

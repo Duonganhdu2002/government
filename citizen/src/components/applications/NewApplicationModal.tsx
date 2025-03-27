@@ -15,8 +15,8 @@ import {
 } from '@medusajs/ui';
 import { Check, ChevronRight, X, Calendar, MapPin, Plus } from '@medusajs/icons';
 import { NewApplicationModalProps } from '@/types/application';
-import { useApplicationForm } from '@/lib/hooks/useApplicationForm';
-import LocationSelector, { LocationData } from '@/components/LocationSelector';
+import { useApplicationForm } from '@/hooks/useApplicationForm';
+import LocationSelector, { LocationData } from '@/components/location/LocationSelector';
 
 export default function NewApplicationModal({
   isOpen,
