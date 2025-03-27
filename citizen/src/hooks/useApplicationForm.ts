@@ -4,8 +4,9 @@ import {
   ApplicationType, 
   SpecialApplicationType, 
   UploadedFile,
-  ApplicationFormData
-} from '@/types/application';
+  ApplicationFormData,
+  Application
+} from '@/types';
 import { 
   fetchApplicationTypes as fetchTypes, 
   fetchSpecialApplicationTypes as fetchSpecialTypes,
@@ -16,11 +17,9 @@ import {
 import { 
   fetchProvinces,
   fetchDistrictsByProvince,
-  fetchWardsByDistrict,
-  Province,
-  District,
-  Ward
+  fetchWardsByDistrict
 } from '@/services/locationService';
+import { Province, District, Ward } from '@/types';
 import { createUploadedFile, validateImageFile, validateVideoFile, revokeFilePreviews } from '@/utils/fileUtils';
 
 /**
@@ -389,22 +388,29 @@ export const useApplicationForm = (onSuccess?: (applicationId: number) => void, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate toàn bộ form
-    if (!validateBasicInfo() || !validateDetailInfo()) {
-      setFormError('Vui lòng điền đầy đủ tất cả thông tin bắt buộc');
+    const basicValid = validateBasicInfo();
+    const detailValid = validateDetailInfo();
+    
+    if (!basicValid || !detailValid) {
+      setFormError('Vui lòng điền đầy đủ thông tin bắt buộc.');
       return;
     }
     
-    // Chuẩn bị dữ liệu form
+    if (hasAttachments && images.length === 0 && !video) {
+      setFormError('Vui lòng tải lên ít nhất một tệp đính kèm.');
+      return;
+    }
+
+    // Tạo dữ liệu đơn
     const applicationData: ApplicationFormData = {
       // citizenid sẽ được lấy từ token nên không cần gửi
       applicationtypeid: selectedTypeId,
-      specialapplicationtypeid: selectedSpecialTypeId || null,
+      specialapplicationtypeid: selectedSpecialTypeId || '',
       title,
       description,
       submissiondate: new Date().toISOString(),
       status: 'Submitted',
-      hasmedia: (images.length > 0 || video !== null),
+      hasattachments: (images.length > 0 || video !== null),
       eventdate: eventDate,
       location,
       // Thêm trường duedate (mặc định 7 ngày sau ngày nộp)
@@ -427,7 +433,7 @@ export const useApplicationForm = (onSuccess?: (applicationId: number) => void, 
       );
       
       // Lấy applicationId từ response
-      const applicationId = result.application.applicationid;
+      const applicationId = result.applicationid;
       
       // Hiển thị thông báo thành công
       setSuccess(true);
