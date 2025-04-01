@@ -3,13 +3,14 @@ import { Text, Heading, Button, Container } from '@medusajs/ui';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import { useSelector } from 'react-redux';
 import Modal from './Modal';
-import { PrintPreviewProps, ApplicationData, MediaAttachment } from '@/types';
+import { PrintPreviewProps, ApplicationData, MediaAttachment, UserType } from '@/types';
 import { FileTextIcon, CloseIcon, InfoIcon, MinusIcon, PlusIcon } from '@/components/icons';
+import { RootState } from '@/store';
 
 const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   // Get user information from Redux store
-  const { user } = useSelector((state: any) => state.auth);
+  const user = useSelector((state: RootState) => state.user.user);
   const [scale, setScale] = useState<number>(0.85);
 
   // Effect to handle window resize
@@ -211,11 +212,11 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
           <div class="section">
             <div class="section-title">Kính gửi: Cơ quan chức năng</div>
             <div class="field">
-              <p>Tôi tên là: <strong>${user?.fullname || application.citizenname || ''}</strong></p>
-              <p>Số CCCD/CMND: <strong>${user?.identificationNumber || application.citizenid || ''}</strong></p>
-              <p>Địa chỉ: <strong>${user?.address || application.citizenaddress || ''}</strong></p>
-              <p>Số điện thoại: <strong>${user?.phone || application.citizenphone || ''}</strong></p>
-              <p>Email: <strong>${user?.email || application.citizenemail || ''}</strong></p>
+              <p>Tôi tên là: <strong>${user?.name || application.citizenname || ''}</strong></p>
+              <p>Số CCCD/CMND: <strong>${user?.type === UserType.CITIZEN ? user.identificationNumber : application.citizenid || ''}</strong></p>
+              <p>Địa chỉ: <strong>${user?.type === UserType.CITIZEN ? user.address : application.citizenaddress || ''}</strong></p>
+              <p>Số điện thoại: <strong>${user?.type === UserType.CITIZEN ? user.phoneNumber : application.citizenphone || ''}</strong></p>
+              <p>Email: <strong>${user?.type === UserType.CITIZEN ? user.email : application.citizenemail || ''}</strong></p>
             </div>
           </div>
 
@@ -286,7 +287,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
             <div class="signature-box">
               <div class="signature-date">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
               <div class="signature-title">NGƯỜI LÀM ĐƠN</div>
-              <div><strong>${user?.fullname || application.citizenname || ''}</strong></div>
+              <div><strong>${user?.name || application.citizenname || ''}</strong></div>
             </div>
           </div>
         </div>
@@ -427,19 +428,19 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
               <Heading level="h3" className="font-bold mb-3">Kính gửi: Cơ quan chức năng</Heading>
               <div className="space-y-2">
                 <div>
-                  <Text>Tôi tên là: <span className="font-semibold">{user?.fullname || application.citizenname || ''}</span></Text>
+                  <Text>Tôi tên là: <span className="font-semibold">{user?.name || application.citizenname || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Số CCCD/CMND: <span className="font-semibold">{user?.identificationNumber || application.citizenid || ''}</span></Text>
+                  <Text>Số CCCD/CMND: <span className="font-semibold">{user?.type === UserType.CITIZEN ? user.identificationNumber : application.citizenid || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Địa chỉ: <span className="font-semibold">{user?.address || application.citizenaddress || ''}</span></Text>
+                  <Text>Địa chỉ: <span className="font-semibold">{user?.type === UserType.CITIZEN ? user.address : application.citizenaddress || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Số điện thoại: <span className="font-semibold">{user?.phone || application.citizenphone || ''}</span></Text>
+                  <Text>Số điện thoại: <span className="font-semibold">{user?.type === UserType.CITIZEN ? user.phoneNumber : application.citizenphone || ''}</span></Text>
                 </div>
                 <div>
-                  <Text>Email: <span className="font-semibold">{user?.email || application.citizenemail || ''}</span></Text>
+                  <Text>Email: <span className="font-semibold">{user?.type === UserType.CITIZEN ? user.email : application.citizenemail || ''}</span></Text>
                 </div>
               </div>
             </div>
@@ -539,7 +540,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => 
               <div className="text-center">
                 <Text className="italic mb-4">Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}</Text>
                 <Text className="font-semibold mb-24">NGƯỜI LÀM ĐƠN</Text>
-                <Text className="font-semibold">{user?.fullname || application.citizenname || ''}</Text>
+                <Text className="font-semibold">{user?.name || application.citizenname || ''}</Text>
               </div>
             </div>
           </div>
