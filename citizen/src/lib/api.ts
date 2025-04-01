@@ -6,8 +6,8 @@
  */
 
 import Cookies from 'js-cookie';
-import { store } from '@/store/store';
-import { logout } from '@/store/authSlice';
+import { store, logout } from '@/store';
+import { getAuthHeaders, refreshAccessToken } from '@/utils/auth';
 
 // API configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -45,77 +45,116 @@ export class ApiError extends Error {
 const timeoutPromise = (ms: number, operationType: string = 'request'): Promise<never> => {
   return new Promise((_, reject) => {
     setTimeout(() => {
-      reject(new ApiError(`${operationType} timeout after ${ms/1000} seconds`, 408));
+      reject(new ApiError(`${operationType} hết thời gian chờ sau ${ms/1000} giây`, 408));
     }, ms);
   });
 };
 
 /**
- * Get authentication headers from cookies
+ * Extract user-friendly error message from various error response formats
  * 
- * @returns Object containing all required headers including auth header if token exists
+ * @param data Error response data
+ * @param status HTTP status code
+ * @returns User-friendly error message
  */
-export const getAuthHeaders = (): Record<string, string> => {
-  const token = Cookies.get('accessToken');
-  
-  // Default headers that should be included in all requests
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
+const extractErrorMessage = (data: any, status: number): string => {
+  // Default error messages based on status code
+  const defaultMessages: Record<number, string> = {
+    400: 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.',
+    401: 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.',
+    403: 'Bạn không có quyền truy cập tài nguyên này.',
+    404: 'Không tìm thấy dữ liệu yêu cầu.',
+    409: 'Dữ liệu bị trùng lặp. Vui lòng kiểm tra lại thông tin.',
+    422: 'Dữ liệu không đúng định dạng. Vui lòng kiểm tra lại.',
+    500: 'Lỗi máy chủ. Vui lòng thử lại sau.',
+    503: 'Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.'
   };
   
-  // Add Authorization header if token exists
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  // Handle common login/register error cases
+  if (typeof data === 'string') {
+    if (data.includes('credentials') || data.includes('password') || data.includes('invalid')) {
+      return 'Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại tên đăng nhập và mật khẩu.';
+    }
+    
+    if (data.includes('duplicate') || data.includes('already exists')) {
+      return 'Thông tin đã tồn tại trong hệ thống. Vui lòng kiểm tra lại tên đăng nhập, email hoặc số CMND/CCCD.';
+    }
+    
+    return data;
   }
   
-  return headers;
+  // Handle object data format with message/error fields
+  if (typeof data === 'object' && data !== null) {
+    // Check various common error fields
+    if (data.message && typeof data.message === 'string') {
+      return translateErrorMessage(data.message);
+    }
+    
+    if (data.error && typeof data.error === 'string') {
+      return translateErrorMessage(data.error);
+    }
+    
+    if (data.errorMessage && typeof data.errorMessage === 'string') {
+      return translateErrorMessage(data.errorMessage);
+    }
+    
+    // Handle validation errors array
+    if (data.errors && Array.isArray(data.errors)) {
+      const messages = data.errors
+        .map((err: any) => err.message || err)
+        .filter(Boolean);
+      
+      if (messages.length > 0) {
+        return messages.join('. ');
+      }
+    }
+  }
+  
+  // Return default message for this status code or generic error
+  return defaultMessages[status] || 'Đã xảy ra lỗi. Vui lòng thử lại sau.';
 };
 
 /**
- * Handle refresh token when access token expires
+ * Translate common English error messages to Vietnamese
  * 
- * @returns New access token or null if refresh fails
+ * @param message Error message in English
+ * @returns Vietnamese translation or original message
  */
-export const refreshAccessToken = async (): Promise<string | null> => {
-  try {
-    const refreshToken = Cookies.get('refreshToken');
-    
-    if (!refreshToken) {
-      return null;
-    }
-
-    const response = await fetch(`${API_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to refresh token');
-    }
-
-    const data = await response.json();
-    
-    if (data.tokens?.accessToken) {
-      Cookies.set('accessToken', data.tokens.accessToken, { expires: 1 }); // 1 day
-      
-      if (data.tokens.refreshToken) {
-        Cookies.set('refreshToken', data.tokens.refreshToken, { expires: 7 }); // 7 days
-      }
-      
-      return data.tokens.accessToken;
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Token refresh failed:', error);
-    // Force logout if refresh token fails
-    store.dispatch(logout());
-    return null;
+const translateErrorMessage = (message: string): string => {
+  // Map of common English error phrases to Vietnamese
+  const errorTranslations: Record<string, string> = {
+    'Invalid credentials': 'Thông tin đăng nhập không chính xác',
+    'User not found': 'Không tìm thấy người dùng',
+    'Username already exists': 'Tên đăng nhập đã tồn tại',
+    'Email already in use': 'Email đã được sử dụng',
+    'Invalid token': 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn',
+    'Password incorrect': 'Mật khẩu không chính xác',
+    'Unauthorized': 'Bạn không có quyền truy cập',
+    'Not found': 'Không tìm thấy dữ liệu yêu cầu',
+    'Bad request': 'Yêu cầu không hợp lệ',
+    'Validation failed': 'Dữ liệu không hợp lệ',
+    'Server error': 'Lỗi máy chủ, vui lòng thử lại sau'
+  };
+  
+  // Check for exact matches
+  if (errorTranslations[message]) {
+    return errorTranslations[message];
   }
+  
+  // Check for partial matches
+  for (const [key, value] of Object.entries(errorTranslations)) {
+    if (message.toLowerCase().includes(key.toLowerCase())) {
+      return value;
+    }
+  }
+  
+  // Translation for common duplicate error messages
+  if (message.includes('duplicate') || message.includes('already exists')) {
+    return 'Thông tin đã tồn tại trong hệ thống';
+  }
+  
+  // Return original message if no translation found
+  return message;
 };
 
 /**
@@ -142,7 +181,7 @@ const processResponse = async (response: Response) => {
   if (!response.ok) {
     // Handle 401 Unauthorized - attempt to refresh token
     if (response.status === 401) {
-      const newToken = await refreshAccessToken();
+      const newToken = await refreshAccessToken(API_URL);
       
       if (newToken) {
         // Token refreshed successfully, retry original request
@@ -150,25 +189,18 @@ const processResponse = async (response: Response) => {
       }
     }
     
-    // Get error message from response
-    let errorMessage = 'API request failed';
+    // Get user-friendly error message
+    const errorMessage = extractErrorMessage(data, response.status);
     
-    if (typeof data === 'object' && data !== null) {
-      // Handle different error response formats
-      errorMessage = data.message || data.error || errorMessage;
-      
-      // For cases where the backend returns a 404 with "No applications found"
-      // we might want to return an empty array instead of throwing an error
-      if (response.status === 404 && 
-          (errorMessage.includes('applications') || errorMessage.includes('not found'))) {
-        if (errorMessage.includes('applications')) {
-          return { applications: [] };
-        }
-        // For other "not found" resources, return appropriate empty structures
-        return { data: [] };
+    // For cases where the backend returns a 404 with "No applications found"
+    // we might want to return an empty array instead of throwing an error
+    if (response.status === 404 && 
+        (errorMessage.includes('applications') || errorMessage.includes('not found'))) {
+      if (errorMessage.includes('applications')) {
+        return { applications: [] };
       }
-    } else if (typeof data === 'string' && data.length > 0) {
-      errorMessage = data;
+      // For other "not found" resources, return appropriate empty structures
+      return { data: [] };
     }
     
     throw new ApiError(
@@ -244,7 +276,7 @@ export const apiClient = {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError(`GET request failed: ${error.message}`, 500);
+      throw new ApiError(`Lỗi kết nối: ${error.message}`, 500);
     }
   },
   
@@ -265,6 +297,7 @@ export const apiClient = {
           method: 'POST',
           headers: {
             ...getAuthHeaders(),
+            'Content-Type': 'application/json',
             ...(options.headers || {})
           },
           body: JSON.stringify(data),
@@ -285,7 +318,7 @@ export const apiClient = {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError(`POST request failed: ${error.message}`, 500);
+      throw new ApiError(`Lỗi kết nối: ${error.message}`, 500);
     }
   },
   
@@ -306,6 +339,7 @@ export const apiClient = {
           method: 'PUT',
           headers: {
             ...getAuthHeaders(),
+            'Content-Type': 'application/json',
             ...(options.headers || {})
           },
           body: JSON.stringify(data),
@@ -326,7 +360,7 @@ export const apiClient = {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError(`PUT request failed: ${error.message}`, 500);
+      throw new ApiError(`Lỗi kết nối: ${error.message}`, 500);
     }
   },
   
@@ -365,7 +399,7 @@ export const apiClient = {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError(`DELETE request failed: ${error.message}`, 500);
+      throw new ApiError(`Lỗi kết nối: ${error.message}`, 500);
     }
   },
   
@@ -380,89 +414,34 @@ export const apiClient = {
   patch: async (endpoint: string, data: any, options: RequestInit = {}): Promise<any> => {
     const url = `${API_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     
-    // Đơn giản hóa: dùng timeout cố định 8 giây
-    const timeoutMs = 8000;
-    
     try {
-      console.log(`Sending PATCH request to ${url}`, data);
-      
-      // Dùng thêm AbortController để có thể cancel request
-      const controller = new AbortController();
-      const signal = controller.signal;
-      
-      // Tự động timeout sau 8 giây
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      
-      try {
-        const response = await fetch(url, {
+      const response = await Promise.race([
+        fetch(url, {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
             ...getAuthHeaders(),
+            'Content-Type': 'application/json',
             ...(options.headers || {})
           },
           body: JSON.stringify(data),
-          signal,
           ...options
-        });
-        
-        // Xóa timeout khi đã nhận response
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new ApiError(`Server error: ${response.status}`, response.status);
-        }
-        
-        const contentType = response.headers.get('content-type');
-        const isJson = contentType && contentType.includes('application/json');
-        
-        // Nếu là JSON, parse và trả về
-        if (isJson) {
-          const result = await response.json();
-          return result;
-        }
-        
-        // Nếu không phải JSON, trả về success object với data
-        return {
-          status: 'success',
-          data: data,
-          message: 'Operation completed'
-        };
-      } catch (error) {
-        // Xóa timeout khi có lỗi
-        clearTimeout(timeoutId);
-        
-        // Kiểm tra lỗi timeout
-        if (error.name === 'AbortError') {
-          console.log('Request timed out, but data might have been saved');
-          
-          // Nếu timeout nhưng có thể server đã xử lý, trả về success
-          return {
-            status: 'success',
-            data: data,
-            message: 'Request timed out but operation may have completed'
-          };
-        }
-        
+        }),
+        timeoutPromise(API_TIMEOUT)
+      ]);
+      
+      const result = await processResponse(response);
+      
+      // If result is null, token was refreshed and we should retry
+      if (result === null) {
+        return apiClient.patch(endpoint, data, options);
+      }
+      
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError) {
         throw error;
       }
-    } catch (error) {
-      console.error('PATCH request failed:', error);
-      
-      // Trả về success cho một số lỗi kết nối vì server có thể đã xử lý
-      if (
-        error.message === 'Failed to fetch' || 
-        error.message.includes('network') ||
-        error.message.includes('connection')
-      ) {
-        return {
-          status: 'success',
-          data: data,
-          message: 'Connection error but operation may have completed'
-        };
-      }
-      
-      throw error;
+      throw new ApiError(`Lỗi kết nối: ${error.message}`, 500);
     }
   }
 }; 

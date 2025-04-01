@@ -20,6 +20,27 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Project Structure
+
+The project is organized into the following key directories:
+
+- **`/app`** - Next.js App Router pages and layouts
+- **`/components`** - Reusable UI components
+- **`/lib`** - Core functionality and API clients
+- **`/store`** - Redux state management
+- **`/types`** - TypeScript type definitions
+- **`/utils`** - Utility functions and helpers
+
+### Recent Changes
+
+The codebase has been refactored to eliminate functional overlap and improve maintainability:
+
+1. **Types Consolidation** - All type definitions are now in `/src/types`, with previous auth types moved from `/src/lib/types` to `/src/types/auth.ts`.
+
+2. **Auth Utilities** - Authentication utilities are consolidated in `/src/utils/auth.ts`, removing duplication between `api.ts` and `authHeaders.ts`.
+
+3. **Logout Handling** - Standardized logout process across the application with `useLogoutHandler` hook that directly uses the store.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -9,31 +9,9 @@ import {
 import {
   fetchProvinces,
   fetchDistrictsByProvince,
-  fetchWardsByDistrict,
-  Province,
-  District,
-  Ward
+  fetchWardsByDistrict
 } from '@/services/locationService';
-
-export interface LocationData {
-  provinceCode: string;
-  districtCode: string;
-  wardCode: string;
-  fullAddress: string;
-}
-
-interface LocationSelectorProps {
-  /** Initial location values (optional) */
-  initialLocation?: Partial<LocationData>;
-  /** Called when any location value changes */
-  onChange: (location: LocationData) => void;
-  /** Whether the selector is disabled */
-  isDisabled?: boolean;
-  /** Additional class names for the container */
-  className?: string;
-  /** Whether to show validation errors */
-  showValidation?: boolean;
-}
+import { Province, District, Ward, LocationData, LocationSelectorProps } from '@/types';
 
 export const LocationSelector = ({
   initialLocation,

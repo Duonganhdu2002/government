@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { UserType } from '@/lib/types/auth.types';
+import { UserType } from '@/types';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 // Import Medusa UI components
@@ -28,29 +28,40 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  
   const router = useRouter();
-  const { login, error } = useAuth();
+  const { login, isAuthenticated, error, loading: authLoading } = useAuth();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
+
+  // Show API errors in the form
+  useEffect(() => {
+    if (error) {
+      setFormError(error);
+    }
+  }, [error]);
 
   /**
    * Handle form submission
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     
     // Validate form inputs
     if (!username || !password) {
-      alert('Vui lòng nhập tên đăng nhập và mật khẩu');
+      setFormError('Vui lòng nhập tên đăng nhập và mật khẩu');
       return;
     }
 
     // Set loading state
     setLoading(true);
-
-    // Log login attempt
-    console.log('Attempting login with:', { 
-      username,
-      passwordLength: password.length 
-    });
 
     try {
       const success = await login({
@@ -60,13 +71,12 @@ export default function LoginPage() {
       });
 
       if (success) {
-        console.log('Login successful, redirecting to dashboard');
         router.push('/dashboard');
-      } else {
-        console.log('Login failed but no error was thrown');
       }
-    } catch (loginError) {
-      console.error('Login error:', loginError);
+      // Note: error handling is now in the useAuth hook and displayed via useEffect
+    } catch (loginError: any) {
+      // This is a fallback for any uncaught errors
+      setFormError(loginError?.message || 'Có lỗi xảy ra khi đăng nhập. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
@@ -78,6 +88,9 @@ export default function LoginPage() {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
+
+  // Determine if the form is in a loading state
+  const isFormLoading = loading || authLoading;
 
   return (
     <div className="flex justify-center">
@@ -94,9 +107,12 @@ export default function LoginPage() {
         <div className="bg-gray-50 px-8 py-6 border-t">
         
           {/* Error alert */}
-          {error && (
+          {formError && (
             <Alert variant="error" className="mb-4">
-              <Text>{error}</Text>
+              <div className="flex items-start">
+                <XMark className="text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                <Text>{formError}</Text>
+              </div>
             </Alert>
           )}
           
@@ -117,6 +133,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full"
                 style={{ borderColor: '#e5e7eb' }}
+                disabled={isFormLoading}
               />
             </div>
 
@@ -137,11 +154,13 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pr-10"
                   style={{ borderColor: '#e5e7eb' }}
+                  disabled={isFormLoading}
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={togglePasswordVisibility}
+                  disabled={isFormLoading}
                 >
                   {showPassword ? (
                     <EyeSlash className="text-gray-400" />
@@ -154,7 +173,7 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Checkbox id="remember-me" name="remember-me" />
+                <Checkbox id="remember-me" name="remember-me" disabled={isFormLoading} />
                 <Label htmlFor="remember-me" className="!mb-0 text-sm">
                   Ghi nhớ đăng nhập
                 </Label>
@@ -174,9 +193,10 @@ export default function LoginPage() {
               type="submit"
               variant="primary"
               className="w-full py-2"
-              isLoading={loading}
+              isLoading={isFormLoading}
+              disabled={isFormLoading}
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {isFormLoading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </form>
 

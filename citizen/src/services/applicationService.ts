@@ -1,21 +1,7 @@
-import { ApplicationType, SpecialApplicationType } from '@/types/application';
-import { getAuthHeaders } from '@/lib/api';
+import { ApplicationType, SpecialApplicationType, MediaFile } from '@/types';
+import { getAuthHeaders } from '@/utils/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-// Định nghĩa kiểu dữ liệu cho MediaFile
-interface MediaFile {
-  mediafileid?: number;
-  id?: number;
-  applicationid: number;
-  mimetype?: string;
-  filename?: string;
-  originalfilename?: string;
-  filesize?: number;
-  filepath?: string;
-  uploaddate?: string;
-  [key: string]: any;
-}
 
 /**
  * Lấy danh sách loại đơn

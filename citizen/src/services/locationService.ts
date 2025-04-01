@@ -1,33 +1,8 @@
 /**
  * Service for fetching location data (provinces, districts, wards) in Vietnam
  */
-import { getAuthHeaders } from '@/lib/api';
-
-export interface Province {
-  code: string;
-  name: string;
-  name_with_type: string;
-  slug: string;
-  type: string;
-}
-
-export interface District {
-  code: string;
-  name: string;
-  name_with_type: string;
-  parent_code: string;
-  slug: string;
-  type: string;
-}
-
-export interface Ward {
-  code: string;
-  name: string;
-  name_with_type: string;
-  parent_code: string;
-  slug: string;
-  type: string;
-}
+import { getAuthHeaders } from '@/utils/auth';
+import { Province, District, Ward } from '@/types';
 
 // Using a more reliable API endpoint
 const BASE_URL = 'https://vietnam-administrative-division-json-server-swart.vercel.app';

@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { getAuthHeaders } from '@/lib/api';
-import LocationSelector, { LocationData } from '@/components/LocationSelector';
+import { getAuthHeaders } from '@/utils/auth';
+import LocationSelector from '@/components/LocationSelector';
 import {
   Heading,
   Text,
@@ -19,28 +19,7 @@ import {
   DatePicker
 } from '@medusajs/ui';
 import { ChevronRight, Check, Calendar, MagnifyingGlass, Plus, ChevronLeft, Minus, X } from '@medusajs/icons';
-
-// Interface for ApplicationType
-interface ApplicationType {
-  applicationtypeid: number;
-  typename: string;
-  description: string;
-  processingtimelimit: number;
-  category?: string; // Optional category field
-  processingTimeRange?: {
-    min: number;
-    max: number;
-  };
-}
-
-// Interface for SpecialApplicationType
-interface SpecialApplicationType {
-  specialapplicationtypeid: number;
-  applicationtypeid: number;
-  typename: string;
-  processingtimelimit: number;
-  applicationtypename?: string;
-}
+import { ApplicationType, SpecialApplicationType, LocationData } from '@/types';
 
 // Application categories
 const APPLICATION_CATEGORIES: Record<string, string> = {

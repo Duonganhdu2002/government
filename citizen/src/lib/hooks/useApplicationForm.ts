@@ -4,8 +4,11 @@ import {
   ApplicationType, 
   SpecialApplicationType, 
   UploadedFile,
-  ApplicationFormData
-} from '@/types/application';
+  ApplicationFormData,
+  Province,
+  District,
+  Ward
+} from '@/types';
 import { 
   fetchApplicationTypes as fetchTypes, 
   fetchSpecialApplicationTypes as fetchSpecialTypes,
@@ -16,10 +19,7 @@ import {
 import { 
   fetchProvinces,
   fetchDistrictsByProvince,
-  fetchWardsByDistrict,
-  Province,
-  District,
-  Ward
+  fetchWardsByDistrict
 } from '@/services/locationService';
 import { createUploadedFile, validateImageFile, validateVideoFile, revokeFilePreviews } from '@/utils/fileUtils';
 

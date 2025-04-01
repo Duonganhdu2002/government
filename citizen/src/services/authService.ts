@@ -4,45 +4,13 @@
  * This module defines functions to call the authentication endpoints.
  * It uses the NEXT_PUBLIC_API_URL environment variable.
  */
-import { getAuthHeaders } from '@/lib/api';
-
-export interface RegisterData {
-  fullname: string;
-  identificationnumber: string;
-  address: string;
-  phonenumber: string;
-  email: string;
-  username: string;
-  password: string;
-  areacode: number;
-}
-
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  message: string;
-  user: {
-    id: number;
-    fullname: string;
-    identificationnumber: string;
-    address: string;
-    phonenumber: string;
-    email: string;
-    username: string;
-    areacode: number;
-  };
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface ChangePasswordData {
-  citizenid: number;
-  oldPassword: string;
-  newPassword: string;
-}
+import { getAuthHeaders } from '@/utils/auth';
+import { 
+  RegisterData, 
+  LoginCredentials, 
+  AuthResponse, 
+  ChangePasswordData 
+} from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 

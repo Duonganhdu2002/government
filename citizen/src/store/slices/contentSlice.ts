@@ -1,28 +1,29 @@
 /**
- * src/store/postsSlice.ts
+ * src/store/slices/contentSlice.ts
  *
- * This module defines the Redux slice for managing posts.
+ * Redux slice for managing content posts
  */
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { Post, CreatePostData } from '@/types';
 import {
-  Post,
-  CreatePostData,
   getAllPostsAPI,
   getPostByIdAPI,
   getPostsByCategoryIdAPI,
   createPostAPI,
   updatePostAPI,
   deletePostAPI,
-} from '@/services/postsService';
+} from '@/services/postsServices';
 
-interface PostsState {
+// Posts State Interface
+export interface PostsState {
   posts: Post[];
   selectedPost: Post | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 }
 
+// Initial state
 const initialState: PostsState = {
   posts: [],
   selectedPost: null,
@@ -30,11 +31,12 @@ const initialState: PostsState = {
   error: null,
 };
 
+// Async thunks
 export const fetchPosts = createAsyncThunk<
   Post[],
   void,
   { rejectValue: string }
->('posts/fetchPosts', async (_, { rejectWithValue }) => {
+>('content/fetchPosts', async (_, { rejectWithValue }) => {
   try {
     const data = await getAllPostsAPI();
     return data;
@@ -47,7 +49,7 @@ export const fetchPostById = createAsyncThunk<
   Post,
   number,
   { rejectValue: string }
->('posts/fetchPostById', async (id, { rejectWithValue }) => {
+>('content/fetchPostById', async (id, { rejectWithValue }) => {
   try {
     const data = await getPostByIdAPI(id);
     return data;
@@ -60,7 +62,7 @@ export const fetchPostsByCategoryId = createAsyncThunk<
   Post[],
   number,
   { rejectValue: string }
->('posts/fetchPostsByCategoryId', async (categoryId, { rejectWithValue }) => {
+>('content/fetchPostsByCategoryId', async (categoryId, { rejectWithValue }) => {
   try {
     const data = await getPostsByCategoryIdAPI(categoryId);
     return data;
@@ -73,7 +75,7 @@ export const createPost = createAsyncThunk<
   Post,
   CreatePostData,
   { rejectValue: string }
->('posts/createPost', async (postData, { rejectWithValue }) => {
+>('content/createPost', async (postData, { rejectWithValue }) => {
   try {
     const data = await createPostAPI(postData);
     return data;
@@ -86,7 +88,7 @@ export const updatePost = createAsyncThunk<
   Post,
   { id: number; postData: CreatePostData },
   { rejectValue: string }
->('posts/updatePost', async ({ id, postData }, { rejectWithValue }) => {
+>('content/updatePost', async ({ id, postData }, { rejectWithValue }) => {
   try {
     const data = await updatePostAPI(id, postData);
     return data;
@@ -99,7 +101,7 @@ export const deletePost = createAsyncThunk<
   { message: string; id: number },
   number,
   { rejectValue: string }
->('posts/deletePost', async (id, { rejectWithValue }) => {
+>('content/deletePost', async (id, { rejectWithValue }) => {
   try {
     const response = await deletePostAPI(id);
     return { message: response.message, id };
@@ -108,8 +110,9 @@ export const deletePost = createAsyncThunk<
   }
 });
 
-const postsSlice = createSlice({
-  name: 'posts',
+// Content Slice
+const contentSlice = createSlice({
+  name: 'content',
   initialState,
   reducers: {
     clearSelectedPost(state) {
@@ -164,8 +167,6 @@ const postsSlice = createSlice({
       fetchPostsByCategoryId.fulfilled,
       (state, action: PayloadAction<Post[]>) => {
         state.status = 'succeeded';
-        // Option: you may choose to assign these posts to a dedicated state property.
-        // Here we simply assign them to `posts`
         state.posts = action.payload;
         state.error = null;
       }
@@ -206,13 +207,10 @@ const postsSlice = createSlice({
       updatePost.fulfilled,
       (state, action: PayloadAction<Post>) => {
         state.status = 'succeeded';
-        state.posts = state.posts.map((post) =>
+        state.posts = state.posts.map((post: Post) =>
           post.post_id === action.payload.post_id ? action.payload : post
         );
-        if (
-          state.selectedPost &&
-          state.selectedPost.post_id === action.payload.post_id
-        ) {
+        if (state.selectedPost && state.selectedPost.post_id === action.payload.post_id) {
           state.selectedPost = action.payload;
         }
         state.error = null;
@@ -234,12 +232,9 @@ const postsSlice = createSlice({
       (state, action: PayloadAction<{ message: string; id: number }>) => {
         state.status = 'succeeded';
         state.posts = state.posts.filter(
-          (post) => post.post_id !== action.payload.id
+          (post: Post) => post.post_id !== action.payload.id
         );
-        if (
-          state.selectedPost &&
-          state.selectedPost.post_id === action.payload.id
-        ) {
+        if (state.selectedPost && state.selectedPost.post_id === action.payload.id) {
           state.selectedPost = null;
         }
         state.error = null;
@@ -253,5 +248,6 @@ const postsSlice = createSlice({
   },
 });
 
-export const { clearSelectedPost } = postsSlice.actions;
-export default postsSlice.reducer;
+// Export actions and reducer
+export const { clearSelectedPost } = contentSlice.actions;
+export const contentReducer = contentSlice.reducer; 

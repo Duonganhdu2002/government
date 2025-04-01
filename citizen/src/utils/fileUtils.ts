@@ -54,7 +54,6 @@ export const createUploadedFile = (file: File): UploadedFile => {
   return {
     file,
     preview: createFilePreview(file),
-    progress: 100
   };
 };
 

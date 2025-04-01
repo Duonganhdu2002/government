@@ -1,15 +1,9 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { ModalProps, ModalPartProps } from '@/types';
 
 // Custom Modal component
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-  className?: string;
-}
-
 const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
   // Add keydown listener for Escape key
   useEffect(() => {
@@ -60,19 +54,19 @@ const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
 };
 
 // Modal parts
-Modal.Header = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+Modal.Header = ({ children, className = "" }: ModalPartProps) => (
   <div className={`px-6 py-4 border-b border-gray-200 rounded-t-xl ${className}`}>
     {children}
   </div>
 );
 
-Modal.Body = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+Modal.Body = ({ children, className = "" }: ModalPartProps) => (
   <div className={`flex-grow overflow-auto scrollbar-hide ${className}`}>
     {children}
   </div>
 );
 
-Modal.Footer = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+Modal.Footer = ({ children, className = "" }: ModalPartProps) => (
   <div className={`px-6 py-4 border-t border-gray-200 rounded-b-xl ${className}`}>
     {children}
   </div>

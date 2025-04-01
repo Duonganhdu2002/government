@@ -1,4 +1,9 @@
 /**
+ * Types related to applications
+ */
+import { MediaAttachment } from './media';
+
+/**
  * Interface cho loại hồ sơ
  */
 export interface ApplicationType {
@@ -6,6 +11,11 @@ export interface ApplicationType {
   typename: string;
   description: string;
   processingtimelimit: number;
+  category?: string;
+  processingTimeRange?: {
+    min: number;
+    max: number;
+  };
 }
 
 /**
@@ -17,6 +27,7 @@ export interface SpecialApplicationType {
   typename: string;
   description?: string;
   processingtimelimit: number;
+  applicationtypename?: string;
 }
 
 /**
@@ -48,10 +59,50 @@ export interface ApplicationFormData {
 }
 
 /**
+ * Interface for Application Data display
+ */
+export interface ApplicationData {
+  applicationid: number;
+  title: string;
+  description?: string;
+  status: string;
+  submissiondate: string;
+  duedate?: string;
+  applicationtypename: string;
+  specialapplicationtypename?: string;
+  eventdate?: string;
+  location?: string;
+  citizenname?: string;
+  citizenid?: string;
+  citizenemail?: string;
+  citizenphone?: string;
+  citizenaddress?: string;
+  attachments?: MediaAttachment[];
+  [key: string]: any;
+}
+
+/**
+ * Interface for Print Preview Props
+ */
+export interface PrintPreviewProps {
+  application: ApplicationData;
+  onClose: () => void;
+}
+
+/**
  * Interface cho props của modal
  */
 export interface NewApplicationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (applicationId: number) => void;
+}
+
+/**
+ * Interface for Application Detail Modal Props
+ */
+export interface ApplicationDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  applicationId: number | null;
 } 

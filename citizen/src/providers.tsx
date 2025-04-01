@@ -10,8 +10,9 @@
 import React, { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { store, persistor } from '@/store/store';
+import { store, persistor } from '@/store';
 import AuthChecker from '@/components/AuthChecker';
+import RouteGuard from '@/components/RouteGuard';
 
 // Import UI providers if needed
 // import { MediaContextProvider } from 'your-ui-library';
@@ -40,8 +41,12 @@ export function Providers({ children }: ProvidersProps) {
         <PersistGate loading={null} persistor={persistor}>
           {/* Kiểm tra và khôi phục phiên đăng nhập */}
           <AuthChecker />
-          {/* Add additional providers here as needed */}
-          {children}
+          
+          {/* RouteGuard protects routes requiring authentication */}
+          <RouteGuard>
+            {/* Add additional providers here as needed */}
+            {children}
+          </RouteGuard>
         </PersistGate>
       ) : (
         // Khi ở phía server, chỉ render children mà không có PersistGate

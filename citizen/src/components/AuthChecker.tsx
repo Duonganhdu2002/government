@@ -4,34 +4,32 @@ import { FC, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 /**
- * Component kiểm tra trạng thái xác thực khi ứng dụng khởi động
+ * Component that checks authentication state when the application loads
  * 
- * Component này nên được đặt trong layout.tsx hoặc providers.tsx
- * để đảm bảo kiểm tra xác thực ngay khi ứng dụng tải
+ * This component should be placed in layout.tsx or providers.tsx
+ * to ensure authentication is checked as soon as the app loads
  */
 const AuthChecker: FC = () => {
-  const { checkAuthState, isAuthenticated } = useAuth();
+  const { checkAuthState } = useAuth();
   const hasCheckedRef = useRef(false);
 
   useEffect(() => {
-    // Đảm bảo chỉ chạy một lần
+    // Ensure this only runs once
     if (!hasCheckedRef.current) {
       const checkAuth = async () => {
-        console.log('AuthChecker: Checking authentication state...');
         try {
           await checkAuthState();
-          console.log('AuthChecker: Authentication check completed.');
+          hasCheckedRef.current = true;
         } catch (error) {
-          console.error('AuthChecker: Authentication check failed:', error);
+          console.error('Authentication check failed:', error);
         }
-        hasCheckedRef.current = true;
       };
 
       checkAuth();
     }
   }, [checkAuthState]);
 
-  // Component này không render UI nào
+  // This component doesn't render any UI
   return null;
 };
 

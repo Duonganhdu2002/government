@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { useAppSelector, useAppDispatch, updateUserProfile } from '@/store';
 import {
   Heading,
   Text,
@@ -15,7 +15,6 @@ import {
   DatePicker
 } from '@medusajs/ui';
 import { Check, ChevronRight, User, Calendar, Phone, MapPin, Pencil, Key } from '@medusajs/icons';
-import { updateUserProfile } from '@/store/authSlice';
 import { apiClient, ApiError } from '@/lib/api';
 
 // Định nghĩa kiểu dữ liệu cho thông tin người dùng

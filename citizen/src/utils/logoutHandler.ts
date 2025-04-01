@@ -6,7 +6,9 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useDispatch } from "react-redux";
+import { logout as logoutAction } from "@/store";
+import Cookies from "js-cookie";
 
 /**
  * Hook for handling user logout
@@ -14,7 +16,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
  * @returns Function to handle logout with optional redirect
  */
 export const useLogoutHandler = () => {
-  const { logout } = useAuth();
+  const dispatch = useDispatch();
   const router = useRouter();
 
   /**
@@ -24,10 +26,22 @@ export const useLogoutHandler = () => {
    */
   const handleLogout = async (redirectPath = '/login') => {
     try {
-      // Use the logout function from useAuth
-      await logout(redirectPath);
+      // Clear all auth cookies
+      Cookies.remove('accessToken');
+      Cookies.remove('refreshToken');
       
-      // The redirection is handled by useAuth.logout
+      // Dispatch logout action to clear Redux state
+      dispatch(logoutAction());
+      
+      // Clear any local storage values
+      try {
+        localStorage.removeItem('profile_fetched');
+      } catch (e) {
+        console.error("Error clearing localStorage:", e);
+      }
+      
+      // Redirect to login page
+      router.push(redirectPath);
     } catch (error) {
       console.error("Logout error:", error);
       

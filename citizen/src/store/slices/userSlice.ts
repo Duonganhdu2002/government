@@ -1,15 +1,15 @@
 /**
- * authSlice.ts
+ * src/store/slices/userSlice.ts
  * 
- * Redux slice for authentication state management
+ * Redux slice for user authentication state management
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { AuthState, CitizenUser, StaffUser, User } from '@/lib/types/auth.types';
+import { AuthState, CitizenUser, StaffUser, User } from '@/types';
 import Cookies from 'js-cookie';
 
 /**
- * Initial authentication state
+ * Initial user authentication state
  */
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -19,10 +19,10 @@ const initialState: AuthState = {
 };
 
 /**
- * Auth slice with reducers for login, logout, etc
+ * User authentication slice with reducers for login, logout, etc.
  */
-const authSlice = createSlice({
-  name: 'auth',
+const userSlice = createSlice({
+  name: 'user',
   initialState,
   reducers: {
     /**
@@ -93,6 +93,7 @@ const authSlice = createSlice({
   }
 });
 
+// Export actions
 export const { 
   setLoading, 
   setError, 
@@ -100,6 +101,7 @@ export const {
   login, 
   logout, 
   updateUserProfile 
-} = authSlice.actions;
+} = userSlice.actions;
 
-export default authSlice.reducer;
+// Export reducer
+export const userReducer = userSlice.reducer; 

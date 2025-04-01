@@ -10,79 +10,22 @@ import {
 } from '@medusajs/ui';
 import { ChevronLeft, Calendar, MapPin } from '@medusajs/icons';
 import { fetchApplicationById } from '@/services/applicationService';
+import { getMediaUrl } from '@/services/mediaService';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import Modal from './Modal';
 import PrintPreview from './PrintPreview';
-
-// Custom icons
-interface IconProps {
-  className?: string;
-}
-
-const FileTextIcon = ({ className = "" }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`w-5 h-5 ${className}`}
-  >
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
-  </svg>
-);
-
-const ImageIcon = ({ className = "" }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`w-5 h-5 ${className}`}
-  >
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-    <circle cx="8.5" cy="8.5" r="1.5" />
-    <polyline points="21 15 16 10 5 21" />
-  </svg>
-);
-
-const VideoIcon = ({ className = "" }: IconProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`w-5 h-5 ${className}`}
-  >
-    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-    <line x1="10" y1="8" x2="10" y2="16" />
-    <line x1="14" y1="8" x2="14" y2="16" />
-  </svg>
-);
+import { FileTextIcon, ImageIcon, VideoIcon } from '@/components/icons';
+import { 
+  IconProps, 
+  CardProps, 
+  CardPartProps, 
+  SpinnerProps,
+  MediaAttachment,
+  ApplicationDetailModalProps,
+  ApplicationData
+} from '@/types';
 
 // Custom Card component
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-interface CardPartProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
 const Card = ({ children, className = "" }: CardProps) => {
   return <div className={`bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow ${className}`}>{children}</div>;
 };
@@ -96,10 +39,6 @@ Card.Content = ({ children, className = "" }: CardPartProps) => {
 };
 
 // Spinner component
-interface SpinnerProps {
-  className?: string;
-}
-
 const Spinner = ({ className = "" }: SpinnerProps) => (
   <div className={`animate-spin rounded-full h-5 w-5 border-b-2 border-gray-700 ${className}`}></div>
 );
@@ -120,25 +59,6 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-// Định nghĩa kiểu cho attachment
-interface MediaAttachment {
-  mediafileid: number;
-  applicationid: number;
-  mimetype: string;
-  originalfilename: string;
-  filesize?: number;
-  uploaddate?: string;
-  filetype?: string;
-  filepath?: string;
-  [key: string]: any;
-}
-
-interface ApplicationDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  applicationId: number | null;
-}
-
 // Component MediaImage cải tiến (gộp 3 component thành 1)
 function MediaImage({
   attachment,
@@ -150,42 +70,16 @@ function MediaImage({
   className?: string;
 }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-  // Tạo URL cho media dựa vào số lần thử
-  const getMediaUrl = (): string => {
-    // Nếu đã thử 3 lần không thành công, dùng placeholder
-    if (loadAttempt >= 3) return '/placeholder-image.svg';
-
-    // 1. Thử dùng filepath chuẩn
-    if (loadAttempt === 0 && attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/')
-        ? attachment.filepath
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}`;
-    }
-
-    // 2. Thử dùng filepath với timestamp để bypass cache
-    if (loadAttempt === 1 && attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/')
-        ? attachment.filepath
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}?v=${Date.now()}`;
-    }
-
-    // 3. Thử dùng API serve
-    return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
-  };
 
   return (
     <Image
-      src={getMediaUrl()}
+      src={getMediaUrl(attachment, loadAttempt)}
       alt={alt}
       width={500}
       height={300}
       className={className || "w-full h-full object-fill"}
       onError={(e) => {
-        console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${getMediaUrl()}`);
+        console.error(`Lỗi tải media (lần ${loadAttempt + 1}): ${getMediaUrl(attachment, loadAttempt)}`);
         if (loadAttempt < 3) {
           // Thử tải lại với chiến lược khác
           setLoadAttempt(prev => prev + 1);
@@ -242,20 +136,6 @@ export default function ApplicationDetailModal({ isOpen, onClose, applicationId 
     if (Object.keys(mediaLoadErrors).length > 0) {
       fetchApplicationDetail();
     }
-  };
-
-  // Xây dựng URL cho media file
-  const getMediaUrl = (attachment: MediaAttachment): string => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    if (attachment.filepath) {
-      const cleanPath = attachment.filepath.startsWith('/')
-        ? attachment.filepath
-        : `/${attachment.filepath}`;
-      return `${API_URL}${cleanPath}`;
-    }
-
-    return `${API_URL}/api/media-files/serve/${attachment.mediafileid}`;
   };
 
   return (

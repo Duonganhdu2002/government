@@ -1,5 +1,5 @@
 /**
- * auth.types.ts
+ * auth.ts
  * 
  * Type definitions for authentication and user data
  */
@@ -79,6 +79,14 @@ export interface LoginRequest {
 }
 
 /**
+ * Login credentials used by auth service
+ */
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+/**
  * Login response payload
  */
 export interface LoginResponse {
@@ -92,6 +100,20 @@ export interface LoginResponse {
       expiresIn: string;
     }
   }
+}
+
+/**
+ * Register data used by auth service
+ */
+export interface RegisterData {
+  fullname: string;
+  identificationnumber: string;
+  address: string;
+  phonenumber: string;
+  email: string;
+  username: string;
+  password: string;
+  areacode: number;
 }
 
 /**
@@ -122,6 +144,25 @@ export interface RegisterResponse {
       expiresIn: string;
     }
   }
+}
+
+/**
+ * Auth response from service
+ */
+export interface AuthResponse {
+  message: string;
+  user: {
+    id: number;
+    fullname: string;
+    identificationnumber: string;
+    address: string;
+    phonenumber: string;
+    email: string;
+    username: string;
+    areacode: number;
+  };
+  accessToken: string;
+  refreshToken: string;
 }
 
 /**
@@ -164,6 +205,15 @@ export interface LogoutResponse {
  * Change password request payload
  */
 export interface ChangePasswordRequest {
+  citizenid: number;
+  oldPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Change password data used by auth service
+ */
+export interface ChangePasswordData {
   citizenid: number;
   oldPassword: string;
   newPassword: string;

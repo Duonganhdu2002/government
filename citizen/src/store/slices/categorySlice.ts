@@ -1,39 +1,41 @@
 /**
- * src/store/postCategoriesSlice.ts
+ * src/store/slices/categorySlice.ts
  *
- * This module defines the Redux slice for managing post categories.
+ * Redux slice for managing content categories
  */
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PostCategory, CreatePostCategoryData } from '@/types';
 import {
-  PostCategory,
-  CreatePostCategoryData,
   getAllPostCategoriesAPI,
   getPostCategoryByIdAPI,
   createPostCategoryAPI,
   updatePostCategoryAPI,
   deletePostCategoryAPI,
-} from '@/services/postCategoriesService';
+} from '@/services/postsServices';
 
-interface PostCategoriesState {
+// Category State Interface
+export interface CategoryState {
   categories: PostCategory[];
   selectedCategory: PostCategory | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 }
 
-const initialState: PostCategoriesState = {
+// Initial state
+const initialState: CategoryState = {
   categories: [],
   selectedCategory: null,
   status: 'idle',
   error: null,
 };
 
-export const fetchPostCategories = createAsyncThunk<
+// Async thunks
+export const fetchCategories = createAsyncThunk<
   PostCategory[],
   void,
   { rejectValue: string }
->('postCategories/fetchPostCategories', async (_, { rejectWithValue }) => {
+>('category/fetchCategories', async (_, { rejectWithValue }) => {
   try {
     const data = await getAllPostCategoriesAPI();
     return data;
@@ -42,11 +44,11 @@ export const fetchPostCategories = createAsyncThunk<
   }
 });
 
-export const fetchPostCategoryById = createAsyncThunk<
+export const fetchCategoryById = createAsyncThunk<
   PostCategory,
   number,
   { rejectValue: string }
->('postCategories/fetchPostCategoryById', async (id, { rejectWithValue }) => {
+>('category/fetchCategoryById', async (id, { rejectWithValue }) => {
   try {
     const data = await getPostCategoryByIdAPI(id);
     return data;
@@ -55,37 +57,37 @@ export const fetchPostCategoryById = createAsyncThunk<
   }
 });
 
-export const createPostCategory = createAsyncThunk<
+export const createCategory = createAsyncThunk<
   PostCategory,
   CreatePostCategoryData,
   { rejectValue: string }
->('postCategories/createPostCategory', async (postCategoryData, { rejectWithValue }) => {
+>('category/createCategory', async (categoryData, { rejectWithValue }) => {
   try {
-    const data = await createPostCategoryAPI(postCategoryData);
+    const data = await createPostCategoryAPI(categoryData);
     return data;
   } catch (error: any) {
     return rejectWithValue(error.message);
   }
 });
 
-export const updatePostCategory = createAsyncThunk<
+export const updateCategory = createAsyncThunk<
   PostCategory,
-  { id: number; postCategoryData: CreatePostCategoryData },
+  { id: number; categoryData: CreatePostCategoryData },
   { rejectValue: string }
->('postCategories/updatePostCategory', async ({ id, postCategoryData }, { rejectWithValue }) => {
+>('category/updateCategory', async ({ id, categoryData }, { rejectWithValue }) => {
   try {
-    const data = await updatePostCategoryAPI(id, postCategoryData);
+    const data = await updatePostCategoryAPI(id, categoryData);
     return data;
   } catch (error: any) {
     return rejectWithValue(error.message);
   }
 });
 
-export const deletePostCategory = createAsyncThunk<
+export const deleteCategory = createAsyncThunk<
   { message: string; id: number },
   number,
   { rejectValue: string }
->('postCategories/deletePostCategory', async (id, { rejectWithValue }) => {
+>('category/deleteCategory', async (id, { rejectWithValue }) => {
   try {
     const response = await deletePostCategoryAPI(id);
     return { message: response.message, id };
@@ -94,8 +96,9 @@ export const deletePostCategory = createAsyncThunk<
   }
 });
 
-const postCategoriesSlice = createSlice({
-  name: 'postCategories',
+// Category Slice
+const categorySlice = createSlice({
+  name: 'category',
   initialState,
   reducers: {
     clearSelectedCategory(state) {
@@ -103,70 +106,70 @@ const postCategoriesSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // fetch all post categories
-    builder.addCase(fetchPostCategories.pending, (state) => {
+    // fetch all categories
+    builder.addCase(fetchCategories.pending, (state) => {
       state.status = 'loading';
       state.error = null;
     });
     builder.addCase(
-      fetchPostCategories.fulfilled,
+      fetchCategories.fulfilled,
       (state, action: PayloadAction<PostCategory[]>) => {
         state.status = 'succeeded';
         state.categories = action.payload;
         state.error = null;
       }
     );
-    builder.addCase(fetchPostCategories.rejected, (state, action) => {
+    builder.addCase(fetchCategories.rejected, (state, action) => {
       state.status = 'failed';
-      state.error = action.payload || action.error.message || 'Failed to fetch post categories';
+      state.error = action.payload || action.error.message || 'Failed to fetch categories';
     });
 
-    // fetch post category by ID
-    builder.addCase(fetchPostCategoryById.pending, (state) => {
+    // fetch category by ID
+    builder.addCase(fetchCategoryById.pending, (state) => {
       state.status = 'loading';
       state.error = null;
     });
     builder.addCase(
-      fetchPostCategoryById.fulfilled,
+      fetchCategoryById.fulfilled,
       (state, action: PayloadAction<PostCategory>) => {
         state.status = 'succeeded';
         state.selectedCategory = action.payload;
         state.error = null;
       }
     );
-    builder.addCase(fetchPostCategoryById.rejected, (state, action) => {
+    builder.addCase(fetchCategoryById.rejected, (state, action) => {
       state.status = 'failed';
-      state.error = action.payload || action.error.message || 'Failed to fetch post category';
+      state.error = action.payload || action.error.message || 'Failed to fetch category';
     });
 
-    // create post category
-    builder.addCase(createPostCategory.pending, (state) => {
+    // create category
+    builder.addCase(createCategory.pending, (state) => {
       state.status = 'loading';
       state.error = null;
     });
     builder.addCase(
-      createPostCategory.fulfilled,
+      createCategory.fulfilled,
       (state, action: PayloadAction<PostCategory>) => {
         state.status = 'succeeded';
         state.categories.push(action.payload);
         state.error = null;
       }
     );
-    builder.addCase(createPostCategory.rejected, (state, action) => {
+    builder.addCase(createCategory.rejected, (state, action) => {
       state.status = 'failed';
-      state.error = action.payload || action.error.message || 'Failed to create post category';
+      state.error = action.payload || action.error.message || 'Failed to create category';
     });
 
-    // update post category
-    builder.addCase(updatePostCategory.pending, (state) => {
+    // update category
+    builder.addCase(updateCategory.pending, (state) => {
       state.status = 'loading';
       state.error = null;
     });
     builder.addCase(
-      updatePostCategory.fulfilled,
+      updateCategory.fulfilled,
       (state, action: PayloadAction<PostCategory>) => {
         state.status = 'succeeded';
-        state.categories = state.categories.map((cat) =>
+        state.categories = state.categories.map((cat: PostCategory) =>
           cat.category_id === action.payload.category_id ? action.payload : cat
         );
         if (state.selectedCategory && state.selectedCategory.category_id === action.payload.category_id) {
@@ -175,22 +178,22 @@ const postCategoriesSlice = createSlice({
         state.error = null;
       }
     );
-    builder.addCase(updatePostCategory.rejected, (state, action) => {
+    builder.addCase(updateCategory.rejected, (state, action) => {
       state.status = 'failed';
-      state.error = action.payload || action.error.message || 'Failed to update post category';
+      state.error = action.payload || action.error.message || 'Failed to update category';
     });
 
-    // delete post category
-    builder.addCase(deletePostCategory.pending, (state) => {
+    // delete category
+    builder.addCase(deleteCategory.pending, (state) => {
       state.status = 'loading';
       state.error = null;
     });
     builder.addCase(
-      deletePostCategory.fulfilled,
+      deleteCategory.fulfilled,
       (state, action: PayloadAction<{ message: string; id: number }>) => {
         state.status = 'succeeded';
         state.categories = state.categories.filter(
-          (cat) => cat.category_id !== action.payload.id
+          (cat: PostCategory) => cat.category_id !== action.payload.id
         );
         if (state.selectedCategory && state.selectedCategory.category_id === action.payload.id) {
           state.selectedCategory = null;
@@ -198,12 +201,13 @@ const postCategoriesSlice = createSlice({
         state.error = null;
       }
     );
-    builder.addCase(deletePostCategory.rejected, (state, action) => {
+    builder.addCase(deleteCategory.rejected, (state, action) => {
       state.status = 'failed';
-      state.error = action.payload || action.error.message || 'Failed to delete post category';
+      state.error = action.payload || action.error.message || 'Failed to delete category';
     });
   },
 });
 
-export const { clearSelectedCategory } = postCategoriesSlice.actions;
-export default postCategoriesSlice.reducer;
+// Export actions and reducer
+export const { clearSelectedCategory } = categorySlice.actions;
+export const categoryReducer = categorySlice.reducer; 
