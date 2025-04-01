@@ -9,7 +9,7 @@ import { FileTextIcon, CloseIcon, InfoIcon, MinusIcon, PlusIcon } from '@/compon
 const PrintPreview: React.FC<PrintPreviewProps> = ({ application, onClose }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   // Get user information from Redux store
-  const { user } = useSelector((state: any) => state.user);
+  const { user } = useSelector((state: any) => state.auth);
   const [scale, setScale] = useState<number>(0.85);
 
   // Effect to handle window resize
