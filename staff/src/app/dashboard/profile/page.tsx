@@ -73,7 +73,7 @@ export default function ProfilePage() {
         // Nested data response
         console.log('Nested data response:', response.data);
         if (Array.isArray(response.data)) {
-          const agency = response.data.find(a => Number(a.agencyid) === Number(agencyId));
+          const agency = response.data.find((a: { agencyid: any; }) => Number(a.agencyid) === Number(agencyId));
           if (agency) {
             console.log('Found agency in nested array:', agency);
             setAgencyName(agency.agencyname || agency.name || 'Không xác định');
