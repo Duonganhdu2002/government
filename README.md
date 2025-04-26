@@ -121,32 +121,6 @@ flutter run
 
 ## Thư viện hình ảnh dự án
 
-
-<p align="center">
-  <img src="./readme/z6398927764697_276f1b8ca3fd52d9279e366f7c30caf0.jpg" alt="Ảnh 10" width="500"/>
-</p>
-
-<p align="center">
-  <img src="./readme/z6398930802602_3a9996001b76fcdc6aab41eca5f10fc1.jpg" alt="Ảnh 11" width="500"/>
-</p>
-
-<p align="center">
-  <img src="./readme/z6398939497534_0b88d7f9167905ef09d8e2569ed54553.jpg" alt="Ảnh 12" width="500"/>
-</p>
-
-<p align="center">
-  <img src="./readme/z6398939497565_5fa58ca9a952ac4df63b88b92abee67f.jpg" alt="Ảnh 13" width="500"/>
-</p>
-
-<p align="center">
-  <img src="./readme/z6398939497587_4829198a33fb91800d40d5dab298150.jpg" alt="Ảnh 14" width="500"/>
-</p>
-
-<p align="center">
-  <img src="./readme/z640048598122_c9b81e9b96c3dceb4ffd119eadd0757.jpg" alt="Ảnh 15" width="500"/>
-</p>
-
-
 <p align="center">
   <img src="./readme/z6398879828930_4871a1573ace63de05997d3c91bc75bb.jpg" alt="Ảnh 1" width="500"/>
 </p>
@@ -181,4 +155,28 @@ flutter run
 
 <p align="center">
   <img src="./readme/z6398927764609_17812a80de8fdad811d927144cdee523.jpg" alt="Ảnh 9" width="500"/>
+</p>
+
+<p align="center">
+  <img src="./readme/z6398927764697_276f1b8ca3fd52d9279e366f7c30caf0.jpg" alt="Ảnh 10" width="500"/>
+</p>
+
+<p align="center">
+  <img src="./readme/z6398930802602_3a9996001b76fcdc6aab41eca5f10fc1.jpg" alt="Ảnh 11" width="500"/>
+</p>
+
+<p align="center">
+  <img src="./readme/z6398939497534_0b88d7f9167905ef09d8e2569ed54553.jpg" alt="Ảnh 12" width="500"/>
+</p>
+
+<p align="center">
+  <img src="./readme/z6398939497565_5fa58ca9a952ac4df63b88b92abee67f.jpg" alt="Ảnh 13" width="500"/>
+</p>
+
+<p align="center">
+  <img src="./readme/z6398939497587_4829198a33fb91800d40d5dab298150.jpg" alt="Ảnh 14" width="500"/>
+</p>
+
+<p align="center">
+  <img src="./readme/z640048598122_c9b81e9b96c3dceb4ffd119eadd0757.jpg" alt="Ảnh 15" width="500"/>
 </p>
